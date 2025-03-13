@@ -1,67 +1,33 @@
 import 'package:flutter/material.dart';
-import 'home_page.dart';
-import 'calendar_page.dart';
-import 'user_page.dart';
+import 'package:prueba_flutter/login_page.dart';
+import 'register.dart';  // Importa la pantalla de registre
+import 'package:firebase_core/firebase_core.dart';
 
-void main() {
-  runApp(MiApp());
+
+void main() async {
+  WidgetsFlutterBinding.ensureInitialized();
+  await Firebase.initializeApp(
+    options: FirebaseOptions(
+        apiKey: "AIzaSyDjyHcnvD1JTfN7xpkRMD-S_qDMSnvbZII",
+        authDomain: "airplan-f08be.firebaseapp.com",
+        projectId: "airplan-f08be",
+        storageBucket: "airplan-f08be.firebasestorage.app",
+        messagingSenderId: "952401482773",
+        appId: "1:952401482773:web:9f9a3484c2cce60970ea1c",
+        measurementId: "G-L70Y1N6J8Z"
+    ),
+  );
+  runApp(MyApp());
 }
 
-class MiApp extends StatelessWidget {
+class MyApp extends StatelessWidget {
+  const MyApp({super.key});
+
   @override
   Widget build(BuildContext context) {
     return MaterialApp(
-      home: MyHomePage(),
-    );
-  }
-}
-
-class MyHomePage extends StatefulWidget {
-  @override
-  _MyHomePageState createState() => _MyHomePageState();
-}
-
-class _MyHomePageState extends State<MyHomePage> {
-  int _selectedIndex = 0;
-
-  static List<Widget> _widgetOptions = <Widget>[
-    HomePage(),
-    CalendarPage(),
-    UserPage(),
-  ];
-
-  void _onItemTapped(int index) {
-    setState(() {
-      _selectedIndex = index;
-    });
-  }
-
-  @override
-  Widget build(BuildContext context) {
-    return Scaffold(
-      body: _widgetOptions.elementAt(_selectedIndex),
-      bottomNavigationBar: BottomNavigationBar(
-        items: const <BottomNavigationBarItem>[
-          BottomNavigationBarItem(
-            icon: Icon(Icons.home),
-            label: 'Home',
-          ),
-          BottomNavigationBarItem(
-            icon: Icon(Icons.calendar_today),
-            label: 'Calendar',
-          ),
-          BottomNavigationBarItem(
-            icon: Icon(Icons.person),
-            label: 'User',
-          ),
-        ],
-        currentIndex: _selectedIndex,
-        onTap: _onItemTapped,
-      ),
-      bottomSheet: Container(
-        height: 1,
-        color: Colors.grey,
-      ),
+      title: 'Flutter Firebase Auth',
+      home: LoginPage(),
     );
   }
 }
