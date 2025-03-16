@@ -8,7 +8,7 @@ class ActivityDetailsPage extends StatelessWidget {
   final Color airQualityColor;
   final bool isEditable;
 
-  ActivityDetailsPage({
+  const ActivityDetailsPage({super.key, 
     required this.title,
     required this.creator,
     required this.description,

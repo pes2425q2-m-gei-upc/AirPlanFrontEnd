@@ -7,6 +7,8 @@ const String googleApiKey = 'AIzaSyCm6JS3aQjDdzLSOckSJzw9KoFFyGePd2o';
 final places = GoogleMapsPlaces(apiKey: googleApiKey);
 
 class MapPage extends StatefulWidget {
+  const MapPage({super.key});
+
   @override
   _MapPageState createState() => _MapPageState();
 }
@@ -35,49 +37,93 @@ class _MapPageState extends State<MapPage> {
 
     final result = await places.searchNearbyWithRadius(
       Location(lat: currentPosition!.latitude, lng: currentPosition!.longitude),
-      1000,
+      1000, // 1 km radius
     );
 
-    if (result.status == "OK" && result.results.isNotEmpty) {
+    if (result.results.isNotEmpty) {
       setState(() {
-        markers.clear();
-        for (var place in result.results) {
-          final placeId = place.placeId;
-          markers.add(
-            Marker(
-              markerId: MarkerId(placeId),
-              position: LatLng(place.geometry!.location.lat, place.geometry!.location.lng),
-              infoWindow: InfoWindow(
-                title: place.name,
-                snippet: place.vicinity,
-                onTap: () => _fetchPlaceDetails(placeId),
-              ),
-            ),
+        markers = result.results.map((place) {
+          return Marker(
+            markerId: MarkerId(place.placeId),
+            position: LatLng(place.geometry!.location.lat, place.geometry!.location.lng),
+            infoWindow: InfoWindow(title: place.name),
+            onTap: () async {
+              final details = await places.getDetailsByPlaceId(place.placeId);
+              setState(() {
+                placeDetails = details;
+              });
+            },
           );
-        }
+        }).toSet();
       });
     }
-  }
-
-  Future<void> _fetchPlaceDetails(String placeId) async {
-    final details = await places.getDetailsByPlaceId(placeId);
-    setState(() {
-      placeDetails = details;
-    });
   }
 
   Future<void> _onMapTapped(LatLng position) async {
     setState(() {
       selectedLocation = position;
-      placeDetails = null;
       markers.add(
         Marker(
           markerId: MarkerId("selected"),
           position: position,
-          infoWindow: InfoWindow(
-            title: 'Selected Location',
-            snippet: 'Lat: ${position.latitude}, Lng: ${position.longitude}',
-          ),
+          onTap: () {
+            showModalBottomSheet(
+              context: context,
+              isScrollControlled: true,
+              builder: (context) {
+                return DraggableScrollableSheet(
+                  initialChildSize: 0.2,
+                  minChildSize: 0.2,
+                  maxChildSize: 1.0,
+                  expand: false,
+                  builder: (context, scrollController) {
+                    return SingleChildScrollView(
+                      controller: scrollController,
+                      child: Column(
+                        mainAxisSize: MainAxisSize.min,
+                        children: [
+                          Container(
+                            width: 40,
+                            height: 5,
+                            margin: EdgeInsets.symmetric(vertical: 10),
+                            decoration: BoxDecoration(
+                              color: Colors.grey[300],
+                              borderRadius: BorderRadius.circular(10),
+                            ),
+                          ),
+                          ListTile(
+                            title: Text('Selected Location'),
+                            subtitle: Text('Lat: ${position.latitude}, Lng: ${position.longitude}'),
+                          ),
+                          if (placeDetails != null) ...[
+                            ListTile(
+                              title: Text(placeDetails!.result.name),
+                              subtitle: Text(placeDetails?.result.formattedAddress ?? "No address available"),
+                            ),
+                            if (placeDetails?.result.rating != null)
+                              ListTile(
+                                title: Text("Rating"),
+                                subtitle: Text("${placeDetails?.result.rating} ⭐"),
+                              ),
+                            if (placeDetails?.result.formattedPhoneNumber != null)
+                              ListTile(
+                                title: Text("Phone"),
+                                subtitle: Text(placeDetails!.result.formattedPhoneNumber!),
+                              ),
+                            if (placeDetails?.result.website != null)
+                              ListTile(
+                                title: Text("Website"),
+                                subtitle: Text(placeDetails!.result.website!),
+                              ),
+                          ],
+                        ],
+                      ),
+                    );
+                  },
+                );
+              },
+            );
+          },
         ),
       );
     });
@@ -115,7 +161,7 @@ class _MapPageState extends State<MapPage> {
           GoogleMap(
             onMapCreated: _onMapCreated,
             initialCameraPosition: CameraPosition(
-              target: currentPosition ?? LatLng(41.3851, 2.1734), //Current position or Barcelona if user doesn't allow location
+              target: currentPosition ?? LatLng(41.3851, 2.1734), // Current position or Barcelona if user doesn't allow location
               zoom: 15,
             ),
             onTap: _onMapTapped,
