@@ -16,12 +16,15 @@ class _MapPageState extends State<MapPage> {
   LatLng? selectedLocation;
   String? placeDetails;
   List<Marker> markers = [];
+  List<Polygon> polygons = [];
   LatLng currentPosition = LatLng(41.3851, 2.1734); // Default to Barcelona
+  bool showAirQuality = false;
 
   @override
   void initState() {
     super.initState();
     fetchLocationUpdates();
+    fetchAirQualityData();
   }
 
   Future<void> fetchPlaceDetails(LatLng position) async {
@@ -46,7 +49,64 @@ class _MapPageState extends State<MapPage> {
     }
   }
 
-  void _onMapTapped(TapPosition p, LatLng position) async {
+  Future<void> fetchAirQualityData() async {
+    /*
+    final url = Uri.parse('https://api.example.com/air_quality');
+
+    try {
+      final response = await http.get(url);
+
+      if (response.statusCode == 200) {
+        final data = json.decode(response.body);
+        setState(() {
+          polygons = createPolygonsFromAirQualityData(data);
+        });
+      } else {
+        throw Exception('Failed to load air quality data');
+      }
+    } catch (e) {
+      print("Error fetching air quality data: $e");
+    }
+    */
+  }
+
+  List<Polygon> createPolygonsFromAirQualityData(dynamic data) {
+    // Example function to create polygons based on air quality data
+    // This should be adapted to your specific data structure
+    List<Polygon> polygons = [];
+    for (var area in data['areas']) {
+      List<LatLng> points = [];
+      for (var point in area['points']) {
+        points.add(LatLng(point['lat'], point['lng']));
+      }
+      Color color = getColorForAirQuality(area['aqi']);
+      polygons.add(Polygon(
+        points: points,
+        color: color.withOpacity(0.5),
+        borderColor: color,
+        borderStrokeWidth: 2.0,
+      ));
+    }
+    return polygons;
+  }
+
+  Color getColorForAirQuality(int aqi) {
+    if (aqi <= 50) {
+      return Colors.green;
+    } else if (aqi <= 100) {
+      return Colors.yellow;
+    } else if (aqi <= 150) {
+      return Colors.orange;
+    } else if (aqi <= 200) {
+      return Colors.red;
+    } else if (aqi <= 300) {
+      return Colors.purple;
+    } else {
+      return Colors.brown;
+    }
+  }
+
+  void _addMarker(LatLng position) async {
     setState(() {
       selectedLocation = position;
       markers = [
@@ -58,6 +118,20 @@ class _MapPageState extends State<MapPage> {
     });
     await fetchPlaceDetails(position);
     _showPlaceDetails();
+  }
+
+  void _onMapTapped(TapPosition p, LatLng position) {
+    _addMarker(position);
+  }
+
+  void _onButtonPressed() {
+    _addMarker(currentPosition);
+  }
+
+  void _toggleAirQuality() {
+    setState(() {
+      showAirQuality = !showAirQuality;
+    });
   }
 
   void _showPlaceDetails() {
@@ -130,10 +204,23 @@ class _MapPageState extends State<MapPage> {
                 urlTemplate: "https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png",
                 subdomains: ['a', 'b', 'c'],
               ),
+              if (showAirQuality) PolygonLayer(polygons: polygons),
               MarkerLayer(markers: markers),
             ],
           ),
+          Positioned(
+            top: 16,
+            right: 16,
+            child: FloatingActionButton(
+              onPressed: _toggleAirQuality,
+              child: Icon(showAirQuality ? Icons.visibility_off : Icons.visibility),
+            ),
+          ),
         ],
+      ),
+      floatingActionButton: FloatingActionButton(
+        onPressed: _onButtonPressed,
+        child: Icon(Icons.add_location),
       ),
     );
   }
