@@ -50,8 +50,7 @@ class _MapPageState extends State<MapPage> {
   }
 
   Future<void> fetchAirQualityData() async {
-    /*
-    final url = Uri.parse('https://api.example.com/air_quality');
+    final url = Uri.parse('https://analisi.transparenciacatalunya.cat/resource/tasf-thgu.json');
 
     try {
       final response = await http.get(url);
@@ -67,27 +66,50 @@ class _MapPageState extends State<MapPage> {
     } catch (e) {
       print("Error fetching air quality data: $e");
     }
-    */
   }
 
   List<Polygon> createPolygonsFromAirQualityData(dynamic data) {
-    // Example function to create polygons based on air quality data
-    // This should be adapted to your specific data structure
     List<Polygon> polygons = [];
-    for (var area in data['areas']) {
+
+    for (var entry in data) {
       List<LatLng> points = [];
-      for (var point in area['points']) {
-        points.add(LatLng(point['lat'], point['lng']));
-      }
-      Color color = getColorForAirQuality(area['aqi']);
+      points.addAll([
+        LatLng(double.parse(entry['latitud']) + 0.00045, double.parse(entry['longitud']) + 0.00045),
+        LatLng(double.parse(entry['latitud']) + 0.00045, double.parse(entry['longitud']) - 0.00045),
+        LatLng(double.parse(entry['latitud']) - 0.00045, double.parse(entry['longitud']) - 0.00045),
+        LatLng(double.parse(entry['latitud']) - 0.00045, double.parse(entry['longitud']) + 0.00045),
+      ]);
+
+      int aqi = getLastAirQualityIndex(entry);
+
+      Color color = getColorForAirQuality(aqi);
+
       polygons.add(Polygon(
         points: points,
-        color: color.withOpacity(0.5),
+        color: color,
         borderColor: color,
         borderStrokeWidth: 2.0,
       ));
     }
+
     return polygons;
+  }
+
+  int getLastAirQualityIndex(Map<String, dynamic> entry) {
+    int maxHour = 0;
+    int aqi = 0;
+
+    entry.forEach((key, value) {
+      if (key.startsWith('h')) {
+        int hour = int.tryParse(key.substring(1)) ?? 0;
+        if (hour > maxHour) {
+          maxHour = hour;
+          aqi = int.tryParse(value) ?? 0;
+        }
+      }
+    });
+
+    return aqi;
   }
 
   Color getColorForAirQuality(int aqi) {
