@@ -10,7 +10,7 @@ class ActivityDetailsPage extends StatelessWidget {
   final String endDate;
   final bool isEditable;
 
-  ActivityDetailsPage({
+  const ActivityDetailsPage({super.key, 
     required this.title,
     required this.creator,
     required this.description,

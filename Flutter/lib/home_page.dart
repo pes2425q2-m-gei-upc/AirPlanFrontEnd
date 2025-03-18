@@ -4,12 +4,14 @@ import 'activity_details_page.dart';
 import 'package:intl/intl.dart';
 
 class HomePage extends StatefulWidget {
+  const HomePage({super.key});
+
   @override
   _HomePageState createState() => _HomePageState();
 }
 
 class _HomePageState extends State<HomePage> {
-  List<List<Map<String, String>>> _grid = List.generate(10, (_) => List.generate(10, (_) => {}));
+  final List<List<Map<String, String>>> _grid = List.generate(10, (_) => List.generate(10, (_) => {}));
   String _title = '';
   String _creator = '';
   String _description = '';
@@ -330,7 +332,7 @@ class FormDialog extends StatefulWidget {
   final String initialStartDate;
   final String initialEndDate;
 
-  FormDialog({
+  const FormDialog({super.key, 
     this.initialLocation = '',
     this.initialTitle = '',
     this.initialUser = '',
