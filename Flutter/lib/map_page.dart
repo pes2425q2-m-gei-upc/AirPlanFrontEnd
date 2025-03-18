@@ -16,9 +16,9 @@ class _MapPageState extends State<MapPage> {
   LatLng? selectedLocation;
   String? placeDetails;
   List<Marker> markers = [];
-  List<Polygon> polygons = [];
+  List<CircleMarker> circles = [];
   LatLng currentPosition = LatLng(41.3851, 2.1734); // Default to Barcelona
-  bool showAirQuality = false;
+  bool showAirQuality = true;
 
   @override
   void initState() {
@@ -58,7 +58,7 @@ class _MapPageState extends State<MapPage> {
       if (response.statusCode == 200) {
         final data = json.decode(response.body);
         setState(() {
-          polygons = createPolygonsFromAirQualityData(data);
+          circles = createCirclesFromAirQualityData(data);
         });
       } else {
         throw Exception('Failed to load air quality data');
@@ -68,31 +68,24 @@ class _MapPageState extends State<MapPage> {
     }
   }
 
-  List<Polygon> createPolygonsFromAirQualityData(dynamic data) {
-    List<Polygon> polygons = [];
+  List<CircleMarker> createCirclesFromAirQualityData(dynamic data) {
+    List<CircleMarker> circles = [];
 
     for (var entry in data) {
-      List<LatLng> points = [];
-      points.addAll([
-        LatLng(double.parse(entry['latitud']) + 0.00045, double.parse(entry['longitud']) + 0.00045),
-        LatLng(double.parse(entry['latitud']) + 0.00045, double.parse(entry['longitud']) - 0.00045),
-        LatLng(double.parse(entry['latitud']) - 0.00045, double.parse(entry['longitud']) - 0.00045),
-        LatLng(double.parse(entry['latitud']) - 0.00045, double.parse(entry['longitud']) + 0.00045),
-      ]);
-
+      LatLng position = LatLng(double.parse(entry['latitud']), double.parse(entry['longitud']));
       int aqi = getLastAirQualityIndex(entry);
-
       Color color = getColorForAirQuality(aqi);
 
-      polygons.add(Polygon(
-        points: points,
+      circles.add(CircleMarker(
+        point: position,
         color: color,
-        borderColor: color,
         borderStrokeWidth: 2.0,
+        borderColor: color,
+        radius: 20, // Radius in pixels
       ));
     }
 
-    return polygons;
+    return circles;
   }
 
   int getLastAirQualityIndex(Map<String, dynamic> entry) {
@@ -223,10 +216,9 @@ class _MapPageState extends State<MapPage> {
             ),
             children: [
               TileLayer(
-                urlTemplate: "https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png",
-                subdomains: ['a', 'b', 'c'],
+                urlTemplate: "https://tile.openstreetmap.org/{z}/{x}/{y}.png",
               ),
-              if (showAirQuality) PolygonLayer(polygons: polygons),
+              if (showAirQuality) CircleLayer(circles: circles),
               MarkerLayer(markers: markers),
             ],
           ),
