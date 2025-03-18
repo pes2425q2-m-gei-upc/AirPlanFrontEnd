@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'dart:math';
 import 'activity_details_page.dart';
+import 'package:intl/intl.dart';
 
 class HomePage extends StatefulWidget {
   @override
@@ -13,6 +14,8 @@ class _HomePageState extends State<HomePage> {
   String _creator = '';
   String _description = '';
   String _airQuality = '';
+  String _startDate = '';
+  String _endDate = '';
   Color _airQualityColor = Colors.lightBlue;
   bool _showDetails = false;
   int _selectedX = -1;
@@ -44,6 +47,8 @@ class _HomePageState extends State<HomePage> {
           'description': '',
           'airQuality': airQuality['label'],
           'color': airQuality['color'].value.toString(),
+          'startDate': '',
+          'endDate': '',
         };
       }
     }
@@ -60,6 +65,8 @@ class _HomePageState extends State<HomePage> {
             initialTitle: x != null && y != null ? _grid[x][y]['title'] ?? '' : '',
             initialUser: x != null && y != null ? _grid[x][y]['creator'] ?? '' : '',
             initialDescription: x != null && y != null ? _grid[x][y]['description'] ?? '' : '',
+            initialStartDate: x != null && y != null ? _grid[x][y]['startDate'] ?? '' : '',
+            initialEndDate: x != null && y != null ? _grid[x][y]['endDate'] ?? '' : '',
           ),
         );
       },
@@ -75,6 +82,8 @@ class _HomePageState extends State<HomePage> {
           'description': result['description']!,
           'airQuality': _grid[x][y]['airQuality']!,
           'color': _grid[x][y]['color']!,
+          'startDate': result['startDate']!,
+          'endDate': result['endDate']!,
         };
       });
     }
@@ -109,6 +118,8 @@ class _HomePageState extends State<HomePage> {
           'description': '',
           'airQuality': _grid[x][y]['airQuality']!,
           'color': _grid[x][y]['color']!,
+          'startDate': '',
+          'endDate': '',
         };
         _showDetails = false;
       });
@@ -125,6 +136,8 @@ class _HomePageState extends State<HomePage> {
           description: _description,
           airQuality: _airQuality,
           airQualityColor: _airQualityColor,
+          startDate: _startDate,
+          endDate: _endDate,
           isEditable: true,
         ),
       ),
@@ -163,6 +176,8 @@ class _HomePageState extends State<HomePage> {
                                         _description = _grid[x][y]['description'] ?? '';
                                         _airQuality = _grid[x][y]['airQuality'] ?? '';
                                         _airQualityColor = Color(int.parse(_grid[x][y]['color']!));
+                                        _startDate = _grid[x][y]['startDate'] ?? '';
+                                        _endDate = _grid[x][y]['endDate'] ?? '';
                                         _showDetails = true;
                                         _selectedX = x;
                                         _selectedY = y;
@@ -312,12 +327,16 @@ class FormDialog extends StatefulWidget {
   final String initialTitle;
   final String initialUser;
   final String initialDescription;
+  final String initialStartDate;
+  final String initialEndDate;
 
   FormDialog({
     this.initialLocation = '',
     this.initialTitle = '',
     this.initialUser = '',
     this.initialDescription = '',
+    this.initialStartDate = '',
+    this.initialEndDate = '',
   });
 
   @override
@@ -330,6 +349,8 @@ class _FormDialogState extends State<FormDialog> {
   final _userController = TextEditingController();
   final _titleController = TextEditingController();
   final _descriptionController = TextEditingController();
+  final _startDateController = TextEditingController();
+  final _endDateController = TextEditingController();
 
   @override
   void initState() {
@@ -338,6 +359,35 @@ class _FormDialogState extends State<FormDialog> {
     _userController.text = widget.initialUser;
     _titleController.text = widget.initialTitle;
     _descriptionController.text = widget.initialDescription;
+    _startDateController.text = widget.initialStartDate;
+    _endDateController.text = widget.initialEndDate;
+  }
+
+  Future<void> _selectDateTime(TextEditingController controller) async {
+    DateTime? pickedDate = await showDatePicker(
+      context: context,
+      initialDate: DateTime.now(),
+      firstDate: DateTime(2000),
+      lastDate: DateTime(2101),
+    );
+
+    if (pickedDate != null) {
+      TimeOfDay? pickedTime = await showTimePicker(
+        context: context,
+        initialTime: TimeOfDay.now(),
+      );
+
+      if (pickedTime != null) {
+        final DateTime fullDateTime = DateTime(
+          pickedDate.year,
+          pickedDate.month,
+          pickedDate.day,
+          pickedTime.hour,
+          pickedTime.minute,
+        );
+        controller.text = DateFormat('yyyy-MM-dd HH:mm').format(fullDateTime);
+      }
+    }
   }
 
   @override
@@ -387,6 +437,38 @@ class _FormDialogState extends State<FormDialog> {
               return null;
             },
           ),
+          TextFormField(
+            controller: _startDateController,
+            decoration: InputDecoration(
+              labelText: 'Start Date and Time',
+              suffixIcon: IconButton(
+                icon: Icon(Icons.calendar_today),
+                onPressed: () => _selectDateTime(_startDateController),
+              ),
+            ),
+            validator: (value) {
+              if (value == null || value.isEmpty) {
+                return 'Please enter a start date and time';
+              }
+              return null;
+            },
+          ),
+          TextFormField(
+            controller: _endDateController,
+            decoration: InputDecoration(
+              labelText: 'End Date and Time',
+              suffixIcon: IconButton(
+                icon: Icon(Icons.calendar_today),
+                onPressed: () => _selectDateTime(_endDateController),
+              ),
+            ),
+            validator: (value) {
+              if (value == null || value.isEmpty) {
+                return 'Please enter an end date and time';
+              }
+              return null;
+            },
+          ),
           SizedBox(height: 20),
           ElevatedButton(
             onPressed: () {
@@ -396,6 +478,8 @@ class _FormDialogState extends State<FormDialog> {
                   'user': _userController.text,
                   'title': _titleController.text,
                   'description': _descriptionController.text,
+                  'startDate': _startDateController.text,
+                  'endDate': _endDateController.text,
                 });
               }
             },

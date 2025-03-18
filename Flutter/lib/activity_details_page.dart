@@ -6,6 +6,8 @@ class ActivityDetailsPage extends StatelessWidget {
   final String description;
   final String airQuality;
   final Color airQualityColor;
+  final String startDate;
+  final String endDate;
   final bool isEditable;
 
   ActivityDetailsPage({
@@ -14,6 +16,8 @@ class ActivityDetailsPage extends StatelessWidget {
     required this.description,
     required this.airQuality,
     required this.airQualityColor,
+    required this.startDate,
+    required this.endDate,
     required this.isEditable,
   });
 
@@ -54,6 +58,28 @@ class ActivityDetailsPage extends StatelessWidget {
                     fontWeight: FontWeight.bold,
                     fontSize: 16,
                   ),
+                ),
+              ],
+            ),
+            SizedBox(height: 16),
+            Row(
+              children: [
+                Icon(Icons.calendar_today),
+                SizedBox(width: 8),
+                Text(
+                  'Start: $startDate',
+                  style: TextStyle(fontSize: 16),
+                ),
+              ],
+            ),
+            SizedBox(height: 8),
+            Row(
+              children: [
+                Icon(Icons.calendar_today),
+                SizedBox(width: 8),
+                Text(
+                  'End: $endDate',
+                  style: TextStyle(fontSize: 16),
                 ),
               ],
             ),
