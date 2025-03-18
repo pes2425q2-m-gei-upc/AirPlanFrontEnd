@@ -16,9 +16,9 @@ class _MapPageState extends State<MapPage> {
   LatLng? selectedLocation;
   String? placeDetails;
   List<Marker> markers = [];
-  List<Polygon> polygons = [];
+  List<CircleMarker> circles = [];
   LatLng currentPosition = LatLng(41.3851, 2.1734); // Default to Barcelona
-  bool showAirQuality = false;
+  bool showAirQuality = true;
 
   @override
   void initState() {
@@ -50,8 +50,7 @@ class _MapPageState extends State<MapPage> {
   }
 
   Future<void> fetchAirQualityData() async {
-    /*
-    final url = Uri.parse('https://api.example.com/air_quality');
+    final url = Uri.parse('https://analisi.transparenciacatalunya.cat/resource/tasf-thgu.json');
 
     try {
       final response = await http.get(url);
@@ -59,7 +58,7 @@ class _MapPageState extends State<MapPage> {
       if (response.statusCode == 200) {
         final data = json.decode(response.body);
         setState(() {
-          polygons = createPolygonsFromAirQualityData(data);
+          circles = createCirclesFromAirQualityData(data);
         });
       } else {
         throw Exception('Failed to load air quality data');
@@ -67,27 +66,43 @@ class _MapPageState extends State<MapPage> {
     } catch (e) {
       print("Error fetching air quality data: $e");
     }
-    */
   }
 
-  List<Polygon> createPolygonsFromAirQualityData(dynamic data) {
-    // Example function to create polygons based on air quality data
-    // This should be adapted to your specific data structure
-    List<Polygon> polygons = [];
-    for (var area in data['areas']) {
-      List<LatLng> points = [];
-      for (var point in area['points']) {
-        points.add(LatLng(point['lat'], point['lng']));
-      }
-      Color color = getColorForAirQuality(area['aqi']);
-      polygons.add(Polygon(
-        points: points,
-        color: color.withOpacity(0.5),
-        borderColor: color,
+  List<CircleMarker> createCirclesFromAirQualityData(dynamic data) {
+    List<CircleMarker> circles = [];
+
+    for (var entry in data) {
+      LatLng position = LatLng(double.parse(entry['latitud']), double.parse(entry['longitud']));
+      int aqi = getLastAirQualityIndex(entry);
+      Color color = getColorForAirQuality(aqi);
+
+      circles.add(CircleMarker(
+        point: position,
+        color: color,
         borderStrokeWidth: 2.0,
+        borderColor: color,
+        radius: 20, // Radius in pixels
       ));
     }
-    return polygons;
+
+    return circles;
+  }
+
+  int getLastAirQualityIndex(Map<String, dynamic> entry) {
+    int maxHour = 0;
+    int aqi = 0;
+
+    entry.forEach((key, value) {
+      if (key.startsWith('h')) {
+        int hour = int.tryParse(key.substring(1)) ?? 0;
+        if (hour > maxHour) {
+          maxHour = hour;
+          aqi = int.tryParse(value) ?? 0;
+        }
+      }
+    });
+
+    return aqi;
   }
 
   Color getColorForAirQuality(int aqi) {
@@ -201,10 +216,9 @@ class _MapPageState extends State<MapPage> {
             ),
             children: [
               TileLayer(
-                urlTemplate: "https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png",
-                subdomains: ['a', 'b', 'c'],
+                urlTemplate: "https://tile.openstreetmap.org/{z}/{x}/{y}.png",
               ),
-              if (showAirQuality) PolygonLayer(polygons: polygons),
+              if (showAirQuality) CircleLayer(circles: circles),
               MarkerLayer(markers: markers),
             ],
           ),
