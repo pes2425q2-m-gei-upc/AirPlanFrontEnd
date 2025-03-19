@@ -1,8 +1,10 @@
 import 'package:flutter/material.dart';
+import 'dart:convert'; // Para usar jsonEncode
 import 'package:latlong2/latlong.dart';
 import 'dart:math';
 import 'activity_details_page.dart';
 import 'package:intl/intl.dart';
+import 'package:http/http.dart' as http; // Importar el paquete http
 
 class HomePage extends StatefulWidget {
   const HomePage({super.key});
@@ -12,7 +14,7 @@ class HomePage extends StatefulWidget {
 }
 
 class _HomePageState extends State<HomePage> {
-  final List<List<Map<String, String>>> _grid = List.generate(10, (_) => List.generate(10, (_) => {}));
+  List<List<Map<String, dynamic>>> _grid = List.generate(10, (_) => List.generate(10, (_) => {}));
   String _title = '';
   String _creator = '';
   String _description = '';
@@ -37,6 +39,7 @@ class _HomePageState extends State<HomePage> {
   void initState() {
     super.initState();
     _assignRandomAirQuality();
+    _loadActivities();
   }
 
   void _assignRandomAirQuality() {
@@ -54,6 +57,52 @@ class _HomePageState extends State<HomePage> {
           'endDate': '',
         };
       }
+    }
+  }
+
+  Future<void> _loadActivities() async {
+    try {
+      final actividades = await fetchActivities();
+      _updateGridWithActivities(actividades);
+    } catch (e) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(content: Text('Error al cargar las actividades: $e')),
+      );
+    }
+  }
+
+  void _updateGridWithActivities(List<Map<String, dynamic>> actividades) {
+    setState(() {
+      // No reiniciar la cuadrícula, solo actualizar las celdas necesarias
+      for (final actividad in actividades) {
+        final ubicacio = actividad['ubicacio'] as Map<String, dynamic>;
+        final x = ubicacio['latitud'] as int;
+        final y = ubicacio['longitud'] as int;
+
+        _grid[x][y] = {
+          'id': actividad['id'],
+          'title': actividad['nom'],
+          'creator': actividad['creador'],
+          'description': actividad['descripcio'],
+          'startDate': actividad['dataInici'],
+          'endDate': actividad['dataFi'],
+          'airQuality': _grid[x][y]['airQuality'],
+          'color': _grid[x][y]['color'] ?? Colors.lightBlue.value.toString(),
+        };
+      }
+    });
+  }
+
+  Future<List<Map<String, dynamic>>> fetchActivities() async {
+    final url = Uri.parse('http://localhost:8080/api/activitats'); // Reemplaza con la URL de tu backend
+    final response = await http.get(url);
+
+    if (response.statusCode == 200) {
+      // Decodificar el JSON y devolver la lista de actividades
+      final List<dynamic> data = jsonDecode(response.body);
+      return data.cast<Map<String, dynamic>>();
+    } else {
+      throw Exception('Error al cargar las actividades');
     }
   }
 
@@ -83,12 +132,66 @@ class _HomePageState extends State<HomePage> {
           'title': result['title']!,
           'creator': result['user']!,
           'description': result['description']!,
-          'airQuality': _grid[x][y]['airQuality']!,
-          'color': _grid[x][y]['color']!,
+          'airQuality': _grid[x][y]['airQuality'] ?? 'Excel·lent',
+          'color': _grid[x][y]['color'] ?? Colors.lightBlue.value.toString(),
           'startDate': result['startDate']!,
           'endDate': result['endDate']!,
         };
       });
+
+      // Enviar la solicitud POST al backend
+      _sendActivityToBackend(result);
+    }
+  }
+
+  Future<void> _sendActivityToBackend(Map<String, String> activityData) async {
+    final url = Uri.parse('http://localhost:8080/api/activitats/crear'); // Reemplaza con la URL de tu backend
+
+    // Convertir la ubicación de "x,y" a un objeto JSON
+    final ubicacioParts = activityData['location']!.split(',');
+    final ubicacio = <String, int>{
+      'latitud': int.parse(ubicacioParts[0]), // Convertir a int
+      'longitud': int.parse(ubicacioParts[1]), // Convertir a int
+    };
+
+    // Formatear las fechas en formato ISO 8601
+    final dateFormat = DateFormat("yyyy-MM-dd'T'HH:mm:ss");
+    final dataInici = dateFormat.format(DateTime.parse(activityData['startDate']!));
+    final dataFi = dateFormat.format(DateTime.parse(activityData['endDate']!));
+
+    // Construir el cuerpo de la solicitud
+    final body = <String, dynamic>{
+      'id': '1', // Puedes generar un ID único o dejar que el backend lo genere
+      'nom': activityData['title']!,
+      'descripcio': activityData['description']!,
+      'ubicacio': ubicacio, // Ahora es un Map<String, int>
+      'dataInici': dataInici, // Fecha en formato ISO 8601
+      'dataFi': dataFi, // Fecha en formato ISO 8601
+      'creador': activityData['user']!,
+    };
+
+    final response = await http.post(
+      url,
+      headers: <String, String>{
+        'Content-Type': 'application/json; charset=UTF-8',
+      },
+      body: jsonEncode(body), // Codificar el mapa a JSON
+    );
+
+    if (response.statusCode == 201) {
+      // La actividad se creó exitosamente en el backend
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(content: Text('Actividad creada exitosamente')),
+      );
+
+      // Obtener la lista actualizada de actividades
+      final actividades = await fetchActivities();
+      _updateGridWithActivities(actividades);
+    } else {
+      // Hubo un error al crear la actividad
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(content: Text('Error al crear la actividad: ${response.body}')),
+      );
     }
   }
 
@@ -119,32 +222,14 @@ class _HomePageState extends State<HomePage> {
           'title': '',
           'creator': '',
           'description': '',
-          'airQuality': _grid[x][y]['airQuality']!,
-          'color': _grid[x][y]['color']!,
+          'airQuality': _grid[x][y]['airQuality'] ?? 'Excel·lent',
+          'color': _grid[x][y]['color'] ?? Colors.lightBlue.value.toString(),
           'startDate': '',
           'endDate': '',
         };
         _showDetails = false;
       });
     }
-  }
-
-  void _showActivityDetails() {
-    Navigator.push(
-      context,
-      MaterialPageRoute(
-        builder: (context) => ActivityDetailsPage(
-          title: _title,
-          creator: _creator,
-          description: _description,
-          airQuality: _airQuality,
-          airQualityColor: _airQualityColor,
-          startDate: _startDate,
-          endDate: _endDate,
-          isEditable: true,
-        ),
-      ),
-    );
   }
 
   @override
@@ -172,7 +257,7 @@ class _HomePageState extends State<HomePage> {
                               children: List.generate(10, (x) {
                                 return GestureDetector(
                                   onTap: () {
-                                    if (_grid[x][y]['title']!.isNotEmpty) {
+                                    if (_grid[x][y]['title'] != null && _grid[x][y]['title']!.isNotEmpty) {
                                       setState(() {
                                         _title = _grid[x][y]['title'] ?? '';
                                         _creator = _grid[x][y]['creator'] ?? '';
@@ -185,6 +270,24 @@ class _HomePageState extends State<HomePage> {
                                         _selectedX = x;
                                         _selectedY = y;
                                       });
+
+                                      // Navegar a la página de detalles de la actividad
+                                      Navigator.push(
+                                        context,
+                                        MaterialPageRoute(
+                                          builder: (context) => ActivityDetailsPage(
+                                            id: _grid[x][y]['id'], // Pasar el ID de la actividad
+                                            title: _grid[x][y]['title'] ?? '',
+                                            creator: _grid[x][y]['creator'] ?? '',
+                                            description: _grid[x][y]['description'] ?? '',
+                                            startDate: _grid[x][y]['startDate'] ?? '',
+                                            endDate: _grid[x][y]['endDate'] ?? '',
+                                            airQuality: _grid[x][y]['airQuality'] ?? '',
+                                            airQualityColor: Color(int.parse(_grid[x][y]['color']!)),
+                                            isEditable: false,
+                                          ),
+                                        ),
+                                      );
                                     }
                                   },
                                   child: Container(
@@ -193,7 +296,7 @@ class _HomePageState extends State<HomePage> {
                                     margin: EdgeInsets.all(1),
                                     color: Color(int.parse(_grid[x][y]['color']!)),
                                     child: Center(
-                                      child: _grid[x][y]['title']!.isNotEmpty
+                                      child: _grid[x][y]['title'] != null && _grid[x][y]['title']!.isNotEmpty
                                           ? Icon(Icons.location_on, color: Colors.red)
                                           : null,
                                     ),
@@ -237,7 +340,24 @@ class _HomePageState extends State<HomePage> {
                 child: Column(
                   children: [
                     GestureDetector(
-                      onTap: _showActivityDetails,
+                      onTap: () {
+                        Navigator.push(
+                          context,
+                          MaterialPageRoute(
+                            builder: (context) => ActivityDetailsPage(
+                              id: _grid[_selectedX][_selectedY]['id'],
+                              title: _title,
+                              creator: _creator,
+                              description: _description,
+                              startDate: _startDate,
+                              endDate: _endDate,
+                              airQuality: _airQuality,
+                              airQualityColor: _airQualityColor,
+                              isEditable: true,
+                            ),
+                          ),
+                        );
+                      },
                       child: Row(
                         children: [
                           Icon(Icons.event),
@@ -351,6 +471,7 @@ class FormDialog extends StatefulWidget {
 
 class _FormDialogState extends State<FormDialog> {
   final _formKey = GlobalKey<FormState>();
+  final _locationController = TextEditingController();
   final _userController = TextEditingController();
   final _titleController = TextEditingController();
   final _descriptionController = TextEditingController();
@@ -361,6 +482,7 @@ class _FormDialogState extends State<FormDialog> {
   @override
   void initState() {
     super.initState();
+    _locationController.text = widget.initialLocation;
     _userController.text = widget.initialUser;
     _titleController.text = widget.initialTitle;
     _descriptionController.text = widget.initialDescription;
