@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:latlong2/latlong.dart';
 import 'dart:math';
 import 'activity_details_page.dart';
 import 'package:intl/intl.dart';
@@ -68,7 +69,7 @@ class _HomePageState extends State<HomePage> {
             initialUser: x != null && y != null ? _grid[x][y]['creator'] ?? '' : '',
             initialDescription: x != null && y != null ? _grid[x][y]['description'] ?? '' : '',
             initialStartDate: x != null && y != null ? _grid[x][y]['startDate'] ?? '' : '',
-            initialEndDate: x != null && y != null ? _grid[x][y]['endDate'] ?? '' : '',
+            initialEndDate: x != null && y != null ? _grid[x][y]['endDate'] ?? '' : '', savedLocations: {},
           ),
         );
       },
@@ -325,20 +326,23 @@ class SphereWithCrossPainter extends CustomPainter {
 }
 
 class FormDialog extends StatefulWidget {
-  final String initialLocation;
+  final String initialPlaceDetails;
   final String initialTitle;
   final String initialUser;
   final String initialDescription;
   final String initialStartDate;
   final String initialEndDate;
+  final Map<LatLng,String> savedLocations;
 
-  const FormDialog({super.key, 
-    this.initialLocation = '',
+  const FormDialog({
+    super.key,
+    this.initialPlaceDetails = '',
     this.initialTitle = '',
     this.initialUser = '',
     this.initialDescription = '',
     this.initialStartDate = '',
     this.initialEndDate = '',
+    required this.savedLocations, required String initialLocation,
   });
 
   @override
@@ -347,22 +351,24 @@ class FormDialog extends StatefulWidget {
 
 class _FormDialogState extends State<FormDialog> {
   final _formKey = GlobalKey<FormState>();
-  final _locationController = TextEditingController();
   final _userController = TextEditingController();
   final _titleController = TextEditingController();
   final _descriptionController = TextEditingController();
   final _startDateController = TextEditingController();
   final _endDateController = TextEditingController();
+  LatLng _selectedLocation = LatLng(0, 0);
 
   @override
   void initState() {
     super.initState();
-    _locationController.text = widget.initialLocation;
     _userController.text = widget.initialUser;
     _titleController.text = widget.initialTitle;
     _descriptionController.text = widget.initialDescription;
     _startDateController.text = widget.initialStartDate;
     _endDateController.text = widget.initialEndDate;
+    if (widget.savedLocations.isNotEmpty) {
+      _selectedLocation = widget.savedLocations.keys.first;
+    }
   }
 
   Future<void> _selectDateTime(TextEditingController controller) async {
@@ -399,15 +405,34 @@ class _FormDialogState extends State<FormDialog> {
       child: Column(
         mainAxisSize: MainAxisSize.min,
         children: [
-          TextFormField(
-            controller: _locationController,
-            decoration: InputDecoration(labelText: 'Location (x,y)'),
-            validator: (value) {
-              if (value == null || value.isEmpty) {
-                return 'Please enter a location';
-              }
-              return null;
-            },
+          Flexible(
+            child: DropdownButtonFormField<LatLng>(
+              value: _selectedLocation,
+              items: widget.savedLocations.entries.map((entry) {
+                String displayText = entry.value.isNotEmpty
+                    ? entry.value
+                    : '${entry.key.latitude}, ${entry.key.longitude}';
+                return DropdownMenuItem<LatLng>(
+                  value: entry.key,
+                  child: Text(
+                    displayText,
+                    overflow: TextOverflow.ellipsis
+                  ),
+                );
+              }).toList(),
+              onChanged: (value) {
+                setState(() {
+                  _selectedLocation = value!;
+                });
+              },
+              decoration: InputDecoration(labelText: 'Selected Location'),
+              validator: (value) {
+                if (value == null) {
+                  return 'Please select a location';
+                }
+                return null;
+              },
+            ),
           ),
           TextFormField(
             controller: _userController,
@@ -476,7 +501,7 @@ class _FormDialogState extends State<FormDialog> {
             onPressed: () {
               if (_formKey.currentState!.validate()) {
                 Navigator.of(context).pop({
-                  'location': _locationController.text,
+                  'location': _selectedLocation,
                   'user': _userController.text,
                   'title': _titleController.text,
                   'description': _descriptionController.text,

@@ -3,6 +3,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter_map/flutter_map.dart';
 import 'package:latlong2/latlong.dart';
 import 'package:http/http.dart' as http;
+import 'home_page.dart';
 
 class MapPage extends StatefulWidget {
   const MapPage({super.key});
@@ -13,11 +14,11 @@ class MapPage extends StatefulWidget {
 
 class _MapPageState extends State<MapPage> {
   final MapController mapController = MapController();
-  LatLng? selectedLocation;
-  String? placeDetails;
-  List<Marker> markers = [];
+  LatLng selectedLocation = LatLng(0, 0);
+  String placeDetails = "";
   List<CircleMarker> circles = [];
   LatLng currentPosition = LatLng(41.3851, 2.1734); // Default to Barcelona
+  Map<LatLng,String> savedLocations = {};
   bool showAirQuality = true;
 
   @override
@@ -124,12 +125,6 @@ class _MapPageState extends State<MapPage> {
   void _addMarker(LatLng position) async {
     setState(() {
       selectedLocation = position;
-      markers = [
-        Marker(
-          point: position,
-          child: Icon(Icons.location_on, color: Colors.red, size: 40),
-        ),
-      ];
     });
     await fetchPlaceDetails(position);
     _showPlaceDetails();
@@ -139,8 +134,28 @@ class _MapPageState extends State<MapPage> {
     _addMarker(position);
   }
 
-  void _onButtonPressed() {
-    _addMarker(currentPosition);
+  void _showForm() async {
+    final result = await showDialog<Map<String, String>>(
+      context: context,
+      builder: (BuildContext context) {
+        return AlertDialog(
+          title: Text('Enter Details'),
+          content: FormDialog(
+            initialLocation: '',
+            initialTitle: '',
+            initialUser: '',
+            initialDescription: '',
+            initialStartDate: '',
+            initialEndDate: '', savedLocations: savedLocations,
+          ),
+        );
+      },
+    );
+
+    if (result != null) {
+      // Handle the form submission result here
+      print('Form submitted with data: $result');
+    }
   }
 
   void _toggleAirQuality() {
@@ -183,7 +198,30 @@ class _MapPageState extends State<MapPage> {
                       style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold),
                     ),
                     const SizedBox(height: 5),
-                    Text(placeDetails ?? "No address available"),
+                    Text(placeDetails),
+                    const SizedBox(height: 20),
+                    Row(
+                      mainAxisAlignment: MainAxisAlignment.spaceEvenly,
+                      children: [
+                        ElevatedButton(
+                          onPressed: () {
+                            savedLocations[selectedLocation] = placeDetails;
+                            Navigator.pop(context); // Close the modal
+                            _showFormWithLocation(selectedLocation);
+                          },
+                          child: const Text("Crea Activitat"),
+                        ),
+                        ElevatedButton(
+                          onPressed: () {
+                            setState(() {
+                              savedLocations[selectedLocation] = placeDetails;
+                            });
+                            Navigator.pop(context); // Close the modal
+                          },
+                          child: const Text("Guardar marcador"),
+                        ),
+                      ],
+                    ),
                   ],
                 ),
               ),
@@ -192,6 +230,32 @@ class _MapPageState extends State<MapPage> {
         );
       },
     );
+  }
+
+  void _showFormWithLocation(LatLng location) async {
+    final result = await showDialog<Map<String, String>>(
+      context: context,
+      builder: (BuildContext context) {
+        return AlertDialog(
+          title: Text('Enter Details'),
+          content: FormDialog(
+            initialLocation: '${location.latitude},${location.longitude}',
+            initialPlaceDetails: placeDetails,
+            initialTitle: '',
+            initialUser: '',
+            initialDescription: '',
+            initialStartDate: '',
+            initialEndDate: '',
+            savedLocations: savedLocations,
+          ),
+        );
+      },
+    );
+
+    if (result != null) {
+      // Handle the form submission result here
+      print('Form submitted with data: $result');
+    }
   }
 
   Future<void> fetchLocationUpdates() async {
@@ -219,7 +283,14 @@ class _MapPageState extends State<MapPage> {
                 urlTemplate: "https://tile.openstreetmap.org/{z}/{x}/{y}.png",
               ),
               if (showAirQuality) CircleLayer(circles: circles),
-              MarkerLayer(markers: markers),
+              MarkerLayer(
+                markers: savedLocations.keys.map((location) {
+                  return Marker(
+                    point: location,
+                    child: Icon(Icons.location_on, color: Colors.red, size: 40),
+                  );
+                }).toList(),
+              ),
             ],
           ),
           Positioned(
@@ -233,7 +304,7 @@ class _MapPageState extends State<MapPage> {
         ],
       ),
       floatingActionButton: FloatingActionButton(
-        onPressed: _onButtonPressed,
+        onPressed: _showForm, // Show the form on button press
         child: Icon(Icons.add_location),
       ),
     );
