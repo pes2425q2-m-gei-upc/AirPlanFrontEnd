@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 
 class ActivityDetailsPage extends StatelessWidget {
+  final String id; // Añadir el parámetro id
   final String title;
   final String creator;
   final String description;
@@ -10,7 +11,9 @@ class ActivityDetailsPage extends StatelessWidget {
   final String endDate;
   final bool isEditable;
 
-  const ActivityDetailsPage({super.key, 
+  const ActivityDetailsPage({
+    super.key,
+    required this.id, // Añadir el parámetro id
     required this.title,
     required this.creator,
     required this.description,
@@ -32,6 +35,14 @@ class ActivityDetailsPage extends StatelessWidget {
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
+            Text(
+              'ID: $id', // Mostrar el ID
+              style: TextStyle(
+                fontWeight: FontWeight.bold,
+                fontSize: 18,
+              ),
+            ),
+            SizedBox(height: 16),
             Text(
               title,
               style: TextStyle(
