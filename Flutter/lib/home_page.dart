@@ -1,7 +1,9 @@
 import 'package:flutter/material.dart';
+import 'dart:convert'; // Para usar jsonEncode
 import 'dart:math';
 import 'activity_details_page.dart';
 import 'package:intl/intl.dart';
+import 'package:http/http.dart' as http; // Importar el paquete http
 
 class HomePage extends StatefulWidget {
   const HomePage({super.key});
@@ -88,6 +90,55 @@ class _HomePageState extends State<HomePage> {
           'endDate': result['endDate']!,
         };
       });
+
+      // Enviar la solicitud POST al backend
+      _sendActivityToBackend(result);
+    }
+  }
+
+  Future<void> _sendActivityToBackend(Map<String, String> activityData) async {
+    final url = Uri.parse('http://localhost:8080/api/activitats/crear'); // Reemplaza con la URL de tu backend
+
+    // Convertir la ubicación de "x,y" a un objeto JSON
+    final ubicacioParts = activityData['location']!.split(',');
+    final ubicacio = <String, int>{
+      'latitud': int.parse(ubicacioParts[0]), // Convertir a int
+      'longitud': int.parse(ubicacioParts[1]), // Convertir a int
+    };
+    final dateFormat = DateFormat("yyyy-MM-dd'T'HH:mm:ss");
+    final dataInici = dateFormat.format(DateTime.parse(activityData['startDate']!));
+    final dataFi = dateFormat.format(DateTime.parse(activityData['endDate']!));
+
+
+    // Construir el cuerpo de la solicitud
+    final body = <String, dynamic>{
+      'id': '1',
+      'nom': activityData['title']!,
+      'descripcio': activityData['description']!,
+      'ubicacio': ubicacio, // Ahora es un Map<String, int>
+      'dataInici': dataInici,
+      'dataFi': dataFi,
+      'creador': activityData['user']!,
+    };
+
+    final response = await http.post(
+      url,
+      headers: <String, String>{
+        'Content-Type': 'application/json; charset=UTF-8',
+      },
+      body: jsonEncode(body), // Codificar el mapa a JSON
+    );
+
+    if (response.statusCode == 201) {
+      // La actividad se creó exitosamente en el backend
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(content: Text('Actividad creada exitosamente')),
+      );
+    } else {
+      // Hubo un error al crear la actividad
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(content: Text('Error al crear la actividad: ${response.body}')),
+      );
     }
   }
 
@@ -332,7 +383,7 @@ class FormDialog extends StatefulWidget {
   final String initialStartDate;
   final String initialEndDate;
 
-  const FormDialog({super.key, 
+  const FormDialog({super.key,
     this.initialLocation = '',
     this.initialTitle = '',
     this.initialUser = '',
