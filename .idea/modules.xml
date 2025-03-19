@@ -2,7 +2,7 @@
 <project version="4">
   <component name="ProjectModuleManager">
     <modules>
-      <module fileurl="file://$PROJECT_DIR$/.idea/AirPlanFrontEnd.iml" filepath="$PROJECT_DIR$/.idea/AirPlanFrontEnd.iml" />
+      <module fileurl="file://$PROJECT_DIR$/AirPlanFrontEnd.iml" filepath="$PROJECT_DIR$/AirPlanFrontEnd.iml" />
     </modules>
   </component>
 </project>
