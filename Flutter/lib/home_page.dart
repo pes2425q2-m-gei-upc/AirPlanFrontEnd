@@ -87,7 +87,7 @@ class _HomePageState extends State<HomePage> {
           'startDate': actividad['dataInici'],
           'endDate': actividad['dataFi'],
           'airQuality': _grid[x][y]['airQuality'],
-          'color': _grid[x][y]['color'] ?? Colors.lightBlue.value.toString(),
+          'color': _grid[x][y]['color'] ?? Colors.lightBlue.toString(),
         };
       }
     });
@@ -133,7 +133,7 @@ class _HomePageState extends State<HomePage> {
           'creator': result['user']!,
           'description': result['description']!,
           'airQuality': _grid[x][y]['airQuality'] ?? 'Excel·lent',
-          'color': _grid[x][y]['color'] ?? Colors.lightBlue.value.toString(),
+          'color': _grid[x][y]['color'] ?? Colors.lightBlue.toString(),
           'startDate': result['startDate']!,
           'endDate': result['endDate']!,
         };
@@ -223,7 +223,7 @@ class _HomePageState extends State<HomePage> {
           'creator': '',
           'description': '',
           'airQuality': _grid[x][y]['airQuality'] ?? 'Excel·lent',
-          'color': _grid[x][y]['color'] ?? Colors.lightBlue.value.toString(),
+          'color': _grid[x][y]['color'] ?? Colors.lightBlue.toString(),
           'startDate': '',
           'endDate': '',
         };
@@ -471,7 +471,6 @@ class FormDialog extends StatefulWidget {
 
 class _FormDialogState extends State<FormDialog> {
   final _formKey = GlobalKey<FormState>();
-  final _locationController = TextEditingController();
   final _userController = TextEditingController();
   final _titleController = TextEditingController();
   final _descriptionController = TextEditingController();
@@ -482,7 +481,6 @@ class _FormDialogState extends State<FormDialog> {
   @override
   void initState() {
     super.initState();
-    _locationController.text = widget.initialLocation;
     _userController.text = widget.initialUser;
     _titleController.text = widget.initialTitle;
     _descriptionController.text = widget.initialDescription;
