@@ -1,19 +1,26 @@
 import 'package:flutter/material.dart';
 
 class ActivityDetailsPage extends StatelessWidget {
+  final String id;
   final String title;
   final String creator;
   final String description;
   final String airQuality;
   final Color airQualityColor;
+  final String startDate;
+  final String endDate;
   final bool isEditable;
 
-  const ActivityDetailsPage({super.key, 
+  const ActivityDetailsPage({
+    super.key,
+    required this.id,
     required this.title,
     required this.creator,
     required this.description,
     required this.airQuality,
     required this.airQualityColor,
+    required this.startDate,
+    required this.endDate,
     required this.isEditable,
   });
 
@@ -28,6 +35,14 @@ class ActivityDetailsPage extends StatelessWidget {
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
+            Text(
+              'ID: $id',
+              style: TextStyle(
+                fontWeight: FontWeight.bold,
+                fontSize: 18,
+              ),
+            ),
+            SizedBox(height: 16),
             Text(
               title,
               style: TextStyle(
@@ -54,6 +69,28 @@ class ActivityDetailsPage extends StatelessWidget {
                     fontWeight: FontWeight.bold,
                     fontSize: 16,
                   ),
+                ),
+              ],
+            ),
+            SizedBox(height: 16),
+            Row(
+              children: [
+                Icon(Icons.calendar_today),
+                SizedBox(width: 8),
+                Text(
+                  'Start: $startDate',
+                  style: TextStyle(fontSize: 16),
+                ),
+              ],
+            ),
+            SizedBox(height: 8),
+            Row(
+              children: [
+                Icon(Icons.calendar_today),
+                SizedBox(width: 8),
+                Text(
+                  'End: $endDate',
+                  style: TextStyle(fontSize: 16),
                 ),
               ],
             ),
