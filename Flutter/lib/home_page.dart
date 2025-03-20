@@ -73,7 +73,6 @@ class _HomePageState extends State<HomePage> {
 
   void _updateGridWithActivities(List<Map<String, dynamic>> actividades) {
     setState(() {
-      // No reiniciar la cuadrícula, solo actualizar las celdas necesarias
       for (final actividad in actividades) {
         final ubicacio = actividad['ubicacio'] as Map<String, dynamic>;
         final x = ubicacio['latitud'] as int;
@@ -98,7 +97,6 @@ class _HomePageState extends State<HomePage> {
     final response = await http.get(url);
 
     if (response.statusCode == 200) {
-      // Decodificar el JSON y devolver la lista de actividades
       final List<dynamic> data = jsonDecode(response.body);
       return data.cast<Map<String, dynamic>>();
     } else {
@@ -170,27 +168,34 @@ class _HomePageState extends State<HomePage> {
       'creador': activityData['user']!,
     };
 
-    final response = await http.post(
-      url,
-      headers: <String, String>{
-        'Content-Type': 'application/json; charset=UTF-8',
-      },
-      body: jsonEncode(body), // Codificar el mapa a JSON
-    );
-
-    if (response.statusCode == 201) {
-      // La actividad se creó exitosamente en el backend
-      ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(content: Text('Actividad creada exitosamente')),
+    try {
+      final response = await http.post(
+        url,
+        headers: <String, String>{
+          'Content-Type': 'application/json; charset=UTF-8',
+        },
+        body: jsonEncode(body), // Codificar el mapa a JSON
       );
 
-      // Obtener la lista actualizada de actividades
-      final actividades = await fetchActivities();
-      _updateGridWithActivities(actividades);
-    } else {
-      // Hubo un error al crear la actividad
+      if (response.statusCode == 201) {
+        // La actividad se creó exitosamente en el backend
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(content: Text('Actividad creada exitosamente')),
+        );
+
+        // Obtener la lista actualizada de actividades
+        final actividades = await fetchActivities();
+        _updateGridWithActivities(actividades);
+      } else {
+        // Hubo un error al crear la actividad
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(content: Text('Error al crear la actividad: ${response.body}')),
+        );
+      }
+    } catch (e) {
+      // Error de conexión o otro error
       ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(content: Text('Error al crear la actividad: ${response.body}')),
+        SnackBar(content: Text('Error de conexión: $e')),
       );
     }
   }
@@ -232,6 +237,37 @@ class _HomePageState extends State<HomePage> {
     }
   }
 
+  void _showActivityDetails(int x, int y) {
+    if (_grid[x][y]['title'] != null && _grid[x][y]['title']!.isNotEmpty) {
+      setState(() {
+        _title = _grid[x][y]['title'] ?? '';
+        _creator = _grid[x][y]['creator'] ?? '';
+        _showDetails = true;
+        _selectedX = x;
+        _selectedY = y;
+      });
+    }
+  }
+
+  void _navigateToActivityDetails(int x, int y) {
+    Navigator.push(
+      context,
+      MaterialPageRoute(
+        builder: (context) => ActivityDetailsPage(
+          id: _grid[x][y]['id'].toString(), // Convertir a String si es necesario
+          title: _grid[x][y]['title'] ?? '',
+          creator: _grid[x][y]['creator'] ?? '',
+          description: _grid[x][y]['description'] ?? '',
+          startDate: _grid[x][y]['startDate'] ?? '',
+          endDate: _grid[x][y]['endDate'] ?? '',
+          airQuality: _grid[x][y]['airQuality'] ?? '',
+          airQualityColor: Color(int.parse(_grid[x][y]['color'])), // Convertir String a int
+          isEditable: false,
+        ),
+      ),
+    );
+  }
+
   @override
   Widget build(BuildContext context) {
     return Scaffold(
@@ -258,36 +294,7 @@ class _HomePageState extends State<HomePage> {
                                 return GestureDetector(
                                   onTap: () {
                                     if (_grid[x][y]['title'] != null && _grid[x][y]['title']!.isNotEmpty) {
-                                      setState(() {
-                                        _title = _grid[x][y]['title'] ?? '';
-                                        _creator = _grid[x][y]['creator'] ?? '';
-                                        _description = _grid[x][y]['description'] ?? '';
-                                        _airQuality = _grid[x][y]['airQuality'] ?? '';
-                                        _airQualityColor = Color(int.parse(_grid[x][y]['color']!));
-                                        _startDate = _grid[x][y]['startDate'] ?? '';
-                                        _endDate = _grid[x][y]['endDate'] ?? '';
-                                        _showDetails = true;
-                                        _selectedX = x;
-                                        _selectedY = y;
-                                      });
-
-                                      // Navegar a la página de detalles de la actividad
-                                      Navigator.push(
-                                        context,
-                                        MaterialPageRoute(
-                                          builder: (context) => ActivityDetailsPage(
-                                            id: _grid[x][y]['id'], // Pasar el ID de la actividad
-                                            title: _grid[x][y]['title'] ?? '',
-                                            creator: _grid[x][y]['creator'] ?? '',
-                                            description: _grid[x][y]['description'] ?? '',
-                                            startDate: _grid[x][y]['startDate'] ?? '',
-                                            endDate: _grid[x][y]['endDate'] ?? '',
-                                            airQuality: _grid[x][y]['airQuality'] ?? '',
-                                            airQualityColor: Color(int.parse(_grid[x][y]['color']!)),
-                                            isEditable: false,
-                                          ),
-                                        ),
-                                      );
+                                      _showActivityDetails(x, y); // Mostrar el ListTile
                                     }
                                   },
                                   child: Container(
@@ -334,66 +341,38 @@ class _HomePageState extends State<HomePage> {
               ),
             ),
             if (_showDetails)
-              Container(
-                color: Colors.lightBlue[100],
-                padding: const EdgeInsets.all(8.0),
-                child: Column(
-                  children: [
-                    GestureDetector(
-                      onTap: () {
-                        Navigator.push(
-                          context,
-                          MaterialPageRoute(
-                            builder: (context) => ActivityDetailsPage(
-                              id: _grid[_selectedX][_selectedY]['id'],
-                              title: _title,
-                              creator: _creator,
-                              description: _description,
-                              startDate: _startDate,
-                              endDate: _endDate,
-                              airQuality: _airQuality,
-                              airQualityColor: _airQualityColor,
-                              isEditable: true,
-                            ),
-                          ),
-                        );
-                      },
-                      child: Row(
-                        children: [
-                          Icon(Icons.event),
-                          SizedBox(width: 8),
-                          Text(
-                            _title,
-                            style: TextStyle(
-                              fontWeight: FontWeight.bold,
-                              color: Colors.black,
-                            ),
-                          ),
-                          Spacer(),
-                          IconButton(
-                            icon: Icon(Icons.edit),
-                            onPressed: () => _showForm(x: _selectedX, y: _selectedY, isEdit: true),
-                          ),
-                          IconButton(
-                            icon: Icon(Icons.delete),
-                            onPressed: () => _deleteLocation(_selectedX, _selectedY),
-                          ),
-                        ],
+              GestureDetector(
+                onTap: () {
+                  _navigateToActivityDetails(_selectedX, _selectedY); // Navegar al hacer clic en el ListTile
+                },
+                child: ListTile(
+                  leading: Icon(Icons.event), // Icono de actividad
+                  title: Text(
+                    _title,
+                    style: TextStyle(
+                      fontWeight: FontWeight.bold,
+                      color: Colors.black,
+                    ),
+                  ),
+                  subtitle: Text(
+                    'Creado por: $_creator',
+                    style: TextStyle(
+                      color: Colors.purple,
+                    ),
+                  ),
+                  trailing: Row(
+                    mainAxisSize: MainAxisSize.min,
+                    children: [
+                      IconButton(
+                        icon: Icon(Icons.edit),
+                        onPressed: () => _showForm(x: _selectedX, y: _selectedY, isEdit: true),
                       ),
-                    ),
-                    Row(
-                      children: [
-                        Icon(Icons.person),
-                        SizedBox(width: 8),
-                        Text(
-                          _creator,
-                          style: TextStyle(
-                            color: Colors.purple,
-                          ),
-                        ),
-                      ],
-                    ),
-                  ],
+                      IconButton(
+                        icon: Icon(Icons.delete),
+                        onPressed: () => _deleteLocation(_selectedX, _selectedY),
+                      ),
+                    ],
+                  ),
                 ),
               ),
           ],
