@@ -1,4 +1,5 @@
 import 'dart:convert';
+import 'air_quality.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_map/flutter_map.dart';
 import 'package:latlong2/latlong.dart';
@@ -18,6 +19,7 @@ class _MapPageState extends State<MapPage> {
   LatLng selectedLocation = LatLng(0, 0);
   String placeDetails = "";
   List<CircleMarker> circles = [];
+  Map<LatLng, Map<Contaminant, AirQualityData>> contaminantsPerLocation = {};
   LatLng currentPosition = LatLng(41.3851, 2.1734); // Default to Barcelona
   Map<LatLng, String> savedLocations = {};
   bool showAirQuality = true;
@@ -62,7 +64,7 @@ class _MapPageState extends State<MapPage> {
   }
 
   Future<void> fetchAirQualityData() async {
-    final url = Uri.parse('https://analisi.transparenciacatalunya.cat/resource/tasf-thgu.json');
+    final url = Uri.parse('https://analisi.transparenciacatalunya.cat/resource/tasf-thgu.json?data='+DateTime.now().toString().substring(0,10));
 
     try {
       final response = await http.get(url);
@@ -81,56 +83,44 @@ class _MapPageState extends State<MapPage> {
   }
 
   List<CircleMarker> createCirclesFromAirQualityData(dynamic data) {
-    List<CircleMarker> circles = [];
-
     for (var entry in data) {
       LatLng position = LatLng(double.parse(entry['latitud']), double.parse(entry['longitud']));
-      int aqi = getLastAirQualityIndex(entry);
-      Color color = getColorForAirQuality(aqi);
+      Contaminant contaminant = Contaminant.SO2;
+      try {
+        contaminant = parseContaminant(entry['contaminant']);
+        AirQualityData aqd = getLastAirQualityData(entry);
+        //guarda el valor de la última hora pel contaminant que s'ha mesurat
+        if (contaminantsPerLocation[position] == null) {
+          Map<Contaminant,AirQualityData> contaminants = {};
+          contaminantsPerLocation[position] = contaminants;
+        }
+        if (contaminantsPerLocation[position]![contaminant] == null || (aqd.lastDateHour.isAfter(contaminantsPerLocation[position]?[contaminant]!.lastDateHour as DateTime))) {
+          contaminantsPerLocation[position]?[contaminant] = aqd;
+        }
+      } catch (e) {
+        //TODO informar de que hi ha un contaminant desconegut i no es mostrarà
+      }
+    }
 
+    List<CircleMarker> circles = [];
+    contaminantsPerLocation.forEach((LatLng pos,Map<Contaminant,AirQualityData> contaminants) {
+      AirQuality worstAQI = AirQuality.excelent;
+      contaminants.forEach((Contaminant key, AirQualityData aqd) {
+        if (aqd.aqi.index > worstAQI.index) {
+          worstAQI = aqd.aqi;
+        }
+      });
+      Color color = getColorForAirQuality(worstAQI);
       circles.add(CircleMarker(
-        point: position,
+        point: pos,
         color: color,
         borderStrokeWidth: 2.0,
         borderColor: color,
         radius: 20, // Radius in pixels
       ));
-    }
-
-    return circles;
-  }
-
-  int getLastAirQualityIndex(Map<String, dynamic> entry) {
-    int maxHour = 0;
-    int aqi = 0;
-
-    entry.forEach((key, value) {
-      if (key.startsWith('h')) {
-        int hour = int.tryParse(key.substring(1)) ?? 0;
-        if (hour > maxHour) {
-          maxHour = hour;
-          aqi = int.tryParse(value) ?? 0;
-        }
-      }
     });
 
-    return aqi;
-  }
-
-  Color getColorForAirQuality(int aqi) {
-    if (aqi <= 50) {
-      return Colors.green;
-    } else if (aqi <= 100) {
-      return Colors.yellow;
-    } else if (aqi <= 150) {
-      return Colors.orange;
-    } else if (aqi <= 200) {
-      return Colors.red;
-    } else if (aqi <= 300) {
-      return Colors.purple;
-    } else {
-      return Colors.brown;
-    }
+    return circles;
   }
 
   void _addMarker(LatLng position) async {
