@@ -254,6 +254,29 @@ class _MapPageState extends State<MapPage> {
     }
   }
 
+  Future<void> _deleteActivityFromBackend(String activityId) async {
+    final url = Uri.parse('http://localhost:8080/api/activitats/$activityId'); // URL de tu backend
+    try {
+      final response = await http.delete(url);
+      if (response.statusCode == 200) {
+        // Actividad eliminada correctamente en el backend
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(content: Text('Actividad eliminada correctamente')),
+        );
+      } else {
+        // Error al eliminar la actividad
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(content: Text('Error al eliminar la actividad: ${response.body}')),
+        );
+      }
+    } catch (e) {
+      // Error de conexión
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(content: Text('Error de conexión: $e')),
+      );
+    }
+  }
+
   Future<List<Map<String, dynamic>>> fetchActivities() async {
     final url = Uri.parse('http://localhost:8080/api/activitats'); // Reemplaza con la URL de tu backend
     final response = await http.get(url);
@@ -326,12 +349,103 @@ class _MapPageState extends State<MapPage> {
     }
   }
 
+  Future<void> _updateActivityInBackend(String activityId, Map<String, String> activityData) async {
+    final url = Uri.parse('http://localhost:8080/api/activitats/editar/$activityId'); // URL de tu backend
+
+    // Convertir la ubicación de "x,y" a un objeto JSON
+    final ubicacioParts = activityData['location']!.split(',');
+    final ubicacio = <String, double>{
+      'latitud': double.parse(ubicacioParts[0]),
+      'longitud': double.parse(ubicacioParts[1]),
+    };
+
+    // Formatear las fechas en formato ISO 8601
+    final dateFormat = DateFormat("yyyy-MM-dd'T'HH:mm:ss");
+    final dataInici = dateFormat.format(DateTime.parse(activityData['startDate']!));
+    final dataFi = dateFormat.format(DateTime.parse(activityData['endDate']!));
+
+    // Construir el cuerpo de la solicitud
+    final body = <String, dynamic>{
+      'id': activityId,
+      'nom': activityData['title']!,
+      'descripcio': activityData['description']!,
+      'ubicacio': ubicacio,
+      'dataInici': dataInici,
+      'dataFi': dataFi,
+      'creador': activityData['user']!,
+    };
+
+    try {
+      final response = await http.put(
+        url,
+        headers: <String, String>{
+          'Content-Type': 'application/json; charset=UTF-8',
+        },
+        body: jsonEncode(body),
+      );
+
+      if (response.statusCode == 200) {
+        // La actividad se actualizó exitosamente en el backend
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(content: Text('Actividad actualizada exitosamente')),
+        );
+        fetchAndUpdateActivity(activityId);
+      } else {
+        // Hubo un error al actualizar la actividad
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(content: Text('Error al actualizar la actividad: ${response.body}')),
+        );
+      }
+    } catch (e) {
+      // Error de conexión o otro error
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(content: Text('Error de conexión: $e')),
+      );
+    }
+  }
+  // Función para obtener una sola actividad desde el backend y actualizar la lista local
+  Future<void> fetchAndUpdateActivity(String activityId) async {
+    try {
+      // Obtener la actividad actualizada desde el backend
+      final updatedActivity = await fetchActivityById(activityId);
+
+      // Actualizar la lista local de actividades
+      setState(() {
+        final index = activities.indexWhere((a) => a['id'].toString() == activityId);
+        if (index != -1) {
+          activities[index] = updatedActivity; // Reemplazar la actividad antigua con la actualizada
+        }
+      });
+
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(content: Text('Actividad actualizada correctamente')),
+      );
+    } catch (e) {
+      // Manejar errores
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(content: Text('Error al actualizar la actividad: $e')),
+      );
+    }
+  }
+
+// Función para obtener una sola actividad desde el backend
+  Future<Map<String, dynamic>> fetchActivityById(String activityId) async {
+    final url = Uri.parse('http://localhost:8080/api/activitats/$activityId'); // URL de tu backend
+    final response = await http.get(url);
+
+    if (response.statusCode == 200) {
+      return jsonDecode(response.body); // Devuelve la actividad como un Map
+    } else {
+      throw Exception('Error al cargar la actividad');
+    }
+  }
+
   void _navigateToActivityDetails(Map<String, dynamic> activity) {
     Navigator.push(
       context,
       MaterialPageRoute(
         builder: (context) => ActivityDetailsPage(
-          id: activity['id'].toString(), // Convertir a String si es necesario
+          id: activity['id'].toString(),
           title: activity['nom'] ?? '',
           creator: activity['creador'] ?? '',
           description: activity['descripcio'] ?? '',
@@ -342,6 +456,116 @@ class _MapPageState extends State<MapPage> {
           isEditable: false,
         ),
       ),
+    );
+  }
+
+  void _editActivity(Map<String, dynamic> activity) async {
+    final result = await showDialog<Map<String, String>>(
+      context: context,
+      builder: (BuildContext context) {
+        return AlertDialog(
+          title: Text('Editar Actividad'),
+          content: FormDialog(
+            initialLocation: '${activity['ubicacio']['latitud']},${activity['ubicacio']['longitud']}',
+            initialPlaceDetails: activity['ubicacio']['display_name'] ?? '',
+            initialTitle: activity['nom'] ?? '',
+            initialUser: activity['creador'] ?? '',
+            initialDescription: activity['descripcio'] ?? '',
+            initialStartDate: activity['dataInici'] ?? '',
+            initialEndDate: activity['dataFi'] ?? '',
+            savedLocations: savedLocations,
+          ),
+        );
+      },
+    );
+
+    if (result != null) {
+      _updateActivityInBackend(activity['id'].toString(), result);
+    }
+  }
+  void _deleteActivity(Map<String, dynamic> activity) {
+    showDialog(
+      context: context,
+      builder: (context) {
+        return AlertDialog(
+          title: Text('Eliminar actividad'),
+          content: Text('¿Estás seguro de que quieres eliminar esta actividad?'),
+          actions: [
+            TextButton(
+              onPressed: () {
+                Navigator.pop(context); // Cerrar el diálogo
+              },
+              child: Text('Cancelar'),
+            ),
+            TextButton(
+              onPressed: () {
+                // Eliminar la actividad del backend
+                _deleteActivityFromBackend(activity['id'].toString());
+                // Eliminar la actividad de la lista local
+                setState(() {
+                  activities.removeWhere((a) => a['id'] == activity['id']);
+                });
+                Navigator.pop(context); // Cerrar el diálogo
+                ScaffoldMessenger.of(context).showSnackBar(
+                  SnackBar(content: Text('Actividad eliminada correctamente')),
+                );
+              },
+              child: Text('Eliminar', style: TextStyle(color: Colors.red)),
+            ),
+          ],
+        );
+      },
+    );
+  }
+
+  void _showActivityDetails(Map<String, dynamic> activity) {
+    showModalBottomSheet(
+      context: context,
+      builder: (context) {
+        return Container(
+          padding: EdgeInsets.all(16),
+          child: Column(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              ListTile(
+                title: GestureDetector(
+                  onTap: () {
+                    Navigator.pop(context); // Cerrar el BottomSheet
+                    _navigateToActivityDetails(activity); // Navegar a los detalles
+                  },
+                  child: Text(
+                    activity['nom'] ?? 'Sin título',
+                    style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold),
+                  ),
+                ),
+                subtitle: Text(
+                  'Creado por: ${activity['creador'] ?? 'Desconocido'}',
+                  style: TextStyle(fontSize: 14),
+                ),
+                trailing: Row(
+                  mainAxisSize: MainAxisSize.min,
+                  children: [
+                    IconButton(
+                      icon: Icon(Icons.edit, color: Colors.blue),
+                      onPressed: () {
+                        Navigator.pop(context); // Cerrar el BottomSheet
+                        _editActivity(activity); // Lógica para editar la actividad
+                      },
+                    ),
+                    IconButton(
+                      icon: Icon(Icons.delete, color: Colors.red),
+                      onPressed: () {
+                        Navigator.pop(context); // Cerrar el BottomSheet
+                        _deleteActivity(activity); // Lógica para eliminar la actividad
+                      },
+                    ),
+                  ],
+                ),
+              ),
+            ],
+          ),
+        );
+      },
     );
   }
 
@@ -378,7 +602,7 @@ class _MapPageState extends State<MapPage> {
                     return Marker(
                       point: LatLng(lat, lon),
                       child: GestureDetector(
-                        onTap: () => _navigateToActivityDetails(activity),
+                        onTap: () => _showActivityDetails(activity), // Mostrar detalles al hacer clic
                         child: Icon(Icons.event, color: Colors.blue, size: 40),
                       ),
                     );

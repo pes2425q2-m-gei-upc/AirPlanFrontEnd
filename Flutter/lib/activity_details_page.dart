@@ -26,6 +26,7 @@ class ActivityDetailsPage extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    print('isEditable: $isEditable'); // Depuración
     return Scaffold(
       appBar: AppBar(
         title: Text('Activity Details'),
@@ -130,13 +131,15 @@ class ActivityDetailsPage extends StatelessWidget {
               SizedBox(height: 16),
               ElevatedButton(
                 onPressed: () {
-                  // Handle edit
+                  // Lógica para editar la actividad
+                  _editActivity(context);
                 },
                 child: Text('Edit Activity'),
               ),
               ElevatedButton(
                 onPressed: () {
-                  // Handle delete
+                  // Lógica para eliminar la actividad
+                  _deleteActivity(context);
                 },
                 child: Text('Delete Activity'),
               ),
@@ -144,6 +147,42 @@ class ActivityDetailsPage extends StatelessWidget {
           ],
         ),
       ),
+    );
+  }
+
+  void _editActivity(BuildContext context) {
+    // Lógica para editar la actividad
+    print('Editar actividad: $id');
+    // Puedes navegar a una página de edición o mostrar un diálogo de edición
+  }
+
+  void _deleteActivity(BuildContext context) {
+    // Lógica para eliminar la actividad
+    showDialog(
+      context: context,
+      builder: (context) {
+        return AlertDialog(
+          title: Text('Eliminar actividad'),
+          content: Text('¿Estás seguro de que quieres eliminar esta actividad?'),
+          actions: [
+            TextButton(
+              onPressed: () {
+                Navigator.pop(context); // Cerrar el diálogo
+              },
+              child: Text('Cancelar'),
+            ),
+            TextButton(
+              onPressed: () {
+                // Lógica para eliminar la actividad
+                print('Actividad eliminada: $id');
+                Navigator.pop(context); // Cerrar el diálogo
+                Navigator.pop(context); // Volver a la página anterior
+              },
+              child: Text('Eliminar', style: TextStyle(color: Colors.red)),
+            ),
+          ],
+        );
+      },
     );
   }
 }
