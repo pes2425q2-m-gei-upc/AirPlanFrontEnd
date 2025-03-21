@@ -4,6 +4,9 @@ import 'package:firebase_auth/firebase_auth.dart';
 import 'package:flutter/material.dart';
 import 'package:http/http.dart' as http;
 
+import 'admin_page.dart';
+import 'main.dart';
+
 class SignUpPage extends StatelessWidget {
   const SignUpPage({super.key});
 
@@ -86,11 +89,13 @@ class __FormContentState extends State<_FormContent> {
   bool _isPasswordVisible = false;
   bool _isConfirmPasswordVisible = false;
   bool _agreeToTerms = false;
+  bool _isAdmin = false; // Nuevo campo para indicar si el usuario es administrador
   String _selectedLanguage = 'Castellano'; // Valor predeterminado para el idioma
+  final TextEditingController _verificationCodeController = TextEditingController(); // Controlador para el código de verificación
 
   final GlobalKey<FormState> _formKey = GlobalKey<FormState>();
   final TextEditingController _nameController = TextEditingController();
-  final TextEditingController _usernameController = TextEditingController(); // Nuevo controlador para el username
+  final TextEditingController _usernameController = TextEditingController();
   final TextEditingController _emailController = TextEditingController();
   final TextEditingController _passwordController = TextEditingController();
   final TextEditingController _confirmPasswordController = TextEditingController();
@@ -98,15 +103,17 @@ class __FormContentState extends State<_FormContent> {
   Future<void> _registerUser() async {
     if (_formKey.currentState?.validate() ?? false) {
       try {
+        // Verificar si el usuario es administrador y si el código de verificación es correcto
+        bool isAdmin = _isAdmin && _verificationCodeController.text.trim() == 'ab123';
+
         // Crear un objeto con los datos del usuario
         final usuario = {
           "username": _usernameController.text.trim(), // Usar el username introducido
           "nom": _nameController.text.trim(),
           "email": _emailController.text.trim(),
-          "contrasenya": _passwordController.text.trim(),
           "idioma": _selectedLanguage, // Usar el idioma seleccionado
-          "sesionIniciada": false,
-          "isAdmin": false
+          "sesionIniciada": true,
+          "isAdmin": isAdmin, // Asignar el valor de isAdmin
         };
 
         // Convertir el objeto a JSON
@@ -124,20 +131,24 @@ class __FormContentState extends State<_FormContent> {
         // Verificar la respuesta del backend
         if (response.statusCode == 201) {
           // Si el backend responde con éxito, crear el usuario en Firebase
-          await FirebaseAuth.instance.createUserWithEmailAndPassword(
+          final userCredential = await FirebaseAuth.instance.createUserWithEmailAndPassword(
             email: _emailController.text.trim(),
             password: _passwordController.text.trim(),
           );
 
-          ScaffoldMessenger.of(context).showSnackBar(
-            const SnackBar(content: Text("Registre complet i usuari creat al backend!")),
-          );
+          // Actualizar el perfil del usuario con el nombre de usuario
+          await userCredential.user?.updateProfile(displayName: _usernameController.text.trim());
 
-          Navigator.pop(context); // Torna a la pantalla d'inici de sessió
+          // Actualizar el usuario en Firebase Authentication para reflejar los cambios
+          await userCredential.user?.reload();
+
+          ScaffoldMessenger.of(context).showSnackBar(
+            const SnackBar(content: Text("Registre complet")),
+          );
         } else {
           // Si el backend responde con un error, mostrar el mensaje de error
           ScaffoldMessenger.of(context).showSnackBar(
-            SnackBar(content: Text("Error al crear l'usuari al backend: ${response.body}")),
+            SnackBar(content: Text("Error al crear l'usuari al servidor")),
           );
         }
       } on FirebaseAuthException catch (e) {
@@ -147,7 +158,8 @@ class __FormContentState extends State<_FormContent> {
         } else if (e.code == 'email-already-in-use') {
           errorMessage = "Aquest correu ja està en ús.";
         }
-
+        print("Error en la solicitud HTTP: $e");
+        print("Error: $errorMessage");
         ScaffoldMessenger.of(context).showSnackBar(
           SnackBar(content: Text(errorMessage)),
         );
@@ -165,118 +177,146 @@ class __FormContentState extends State<_FormContent> {
       constraints: const BoxConstraints(maxWidth: 300),
       child: Form(
         key: _formKey,
-        child: Column(
-          mainAxisSize: MainAxisSize.min,
-          mainAxisAlignment: MainAxisAlignment.center,
-          children: [
-            TextFormField(
-              controller: _nameController,
-              validator: (value) => value == null || value.isEmpty ? 'Introdueix el teu nom' : null,
-              decoration: const InputDecoration(
-                labelText: 'Nom',
-                prefixIcon: Icon(Icons.person_outline),
-                border: OutlineInputBorder(),
-              ),
-            ),
-            _gap(),
-            TextFormField(
-              controller: _usernameController, // Nuevo campo para el username
-              validator: (value) => value == null || value.isEmpty ? 'Introdueix el teu nom d\'usuari' : null,
-              decoration: const InputDecoration(
-                labelText: 'Nom d\'usuari',
-                prefixIcon: Icon(Icons.person),
-                border: OutlineInputBorder(),
-              ),
-            ),
-            _gap(),
-            TextFormField(
-              controller: _emailController,
-              validator: (value) {
-                if (value == null || value.isEmpty) return 'Introdueix el teu correu electrònic';
-                bool emailValid = RegExp(r"^[a-zA-Z0-9._%+-]+@[a-zA-Z0-9.-]+\.[a-zA-Z]{2,}$").hasMatch(value);
-                return emailValid ? null : 'Introdueix un correu vàlid';
-              },
-              decoration: const InputDecoration(
-                labelText: 'Correu electrònic',
-                prefixIcon: Icon(Icons.email_outlined),
-                border: OutlineInputBorder(),
-              ),
-            ),
-            _gap(),
-            TextFormField(
-              controller: _passwordController,
-              validator: (value) => value != null && value.length >= 6 ? null : 'Mínim 6 caràcters',
-              obscureText: !_isPasswordVisible,
-              decoration: InputDecoration(
-                labelText: 'Contrasenya',
-                prefixIcon: const Icon(Icons.lock_outline_rounded),
-                border: const OutlineInputBorder(),
-                suffixIcon: IconButton(
-                  icon: Icon(_isPasswordVisible ? Icons.visibility_off : Icons.visibility),
-                  onPressed: () => setState(() => _isPasswordVisible = !_isPasswordVisible),
+        child: SingleChildScrollView(
+          padding: const EdgeInsets.all(16.0),
+          child: Column(
+            mainAxisSize: MainAxisSize.min,
+            mainAxisAlignment: MainAxisAlignment.center,
+            children: [
+              TextFormField(
+                controller: _nameController,
+                validator: (value) => value == null || value.isEmpty ? 'Introdueix el teu nom' : null,
+                decoration: const InputDecoration(
+                  labelText: 'Nom',
+                  prefixIcon: Icon(Icons.person_outline),
+                  border: OutlineInputBorder(),
                 ),
               ),
-            ),
-            _gap(),
-            TextFormField(
-              controller: _confirmPasswordController,
-              validator: (value) => value == _passwordController.text ? null : 'Les contrasenyes no coincideixen',
-              obscureText: !_isConfirmPasswordVisible,
-              decoration: InputDecoration(
-                labelText: 'Confirmar contrasenya',
-                prefixIcon: const Icon(Icons.lock_outline_rounded),
-                border: const OutlineInputBorder(),
-                suffixIcon: IconButton(
-                  icon: Icon(_isConfirmPasswordVisible ? Icons.visibility_off : Icons.visibility),
-                  onPressed: () => setState(() => _isConfirmPasswordVisible = !_isConfirmPasswordVisible),
+              _gap(),
+              TextFormField(
+                controller: _usernameController,
+                validator: (value) => value == null || value.isEmpty ? 'Introdueix el teu nom d\'usuari' : null,
+                decoration: const InputDecoration(
+                  labelText: 'Nom d\'usuari',
+                  prefixIcon: Icon(Icons.person),
+                  border: OutlineInputBorder(),
                 ),
               ),
-            ),
-            _gap(),
-            DropdownButtonFormField<String>(
-              value: _selectedLanguage,
-              onChanged: (value) {
-                setState(() {
-                  _selectedLanguage = value!;
-                });
-              },
-              items: ['Català', 'English', 'Castellano']
-                  .map((language) => DropdownMenuItem(
-                value: language,
-                child: Text(language),
-              ))
-                  .toList(),
-              decoration: const InputDecoration(
-                labelText: 'Idioma',
-                prefixIcon: Icon(Icons.language),
-                border: OutlineInputBorder(),
-              ),
-            ),
-            _gap(),
-            CheckboxListTile(
-              value: _agreeToTerms,
-              onChanged: (value) => setState(() => _agreeToTerms = value ?? false),
-              title: const Text('Accepto els termes i condicions'),
-              controlAffinity: ListTileControlAffinity.leading,
-              dense: true,
-            ),
-            _gap(),
-            SizedBox(
-              width: double.infinity,
-              child: ElevatedButton(
-                onPressed: _registerUser,
-                child: const Padding(
-                  padding: EdgeInsets.all(10.0),
-                  child: Text('Registra\'t', style: TextStyle(fontSize: 16, fontWeight: FontWeight.bold)),
+              _gap(),
+              TextFormField(
+                controller: _emailController,
+                validator: (value) {
+                  if (value == null || value.isEmpty) return 'Introdueix el teu correu electrònic';
+                  bool emailValid = RegExp(r"^[a-zA-Z0-9._%+-]+@[a-zA-Z0-9.-]+\.[a-zA-Z]{2,}$").hasMatch(value);
+                  return emailValid ? null : 'Introdueix un correu vàlid';
+                },
+                decoration: const InputDecoration(
+                  labelText: 'Correu electrònic',
+                  prefixIcon: Icon(Icons.email_outlined),
+                  border: OutlineInputBorder(),
                 ),
               ),
-            ),
-            _gap(),
-            TextButton(
-              onPressed: () => Navigator.pop(context), // Torna a la pantalla d'inici de sessió
-              child: const Text("Ja tens un compte? Inicia sessió"),
-            ),
-          ],
+              _gap(),
+              TextFormField(
+                controller: _passwordController,
+                validator: (value) => value != null && value.length >= 8 ? null : 'Mínim 8 caràcters',
+                obscureText: !_isPasswordVisible,
+                decoration: InputDecoration(
+                  labelText: 'Contrasenya',
+                  prefixIcon: const Icon(Icons.lock_outline_rounded),
+                  border: const OutlineInputBorder(),
+                  suffixIcon: IconButton(
+                    icon: Icon(_isPasswordVisible ? Icons.visibility_off : Icons.visibility),
+                    onPressed: () => setState(() => _isPasswordVisible = !_isPasswordVisible),
+                  ),
+                ),
+              ),
+              _gap(),
+              TextFormField(
+                controller: _confirmPasswordController,
+                validator: (value) => value == _passwordController.text ? null : 'Les contrasenyes no coincideixen',
+                obscureText: !_isConfirmPasswordVisible,
+                decoration: InputDecoration(
+                  labelText: 'Confirmar contrasenya',
+                  prefixIcon: const Icon(Icons.lock_outline_rounded),
+                  border: const OutlineInputBorder(),
+                  suffixIcon: IconButton(
+                    icon: Icon(_isConfirmPasswordVisible ? Icons.visibility_off : Icons.visibility),
+                    onPressed: () => setState(() => _isConfirmPasswordVisible = !_isConfirmPasswordVisible),
+                  ),
+                ),
+              ),
+              _gap(),
+              DropdownButtonFormField<String>(
+                value: _selectedLanguage,
+                onChanged: (value) {
+                  setState(() {
+                    _selectedLanguage = value!;
+                  });
+                },
+                items: ['Català', 'English', 'Castellano']
+                    .map((language) => DropdownMenuItem(
+                  value: language,
+                  child: Text(language),
+                ))
+                    .toList(),
+                decoration: const InputDecoration(
+                  labelText: 'Idioma',
+                  prefixIcon: Icon(Icons.language),
+                  border: OutlineInputBorder(),
+                ),
+              ),
+              _gap(),
+              CheckboxListTile(
+                value: _isAdmin,
+                onChanged: (value) => setState(() => _isAdmin = value ?? false),
+                title: const Text('¿Eres administrador?'),
+                controlAffinity: ListTileControlAffinity.leading,
+                dense: true,
+              ),
+              if (_isAdmin) ...[
+                _gap(),
+                TextFormField(
+                  controller: _verificationCodeController,
+                  validator: (value) {
+                    if (_isAdmin && (value == null || value.isEmpty)) {
+                      return 'Introdueix el codi de verificació';
+                    }
+                    return null;
+                  },
+                  decoration: const InputDecoration(
+                    labelText: 'Codi de verificació',
+                    prefixIcon: Icon(Icons.lock),
+                    border: OutlineInputBorder(),
+                  ),
+                ),
+              ],
+              _gap(),
+              CheckboxListTile(
+                value: _agreeToTerms,
+                onChanged: (value) => setState(() => _agreeToTerms = value ?? false),
+                title: const Text('Accepto els termes i condicions'),
+                controlAffinity: ListTileControlAffinity.leading,
+                dense: true,
+              ),
+              _gap(),
+              SizedBox(
+                width: double.infinity,
+                child: ElevatedButton(
+                  onPressed: _registerUser,
+                  child: const Padding(
+                    padding: EdgeInsets.all(10.0),
+                    child: Text('Registra\'t', style: TextStyle(fontSize: 16, fontWeight: FontWeight.bold)),
+                  ),
+                ),
+              ),
+              _gap(),
+              TextButton(
+                onPressed: () => Navigator.pop(context), // Torna a la pantalla d'inici de sessió
+                child: const Text("Ja tens un compte? Inicia sessió"),
+              ),
+            ],
+          ),
         ),
       ),
     );

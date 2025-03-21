@@ -8,6 +8,7 @@ class UserPage extends StatelessWidget {
 
   Future<void> _eliminarCuenta(BuildContext context) async {
     final user = FirebaseAuth.instance.currentUser;
+
     if (user == null) {
       ScaffoldMessenger.of(context).showSnackBar(
         const SnackBar(content: Text("No hay un usuario autenticado.")),

@@ -3,10 +3,12 @@ import 'package:firebase_auth/firebase_auth.dart';
 import 'package:http/http.dart' as http;
 import 'dart:convert'; // Para usar jsonEncode
 import 'package:prueba_flutter/main.dart';
+import 'admin_page.dart';
 import 'map_page.dart';
 import 'register.dart';  // Importem la pantalla de registre
 // La pantalla que indica "Sessió correcta"
 import 'home_page.dart';
+import 'reset_password.dart'; // Importem la pantalla de restabliment de contrasenya
 
 class LoginPage extends StatefulWidget {
   const LoginPage({super.key});
@@ -44,10 +46,18 @@ class _LoginPageState extends State<LoginPage> {
       // Verificar la respuesta del backend
       if (response.statusCode == 200) {
         // Si el backend responde con éxito, redirigir a la pantalla principal
-        Navigator.pushReplacement(
-          context,
-          MaterialPageRoute(builder: (context) => MyHomePage()),
-        );
+        print("El usuario es admin: ${response.body.toString()}");
+        if (response.body.contains("true")) {
+          Navigator.pushReplacement(
+            context,
+            MaterialPageRoute(builder: (context) => AdminPage()),
+          );
+        } else {
+          Navigator.pushReplacement(
+            context,
+            MaterialPageRoute(builder: (context) => MyHomePage()),
+          );
+        }
       } else {
         // Si el backend responde con un error, mostrar el mensaje de error
         setState(() {
@@ -106,6 +116,15 @@ class _LoginPageState extends State<LoginPage> {
                 );
               },
               child: const Text("No tens compte? Registra't aquí"),
+            ),
+            TextButton(
+              onPressed: () {
+                Navigator.push(
+                  context,
+                  MaterialPageRoute(builder: (context) => const ResetPasswordPage()),
+                );
+              },
+              child: const Text("Has oblidat la contrasenya?"),
             ),
             if (_errorMessage.isNotEmpty) ...[
               const SizedBox(height: 12),
