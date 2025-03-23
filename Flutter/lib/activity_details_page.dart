@@ -1,5 +1,4 @@
 import 'package:flutter/material.dart';
-
 class ActivityDetailsPage extends StatelessWidget {
   final String id;
   final String title;
@@ -10,6 +9,8 @@ class ActivityDetailsPage extends StatelessWidget {
   final String startDate;
   final String endDate;
   final bool isEditable;
+  final VoidCallback onEdit; // Función para editar
+  final VoidCallback onDelete; // Función para eliminar
 
   const ActivityDetailsPage({
     super.key,
@@ -22,6 +23,8 @@ class ActivityDetailsPage extends StatelessWidget {
     required this.startDate,
     required this.endDate,
     required this.isEditable,
+    required this.onEdit, // Añadimos el parámetro onEdit
+    required this.onDelete, // Añadimos el parámetro onDelete
   });
 
   @override
@@ -130,59 +133,17 @@ class ActivityDetailsPage extends StatelessWidget {
             if (isEditable) ...[
               SizedBox(height: 16),
               ElevatedButton(
-                onPressed: () {
-                  // Lógica para editar la actividad
-                  _editActivity(context);
-                },
+                onPressed: onEdit, // Usamos la función onEdit
                 child: Text('Edit Activity'),
               ),
               ElevatedButton(
-                onPressed: () {
-                  // Lógica para eliminar la actividad
-                  _deleteActivity(context);
-                },
+                onPressed: onDelete, // Usamos la función onDelete
                 child: Text('Delete Activity'),
               ),
             ],
           ],
         ),
       ),
-    );
-  }
-
-  void _editActivity(BuildContext context) {
-    // Lógica para editar la actividad
-    print('Editar actividad: $id');
-    // Puedes navegar a una página de edición o mostrar un diálogo de edición
-  }
-
-  void _deleteActivity(BuildContext context) {
-    // Lógica para eliminar la actividad
-    showDialog(
-      context: context,
-      builder: (context) {
-        return AlertDialog(
-          title: Text('Eliminar actividad'),
-          content: Text('¿Estás seguro de que quieres eliminar esta actividad?'),
-          actions: [
-            TextButton(
-              onPressed: () {
-                Navigator.pop(context); // Cerrar el diálogo
-              },
-              child: Text('Cancelar'),
-            ),
-            TextButton(
-              onPressed: () {
-                // Lógica para eliminar la actividad
-                print('Actividad eliminada: $id');
-                Navigator.pop(context); // Cerrar el diálogo
-                Navigator.pop(context); // Volver a la página anterior
-              },
-              child: Text('Eliminar', style: TextStyle(color: Colors.red)),
-            ),
-          ],
-        );
-      },
     );
   }
 }
