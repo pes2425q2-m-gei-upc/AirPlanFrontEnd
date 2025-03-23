@@ -12,6 +12,7 @@ class ActivityDetailsPage extends StatelessWidget {
   final VoidCallback onEdit; // Función para editar
   final VoidCallback onDelete; // Función para eliminar
 
+
   const ActivityDetailsPage({
     super.key,
     required this.id,
