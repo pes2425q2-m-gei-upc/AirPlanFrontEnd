@@ -45,14 +45,22 @@ class _MapPageState extends State<MapPage> {
 
   Future<void> fetchActivities() async {
     final activities = await activityService.fetchActivities();
+
+    for (Map<String,dynamic> activity in activities) {
+      final ubicacio = activity['ubicacio'] as Map<String, dynamic>;
+      final lat = ubicacio['latitud'] as double;
+      final lon = ubicacio['longitud'] as double;
+      String details = await mapService.fetchPlaceDetails(LatLng(lat, lon));
+      savedLocations[LatLng(lat, lon)] = details;
+    }
+
     setState(() {
       this.activities = activities;
     });
   }
 
-  void _onMapTapped(TapPosition tapPosition, LatLng position) {
+  Future<void> _onMapTapped(TapPosition tapPosition, LatLng position) async {
     setState(() {
-      selectedLocation = position;
       markers = [
         // Current selected location marker
         Marker(
@@ -81,15 +89,11 @@ class _MapPageState extends State<MapPage> {
         )),
       ];
     });
-    mapService.fetchPlaceDetails(position).then((details) {
-      setState(() {
-        placeDetails = details;
-      });
-      _showPlaceDetails();
-    });
+    String details = await mapService.fetchPlaceDetails(position);
+    _showPlaceDetails(position,details);
   }
 
-  void _showPlaceDetails() {
+  void _showPlaceDetails(LatLng selectedLocation, String placeDetails) {
     showModalBottomSheet(
       context: context,
       isScrollControlled: true,
@@ -131,7 +135,7 @@ class _MapPageState extends State<MapPage> {
                         ElevatedButton(
                           onPressed: () {
                             Navigator.pop(context);
-                            _showFormWithLocation(selectedLocation);
+                            _showFormWithLocation(selectedLocation,placeDetails);
                             savedLocations[selectedLocation] = placeDetails;
                           },
                           child: const Text("Crea Activitat"),
@@ -184,7 +188,7 @@ class _MapPageState extends State<MapPage> {
     );
   }
 
-  void _showFormWithLocation(LatLng location) async {
+  void _showFormWithLocation(LatLng location, String placeDetails) async {
     final result = await showDialog<Map<String, String>>(
       context: context,
       builder: (BuildContext context) {
@@ -288,6 +292,8 @@ class _MapPageState extends State<MapPage> {
           : '',
     );
 
+    LatLng selectedLocation = LatLng(activity['ubicacio']['latitud'] as double, activity['ubicacio']['longitud'] as double);
+
     showDialog(
       context: context,
       builder: (context) {
@@ -349,17 +355,26 @@ class _MapPageState extends State<MapPage> {
                       return null;
                     },
                   ),
-                  TextFormField(
-                    controller: _locationController,
-                    decoration: InputDecoration(labelText: 'Ubicación (latitud,longitud)'),
+                  DropdownButtonFormField<LatLng>(
+                    value: selectedLocation,
+                    items: savedLocations.entries.map((entry) {
+                      String displayText = entry.value.isNotEmpty
+                          ? entry.value
+                          : '${entry.key.latitude}, ${entry.key.longitude}';
+                      return DropdownMenuItem<LatLng>(
+                        value: entry.key,
+                        child: Text(displayText, overflow: TextOverflow.ellipsis),
+                      );
+                    }).toList(),
+                    onChanged: (value) {
+                      setState(() {
+                        selectedLocation = value!;
+                      });
+                    },
+                    decoration: InputDecoration(labelText: 'Selected Location'),
                     validator: (value) {
-                      if (value == null || value.isEmpty) {
-                        return 'Por favor, ingresa una ubicación';
-                      }
-                      // Validar que la ubicación tenga el formato correcto
-                      final parts = value.split(',');
-                      if (parts.length != 2) {
-                        return 'Formato incorrecto. Usa "latitud,longitud"';
+                      if (value == null) {
+                        return 'Please select a location';
                       }
                       return null;
                     },
@@ -472,11 +487,7 @@ class _MapPageState extends State<MapPage> {
   }
 
   void _showSavedLocationDetails(LatLng position, String details) {
-    setState(() {
-      selectedLocation = position;
-      placeDetails = details;
-    });
-    _showPlaceDetails();
+    _showPlaceDetails(position, details);
   }
 
   @override
@@ -493,11 +504,11 @@ class _MapPageState extends State<MapPage> {
       ),
       floatingActionButton: FloatingActionButton(
         onPressed: () {
-          if (selectedLocation != LatLng(0, 0)) {
-            _showFormWithLocation(selectedLocation);
+          if (savedLocations.entries.isNotEmpty) {
+            _showFormWithLocation(savedLocations.keys.first, placeDetails);
           } else {
             ScaffoldMessenger.of(context).showSnackBar(
-              SnackBar(content: Text('Selecciona una ubicación en el mapa antes de crear una actividad.')),
+              SnackBar(content: Text('No tens ubicacions guardades. Selecciona una ubicació abans de crear una activitat.')),
             );
           }
         },
