@@ -43,21 +43,7 @@ class _LoginPageState extends State<LoginPage> {
       );
 
       // Verificar la respuesta del backend
-      if (response.statusCode == 200) {
-        // Si el backend responde con éxito, redirigir a la pantalla principal
-        print("El usuario es admin: ${response.body.toString()}");
-        if (response.body.contains("true")) {
-          Navigator.pushReplacement(
-            context,
-            MaterialPageRoute(builder: (context) => AdminPage()),
-          );
-        } else {
-          Navigator.pushReplacement(
-            context,
-            MaterialPageRoute(builder: (context) => MyHomePage()),
-          );
-        }
-      } else {
+      if (response.statusCode != 200) {
         // Si el backend responde con un error, mostrar el mensaje de error
         setState(() {
           _errorMessage = "Error en el backend: ${response.body}";

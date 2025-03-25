@@ -8,16 +8,16 @@ import 'package:prueba_flutter/user_services.dart';
 import 'home_page.dart';
 import 'rive_controller.dart';
 
-class FormContent extends StatefulWidget {
+class FormContentRegister extends StatefulWidget {
   final RiveAnimationControllerHelper riveHelper;
 
-  const FormContent({super.key, required this.riveHelper});
+  const FormContentRegister({super.key, required this.riveHelper});
 
   @override
-  State<FormContent> createState() => _FormContentState();
+  State<FormContentRegister> createState() => _FormContentRegisterState();
 }
 
-class _FormContentState extends State<FormContent> {
+class _FormContentRegisterState extends State<FormContentRegister> {
   bool _isPasswordVisible = false;
   bool _isConfirmPasswordVisible = false;
   bool _agreeToTerms = false;
@@ -120,7 +120,7 @@ class _FormContentState extends State<FormContent> {
         password: _passwordController.text.trim(),
       );
       await userCredential.user?.updateProfile(displayName: _usernameController.text.trim());
-
+      await userCredential.user?.sendEmailVerification();
       if (!mounted) return;
 
       // Regresar a la pantalla anterior

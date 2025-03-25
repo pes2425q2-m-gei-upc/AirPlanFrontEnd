@@ -1,5 +1,5 @@
 import 'package:flutter/material.dart';
-import 'from_content.dart';
+import 'form_content_register.dart';
 import 'logo_widget.dart';
 import 'rive_controller.dart';
 
@@ -25,7 +25,7 @@ class SignUpPage extends StatelessWidget {
           mainAxisSize: MainAxisSize.min,
           children: [
             LogoWidget(riveHelper: riveHelper),
-            FormContent(riveHelper: riveHelper),
+            FormContentRegister(riveHelper: riveHelper),
           ],
         )
             : Container(
@@ -35,7 +35,7 @@ class SignUpPage extends StatelessWidget {
             children: [
               Expanded(child: LogoWidget(riveHelper: riveHelper)),
               Expanded(
-                child: Center(child: FormContent(riveHelper: riveHelper)),
+                child: Center(child: FormContentRegister(riveHelper: riveHelper)),
               ),
             ],
           ),

@@ -1,5 +1,4 @@
 import 'dart:convert';
-
 import 'package:firebase_core/firebase_core.dart';
 import 'package:flutter/material.dart';
 import 'package:firebase_auth/firebase_auth.dart';
@@ -7,7 +6,6 @@ import 'package:http/http.dart' as http;
 import 'package:flutter/foundation.dart' show kIsWeb;
 import 'package:prueba_flutter/user_page.dart';
 import 'dart:html' as html;
-
 import 'calendar_page.dart';
 import 'login_page.dart';
 import 'map_page.dart';
@@ -42,11 +40,9 @@ class _MiAppState extends State<MiApp> with WidgetsBindingObserver {
   @override
   void initState() {
     super.initState();
-
     if (!kIsWeb) {
       WidgetsBinding.instance.addObserver(this);
     } else {
-      // Manejar el cierre real de la ventana/pestaña
       html.window.addEventListener('unload', (event) async {
         _isWindowClosing = true;
         await _logoutUser();
@@ -65,32 +61,22 @@ class _MiAppState extends State<MiApp> with WidgetsBindingObserver {
   @override
   void didChangeAppLifecycleState(AppLifecycleState state) {
     if (state == AppLifecycleState.paused && !kIsWeb) {
-       _logoutUser();
+      _logoutUser();
     }
   }
 
   Future<void> _logoutUser() async {
-    // Solo hacer logout si realmente se está cerrando la aplicación
     if (!kIsWeb || _isWindowClosing) {
-      print("Cerrando sesión en el backend...");
       final user = FirebaseAuth.instance.currentUser;
       if (user != null) {
         final email = user.email;
-        print("Sesión cerrada en Firebase para el usuario: $email");
         if (email != null) {
           try {
             final response = await http.post(
               Uri.parse('http://localhost:8080/api/usuaris/logout'),
-              headers: <String, String>{
-                'Content-Type': 'application/json; charset=UTF-8',
-              },
+              headers: {'Content-Type': 'application/json; charset=UTF-8'},
               body: jsonEncode({'email': email}),
             );
-            if (response.statusCode == 200) {
-              print("Sesión cerrada en el backend para el usuario: $email");
-            } else {
-              print("Error al cerrar la sesión en el backend: ${response.body}");
-            }
           } catch (e) {
             print("Error al conectar con el backend: $e");
           }
@@ -113,7 +99,25 @@ class _MiAppState extends State<MiApp> with WidgetsBindingObserver {
   }
 }
 
-class AuthWrapper extends StatelessWidget {
+class AuthWrapper extends StatefulWidget {
+  @override
+  _AuthWrapperState createState() => _AuthWrapperState();
+}
+
+class _AuthWrapperState extends State<AuthWrapper> {
+  Future<bool> checkIfAdmin(String email) async {
+    try {
+      final response = await http.get(Uri.parse('http://localhost:8080/isAdmin/$email'));
+      if (response.statusCode == 200) {
+        final data = jsonDecode(response.body);
+        return data["isAdmin"] ?? false;
+      }
+    } catch (e) {
+      print("Error al conectar con el backend: $e");
+    }
+    return false;
+  }
+
   @override
   Widget build(BuildContext context) {
     return StreamBuilder<User?>(
@@ -121,21 +125,22 @@ class AuthWrapper extends StatelessWidget {
       builder: (context, snapshot) {
         if (snapshot.connectionState == ConnectionState.active) {
           final user = snapshot.data;
-
           if (user != null) {
-            if (user.email == 'admin@admin.com') {
-              return AdminPage();
-            } else {
-              return MyHomePage();
-            }
+            return FutureBuilder<bool>(
+              future: checkIfAdmin(user.email!),
+              builder: (context, adminSnapshot) {
+                if (adminSnapshot.connectionState == ConnectionState.waiting) {
+                  return Scaffold(body: Center(child: CircularProgressIndicator()));
+                } else {
+                  final isAdmin = adminSnapshot.data ?? false;
+                  return isAdmin ? AdminPage() : MyHomePage();
+                }
+              },
+            );
           }
           return LoginPage();
         }
-        return Scaffold(
-          body: Center(
-            child: CircularProgressIndicator(),
-          ),
-        );
+        return Scaffold(body: Center(child: CircularProgressIndicator()));
       },
     );
   }
@@ -150,7 +155,6 @@ class MyHomePage extends StatefulWidget {
 
 class _MyHomePageState extends State<MyHomePage> {
   int _selectedIndex = 0;
-
   static final List<Widget> _widgetOptions = <Widget>[
     MapPage(),
     CalendarPage(),
@@ -169,18 +173,9 @@ class _MyHomePageState extends State<MyHomePage> {
       body: _widgetOptions.elementAt(_selectedIndex),
       bottomNavigationBar: BottomNavigationBar(
         items: const <BottomNavigationBarItem>[
-          BottomNavigationBarItem(
-            icon: Icon(Icons.map),
-            label: 'Map',
-          ),
-          BottomNavigationBarItem(
-            icon: Icon(Icons.calendar_today),
-            label: 'Calendar',
-          ),
-          BottomNavigationBarItem(
-            icon: Icon(Icons.person),
-            label: 'User',
-          ),
+          BottomNavigationBarItem(icon: Icon(Icons.map), label: 'Map'),
+          BottomNavigationBarItem(icon: Icon(Icons.calendar_today), label: 'Calendar'),
+          BottomNavigationBarItem(icon: Icon(Icons.person), label: 'User'),
         ],
         currentIndex: _selectedIndex,
         selectedItemColor: Colors.blue,
