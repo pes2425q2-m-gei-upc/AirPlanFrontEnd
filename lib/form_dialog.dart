@@ -26,10 +26,10 @@ class FormDialog extends StatefulWidget {
   });
 
   @override
-  _FormDialogState createState() => _FormDialogState();
+  FormDialogState createState() => FormDialogState();
 }
 
-class _FormDialogState extends State<FormDialog> {
+class FormDialogState extends State<FormDialog> {
   final _formKey = GlobalKey<FormState>();
   final _userController = TextEditingController();
   final _titleController = TextEditingController();
@@ -60,21 +60,16 @@ class _FormDialogState extends State<FormDialog> {
     );
 
     if (pickedDate != null) {
-      TimeOfDay? pickedTime = await showTimePicker(
-        context: context,
-        initialTime: TimeOfDay.now(),
-      );
+      TimeOfDay? pickedTime = TimeOfDay.now();
 
-      if (pickedTime != null) {
-        final DateTime fullDateTime = DateTime(
-          pickedDate.year,
-          pickedDate.month,
-          pickedDate.day,
-          pickedTime.hour,
-          pickedTime.minute,
-        );
-        controller.text = DateFormat('yyyy-MM-dd HH:mm').format(fullDateTime);
-      }
+      final DateTime fullDateTime = DateTime(
+        pickedDate.year,
+        pickedDate.month,
+        pickedDate.day,
+        pickedTime.hour,
+        pickedTime.minute,
+      );
+      controller.text = DateFormat('yyyy-MM-dd HH:mm').format(fullDateTime);
     }
   }
 

@@ -13,10 +13,10 @@ class MapPage extends StatefulWidget {
   const MapPage({super.key});
 
   @override
-  _MapPageState createState() => _MapPageState();
+  MapPageState createState() => MapPageState();
 }
 
-class _MapPageState extends State<MapPage> {
+class MapPageState extends State<MapPage> {
   final MapController mapController = MapController();
   final MapService mapService = MapService();
   final ActivityService activityService = ActivityService();
@@ -280,13 +280,13 @@ class _MapPageState extends State<MapPage> {
 
 // Función para mostrar el formulario de edición
   void _showEditActivityForm(Map<String, dynamic> activity) {
-    final _formKey = GlobalKey<FormState>();
-    final _titleController = TextEditingController(text: activity['nom']);
-    final _descriptionController = TextEditingController(text: activity['descripcio']);
-    final _startDateController = TextEditingController(text: activity['dataInici']);
-    final _endDateController = TextEditingController(text: activity['dataFi']);
-    final _creatorController = TextEditingController(text: activity['creador']);
-    final _locationController = TextEditingController(
+    final formKey = GlobalKey<FormState>();
+    final titleController = TextEditingController(text: activity['nom']);
+    final descriptionController = TextEditingController(text: activity['descripcio']);
+    final startDateController = TextEditingController(text: activity['dataInici']);
+    final endDateController = TextEditingController(text: activity['dataFi']);
+    final creatorController = TextEditingController(text: activity['creador']);
+    final locationController = TextEditingController(
       text: activity['ubicacio'] != null
           ? '${activity['ubicacio']['latitud']},${activity['ubicacio']['longitud']}'
           : '',
@@ -300,13 +300,13 @@ class _MapPageState extends State<MapPage> {
         return AlertDialog(
           title: Text('Editar actividad'),
           content: Form(
-            key: _formKey,
+            key: formKey,
             child: SingleChildScrollView(
               child: Column(
                 mainAxisSize: MainAxisSize.min,
                 children: [
                   TextFormField(
-                    controller: _titleController,
+                    controller: titleController,
                     decoration: InputDecoration(labelText: 'Título'),
                     validator: (value) {
                       if (value == null || value.isEmpty) {
@@ -316,7 +316,7 @@ class _MapPageState extends State<MapPage> {
                     },
                   ),
                   TextFormField(
-                    controller: _descriptionController,
+                    controller: descriptionController,
                     decoration: InputDecoration(labelText: 'Descripción'),
                     validator: (value) {
                       if (value == null || value.isEmpty) {
@@ -326,7 +326,7 @@ class _MapPageState extends State<MapPage> {
                     },
                   ),
                   TextFormField(
-                    controller: _startDateController,
+                    controller: startDateController,
                     decoration: InputDecoration(labelText: 'Fecha de inicio'),
                     validator: (value) {
                       if (value == null || value.isEmpty) {
@@ -336,7 +336,7 @@ class _MapPageState extends State<MapPage> {
                     },
                   ),
                   TextFormField(
-                    controller: _endDateController,
+                    controller: endDateController,
                     decoration: InputDecoration(labelText: 'Fecha de fin'),
                     validator: (value) {
                       if (value == null || value.isEmpty) {
@@ -346,7 +346,7 @@ class _MapPageState extends State<MapPage> {
                     },
                   ),
                   TextFormField(
-                    controller: _creatorController,
+                    controller: creatorController,
                     decoration: InputDecoration(labelText: 'Creador'),
                     validator: (value) {
                       if (value == null || value.isEmpty) {
@@ -392,18 +392,18 @@ class _MapPageState extends State<MapPage> {
             ),
             TextButton(
               onPressed: () async {
-                if (_formKey.currentState!.validate()) {
+                if (formKey.currentState!.validate()) {
                   // Cierra el diálogo
                   Navigator.pop(context);
 
                   // Prepara los datos actualizados
                   final updatedActivityData = {
-                    'title': _titleController.text,
-                    'description': _descriptionController.text,
-                    'startDate': _startDateController.text,
-                    'endDate': _endDateController.text,
-                    'location': _locationController.text, // Ubicación ingresada por el usuario
-                    'user': _creatorController.text,
+                    'title': titleController.text,
+                    'description': descriptionController.text,
+                    'startDate': startDateController.text,
+                    'endDate': endDateController.text,
+                    'location': locationController.text, // Ubicación ingresada por el usuario
+                    'user': creatorController.text,
                   };
 
                   // Llama al servicio para actualizar la actividad
@@ -413,10 +413,13 @@ class _MapPageState extends State<MapPage> {
                       activity['id'].toString(),
                       updatedActivityData,
                     );
-                    print('Actividad editada correctamente');
                     fetchActivities(); // Actualiza la lista de actividades
                   } catch (e) {
-                    print('Error al editar la actividad: $e');
+                    if (context.mounted) {
+                      ScaffoldMessenger.of(context).showSnackBar(SnackBar(
+                        content: Text('Error al actualizar la actividad: ${e.toString()}'),
+                      ));
+                    }
                   }
                 }
               },
@@ -451,9 +454,17 @@ class _MapPageState extends State<MapPage> {
                 try {
                   final activityService = ActivityService();
                   await activityService.deleteActivityFromBackend(activity['id'].toString());
-                  print('Actividad eliminada correctamente');
+                  if (context.mounted) {
+                    ScaffoldMessenger.of(context).showSnackBar(SnackBar(
+                      content: Text("Actividad eliminada correctament."))
+                    );
+                  }
                 } catch (e) {
-                  print('Error al eliminar la actividad: $e');
+                  if (context.mounted) {
+                    ScaffoldMessenger.of(context).showSnackBar(SnackBar(
+                        content: Text("Error al eliminar l'activitat: ${e.toString()}"))
+                    );
+                  }
                 }
               },
               child: Text('Eliminar', style: TextStyle(color: Colors.red)),

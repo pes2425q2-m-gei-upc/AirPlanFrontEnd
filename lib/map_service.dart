@@ -23,7 +23,7 @@ class MapService {
 
     for (var entry in data) {
       LatLng position = LatLng(double.parse(entry['latitud']), double.parse(entry['longitud']));
-      Contaminant contaminant = Contaminant.SO2;
+      Contaminant contaminant = Contaminant.so2;
       try {
          contaminant = parseContaminant(entry['contaminant']);
          AirQualityData aqd = getLastAirQualityData(entry);

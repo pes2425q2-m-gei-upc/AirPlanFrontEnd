@@ -30,7 +30,6 @@ class ActivityDetailsPage extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    print('isEditable: $isEditable'); // Depuración
     return Scaffold(
       appBar: AppBar(
         title: Text('Activity Details'),
