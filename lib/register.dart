@@ -21,12 +21,14 @@ class SignUpPage extends StatelessWidget {
       ),
       body: Center(
         child: isSmallScreen
-            ? Column(
-          mainAxisSize: MainAxisSize.min,
-          children: [
-            LogoWidget(riveHelper: riveHelper),
-            FormContentRegister(riveHelper: riveHelper),
-          ],
+            ? SingleChildScrollView(  // Añadido SingleChildScrollView
+          child: Column(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              LogoWidget(riveHelper: riveHelper),
+              FormContentRegister(riveHelper: riveHelper),
+            ],
+          ),
         )
             : Container(
           padding: const EdgeInsets.all(32.0),

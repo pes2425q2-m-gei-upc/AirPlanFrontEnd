@@ -5,7 +5,7 @@ import 'package:firebase_auth/firebase_auth.dart';
 import 'package:http/http.dart' as http;
 import 'package:flutter/foundation.dart' show kIsWeb;
 import 'package:prueba_flutter/user_page.dart';
-import 'dart:html' as html;
+import 'package:prueba_flutter/utils/web_utils_stub.dart';
 import 'calendar_page.dart';
 import 'login_page.dart';
 import 'map_page.dart';
@@ -43,7 +43,7 @@ class _MiAppState extends State<MiApp> with WidgetsBindingObserver {
     if (!kIsWeb) {
       WidgetsBinding.instance.addObserver(this);
     } else {
-      html.window.addEventListener('unload', (event) async {
+      addUnloadListener(() async {
         _isWindowClosing = true;
         await _logoutUser();
       });

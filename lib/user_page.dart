@@ -56,6 +56,9 @@ class UserPage extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    var user = FirebaseAuth.instance.currentUser;
+    final displayName = user?.displayName ?? "UsuarioSinNombre";
+    final em = user?.email ?? "UsuarioSinEmail";
     return Scaffold(
       appBar: AppBar(
         title: const Text("Perfil de Usuario"),
@@ -66,6 +69,7 @@ class UserPage extends StatelessWidget {
           children: [
             const Text('User\nPróximamente', textAlign: TextAlign.center),
             const SizedBox(height: 20),
+            Text(em, textAlign: TextAlign.center),
             ElevatedButton(
               onPressed: () => _eliminarCuenta(context),
               style: ElevatedButton.styleFrom(
