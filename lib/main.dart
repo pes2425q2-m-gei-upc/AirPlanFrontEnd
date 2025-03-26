@@ -1,3 +1,4 @@
+// main.dart
 import 'dart:convert';
 import 'package:firebase_core/firebase_core.dart';
 import 'package:flutter/material.dart';
@@ -9,8 +10,11 @@ import 'package:prueba_flutter/utils/web_utils_stub.dart';
 import 'calendar_page.dart';
 import 'login_page.dart';
 import 'map_page.dart';
+import 'calendar_page.dart';
+import 'user_page.dart';
 import 'admin_page.dart';
 
+void main() {
 void main() async {
   WidgetsFlutterBinding.ensureInitialized();
   await Firebase.initializeApp(
@@ -27,7 +31,7 @@ void main() async {
   runApp(MiApp());
 }
 
-class MiApp extends StatefulWidget {
+class MiApp extends StatelessWidget {
   const MiApp({super.key});
 
   @override
@@ -88,6 +92,7 @@ class _MiAppState extends State<MiApp> with WidgetsBindingObserver {
   @override
   Widget build(BuildContext context) {
     return MaterialApp(
+      home: MyHomePage(),
       title: 'AirPlan',
       debugShowCheckedModeBanner: false,
       theme: ThemeData(
@@ -150,11 +155,12 @@ class MyHomePage extends StatefulWidget {
   const MyHomePage({super.key});
 
   @override
-  _MyHomePageState createState() => _MyHomePageState();
+  MyHomePageState createState() => MyHomePageState();
 }
 
-class _MyHomePageState extends State<MyHomePage> {
+class MyHomePageState extends State<MyHomePage> {
   int _selectedIndex = 0;
+
   static final List<Widget> _widgetOptions = <Widget>[
     MapPage(),
     CalendarPage(),
@@ -173,6 +179,18 @@ class _MyHomePageState extends State<MyHomePage> {
       body: _widgetOptions.elementAt(_selectedIndex),
       bottomNavigationBar: BottomNavigationBar(
         items: const <BottomNavigationBarItem>[
+          BottomNavigationBarItem(
+            icon: Icon(Icons.map),
+            label: 'Map',
+          ),
+          BottomNavigationBarItem(
+            icon: Icon(Icons.calendar_today),
+            label: 'Calendar',
+          ),
+          BottomNavigationBarItem(
+            icon: Icon(Icons.person),
+            label: 'User',
+          ),
           BottomNavigationBarItem(icon: Icon(Icons.map), label: 'Map'),
           BottomNavigationBarItem(icon: Icon(Icons.calendar_today), label: 'Calendar'),
           BottomNavigationBarItem(icon: Icon(Icons.person), label: 'User'),
@@ -180,6 +198,10 @@ class _MyHomePageState extends State<MyHomePage> {
         currentIndex: _selectedIndex,
         selectedItemColor: Colors.blue,
         onTap: _onItemTapped,
+      ),
+      bottomSheet: Container(
+        height: 1,
+        color: Colors.grey,
       ),
     );
   }

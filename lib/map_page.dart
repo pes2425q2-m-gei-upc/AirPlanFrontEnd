@@ -1,140 +1,99 @@
-import 'dart:convert';
+// map_page.dart
 import 'package:flutter/material.dart';
 import 'package:flutter_map/flutter_map.dart';
 import 'package:latlong2/latlong.dart';
-import 'package:http/http.dart' as http;
+import 'air_quality.dart';
+import 'form_dialog.dart';
+import 'map_service.dart';
+import 'activity_service.dart';
+import 'map_ui.dart' as map_ui;
+import 'activity_details_page.dart';
 
 class MapPage extends StatefulWidget {
   const MapPage({super.key});
 
   @override
-  _MapPageState createState() => _MapPageState();
+  MapPageState createState() => MapPageState();
 }
 
-class _MapPageState extends State<MapPage> {
+class MapPageState extends State<MapPage> {
   final MapController mapController = MapController();
-  LatLng? selectedLocation;
-  String? placeDetails;
-  List<Marker> markers = [];
-  List<Polygon> polygons = [];
+  final MapService mapService = MapService();
+  final ActivityService activityService = ActivityService();
+  LatLng selectedLocation = LatLng(0, 0);
+  Map<LatLng, String> savedLocations = {};
+  String placeDetails = "";
+  List<CircleMarker> circles = [];
+  Map<LatLng, Map<Contaminant, AirQualityData>> contaminantsPerLocation = {};
   LatLng currentPosition = LatLng(41.3851, 2.1734); // Default to Barcelona
-  bool showAirQuality = false;
+  List<Map<String, dynamic>> activities = [];
+  List<Marker> markers = [];
 
   @override
   void initState() {
     super.initState();
-    fetchLocationUpdates();
     fetchAirQualityData();
-  }
-
-  Future<void> fetchPlaceDetails(LatLng position) async {
-    final url = Uri.parse(
-        'https://nominatim.openstreetmap.org/reverse?format=json&lat=${position.latitude}&lon=${position.longitude}');
-
-    try {
-      final response = await http.get(url);
-
-      if (response.statusCode == 200) {
-        final data = json.decode(response.body);
-        setState(() {
-          placeDetails = data['display_name'] ?? "No address found";
-        });
-      } else {
-        throw Exception('Failed to load place details');
-      }
-    } catch (e) {
-      setState(() {
-        placeDetails = "Error fetching place details";
-      });
-    }
+    fetchActivities();
   }
 
   Future<void> fetchAirQualityData() async {
-    /*
-    final url = Uri.parse('https://api.example.com/air_quality');
-
-    try {
-      final response = await http.get(url);
-
-      if (response.statusCode == 200) {
-        final data = json.decode(response.body);
-        setState(() {
-          polygons = createPolygonsFromAirQualityData(data);
-        });
-      } else {
-        throw Exception('Failed to load air quality data');
-      }
-    } catch (e) {
-      print("Error fetching air quality data: $e");
-    }
-    */
-  }
-
-  List<Polygon> createPolygonsFromAirQualityData(dynamic data) {
-    // Example function to create polygons based on air quality data
-    // This should be adapted to your specific data structure
-    List<Polygon> polygons = [];
-    for (var area in data['areas']) {
-      List<LatLng> points = [];
-      for (var point in area['points']) {
-        points.add(LatLng(point['lat'], point['lng']));
-      }
-      Color color = getColorForAirQuality(area['aqi']);
-      polygons.add(Polygon(
-        points: points,
-        color: color.withOpacity(0.5),
-        borderColor: color,
-        borderStrokeWidth: 2.0,
-      ));
-    }
-    return polygons;
-  }
-
-  Color getColorForAirQuality(int aqi) {
-    if (aqi <= 50) {
-      return Colors.green;
-    } else if (aqi <= 100) {
-      return Colors.yellow;
-    } else if (aqi <= 150) {
-      return Colors.orange;
-    } else if (aqi <= 200) {
-      return Colors.red;
-    } else if (aqi <= 300) {
-      return Colors.purple;
-    } else {
-      return Colors.brown;
-    }
-  }
-
-  void _addMarker(LatLng position) async {
+    final circles = await mapService.fetchAirQualityData(contaminantsPerLocation);
     setState(() {
-      selectedLocation = position;
+      this.circles = circles;
+    });
+  }
+
+  Future<void> fetchActivities() async {
+    final activities = await activityService.fetchActivities();
+
+    for (Map<String,dynamic> activity in activities) {
+      final ubicacio = activity['ubicacio'] as Map<String, dynamic>;
+      final lat = ubicacio['latitud'] as double;
+      final lon = ubicacio['longitud'] as double;
+      String details = await mapService.fetchPlaceDetails(LatLng(lat, lon));
+      savedLocations[LatLng(lat, lon)] = details;
+    }
+
+    setState(() {
+      this.activities = activities;
+    });
+  }
+
+  Future<void> _onMapTapped(TapPosition tapPosition, LatLng position) async {
+    setState(() {
       markers = [
+        // Current selected location marker
         Marker(
+          width: 80.0,
+          height: 80.0,
           point: position,
-          child: Icon(Icons.location_on, color: Colors.red, size: 40),
+          child: const Icon(
+            Icons.location_on,
+            color: Colors.red,
+            size: 40.0,
+          ),
         ),
+        // Saved locations markers
+        ...savedLocations.entries.map((entry) => Marker(
+          width: 80.0,
+          height: 80.0,
+          point: entry.key,
+          child: GestureDetector(
+            onTap: () => _showSavedLocationDetails(entry.key, entry.value),
+            child: const Icon(
+              Icons.push_pin,
+              color: Colors.red,
+              size: 40.0,
+            ),
+          ),
+        )),
       ];
     });
-    await fetchPlaceDetails(position);
-    _showPlaceDetails();
+    String details = await mapService.fetchPlaceDetails(position);
+    _showPlaceDetails(position,details);
   }
 
-  void _onMapTapped(TapPosition p, LatLng position) {
-    _addMarker(position);
-  }
-
-  void _onButtonPressed() {
-    _addMarker(currentPosition);
-  }
-
-  void _toggleAirQuality() {
-    setState(() {
-      showAirQuality = !showAirQuality;
-    });
-  }
-
-  void _showPlaceDetails() {
+  void _showPlaceDetails(LatLng selectedLocation, String placeDetails) {
     showModalBottomSheet(
       context: context,
       isScrollControlled: true,
@@ -168,7 +127,57 @@ class _MapPageState extends State<MapPage> {
                       style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold),
                     ),
                     const SizedBox(height: 5),
-                    Text(placeDetails ?? "No address available"),
+                    Text(placeDetails),
+                    const SizedBox(height: 20),
+                    Row(
+                      mainAxisAlignment: MainAxisAlignment.spaceEvenly,
+                      children: [
+                        ElevatedButton(
+                          onPressed: () {
+                            Navigator.pop(context);
+                            _showFormWithLocation(selectedLocation,placeDetails);
+                            savedLocations[selectedLocation] = placeDetails;
+                          },
+                          child: const Text("Crea Activitat"),
+                        ),
+                        ElevatedButton(
+                          onPressed: () {
+                            setState(() {
+                              savedLocations[selectedLocation] = placeDetails;
+                              markers = [
+                                // Current selected location marker
+                                Marker(
+                                  width: 80.0,
+                                  height: 80.0,
+                                  point: selectedLocation,
+                                  child: const Icon(
+                                    Icons.location_on,
+                                    color: Colors.red,
+                                    size: 40.0,
+                                  ),
+                                ),
+                                // Saved locations markers
+                                ...savedLocations.entries.map((entry) => Marker(
+                                  width: 80.0,
+                                  height: 80.0,
+                                  point: entry.key,
+                                  child: GestureDetector(
+                                    onTap: () => _showSavedLocationDetails(entry.key, entry.value),
+                                    child: const Icon(
+                                      Icons.push_pin,
+                                      color: Colors.red,
+                                      size: 40.0,
+                                    ),
+                                  ),
+                                )),
+                              ];
+                            });
+                            Navigator.pop(context);
+                          },
+                          child: const Text("Guardar marcador"),
+                        ),
+                      ],
+                    ),
                   ],
                 ),
               ),
@@ -179,47 +188,341 @@ class _MapPageState extends State<MapPage> {
     );
   }
 
-  Future<void> fetchLocationUpdates() async {
-    // Simulate fetching current location
-    setState(() {
-      currentPosition = LatLng(41.3851, 2.1734); // Default to Barcelona
-    });
+  void _showFormWithLocation(LatLng location, String placeDetails) async {
+    final result = await showDialog<Map<String, String>>(
+      context: context,
+      builder: (BuildContext context) {
+        return AlertDialog(
+          title: Text('Enter Details'),
+          content: FormDialog(
+            initialLocation: '${location.latitude},${location.longitude}',
+            initialPlaceDetails: placeDetails,
+            initialTitle: '',
+            initialUser: '',
+            initialDescription: '',
+            initialStartDate: '',
+            initialEndDate: '',
+            savedLocations: savedLocations,
+          ),
+        );
+      },
+    );
+
+    if (result != null) {
+      await activityService.sendActivityToBackend(result);
+      fetchActivities();
+    }
+  }
+
+  void _showActivityDetails(Map<String, dynamic> activity) {
+    showModalBottomSheet(
+      context: context,
+      builder: (context) {
+        return Container(
+          padding: EdgeInsets.all(16.0),
+          child: Row(
+            mainAxisAlignment: MainAxisAlignment.spaceBetween,
+            children: [
+              // Contenido a la izquierda (título y creador)
+              Expanded(
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  mainAxisSize: MainAxisSize.min,
+                  children: [
+                    GestureDetector(
+                      onTap: () {
+                        Navigator.pop(context); // Cierra el bottom sheet
+                        _navigateToActivityDetails(activity); // Navega a la página de detalles
+                      },
+                      child: Text(
+                        activity['nom'] ?? '',
+                        style: TextStyle(
+                          fontSize: 20,
+                          fontWeight: FontWeight.bold,
+                          color: Colors.blue,
+                          decoration: TextDecoration.underline,
+                        ),
+                      ),
+                    ),
+                    SizedBox(height: 8),
+                    Text(
+                      'Creador: ${activity['creador'] ?? ''}',
+                      style: TextStyle(fontSize: 16),
+                    ),
+                  ],
+                ),
+              ),
+              // Botones a la derecha (editar y eliminar)
+              Row(
+                children: [
+                  IconButton(
+                    icon: Icon(Icons.edit, color: Colors.blue),
+                    onPressed: () {
+                      Navigator.pop(context); // Cierra el bottom sheet
+                      _showEditActivityForm(activity); // Muestra el formulario de edición
+                    },
+                  ),
+                  IconButton(
+                    icon: Icon(Icons.delete, color: Colors.red),
+                    onPressed: () {
+                      Navigator.pop(context); // Cierra el bottom sheet
+                      _showDeleteConfirmation(activity); // Muestra el aviso de eliminación
+                    },
+                  ),
+                ],
+              ),
+            ],
+          ),
+        );
+      },
+    );
+  }
+
+// Función para mostrar el formulario de edición
+  void _showEditActivityForm(Map<String, dynamic> activity) {
+    final formKey = GlobalKey<FormState>();
+    final titleController = TextEditingController(text: activity['nom']);
+    final descriptionController = TextEditingController(text: activity['descripcio']);
+    final startDateController = TextEditingController(text: activity['dataInici']);
+    final endDateController = TextEditingController(text: activity['dataFi']);
+    final creatorController = TextEditingController(text: activity['creador']);
+    final locationController = TextEditingController(
+      text: activity['ubicacio'] != null
+          ? '${activity['ubicacio']['latitud']},${activity['ubicacio']['longitud']}'
+          : '',
+    );
+
+    LatLng selectedLocation = LatLng(activity['ubicacio']['latitud'] as double, activity['ubicacio']['longitud'] as double);
+
+    showDialog(
+      context: context,
+      builder: (context) {
+        return AlertDialog(
+          title: Text('Editar actividad'),
+          content: Form(
+            key: formKey,
+            child: SingleChildScrollView(
+              child: Column(
+                mainAxisSize: MainAxisSize.min,
+                children: [
+                  TextFormField(
+                    controller: titleController,
+                    decoration: InputDecoration(labelText: 'Título'),
+                    validator: (value) {
+                      if (value == null || value.isEmpty) {
+                        return 'Por favor, ingresa un título';
+                      }
+                      return null;
+                    },
+                  ),
+                  TextFormField(
+                    controller: descriptionController,
+                    decoration: InputDecoration(labelText: 'Descripción'),
+                    validator: (value) {
+                      if (value == null || value.isEmpty) {
+                        return 'Por favor, ingresa una descripción';
+                      }
+                      return null;
+                    },
+                  ),
+                  TextFormField(
+                    controller: startDateController,
+                    decoration: InputDecoration(labelText: 'Fecha de inicio'),
+                    validator: (value) {
+                      if (value == null || value.isEmpty) {
+                        return 'Por favor, ingresa una fecha de inicio';
+                      }
+                      return null;
+                    },
+                  ),
+                  TextFormField(
+                    controller: endDateController,
+                    decoration: InputDecoration(labelText: 'Fecha de fin'),
+                    validator: (value) {
+                      if (value == null || value.isEmpty) {
+                        return 'Por favor, ingresa una fecha de fin';
+                      }
+                      return null;
+                    },
+                  ),
+                  TextFormField(
+                    controller: creatorController,
+                    decoration: InputDecoration(labelText: 'Creador'),
+                    validator: (value) {
+                      if (value == null || value.isEmpty) {
+                        return 'Por favor, ingresa un creador';
+                      }
+                      return null;
+                    },
+                  ),
+                  DropdownButtonFormField<LatLng>(
+                    value: selectedLocation,
+                    items: savedLocations.entries.map((entry) {
+                      String displayText = entry.value.isNotEmpty
+                          ? entry.value
+                          : '${entry.key.latitude}, ${entry.key.longitude}';
+                      return DropdownMenuItem<LatLng>(
+                        value: entry.key,
+                        child: Text(displayText, overflow: TextOverflow.ellipsis),
+                      );
+                    }).toList(),
+                    onChanged: (value) {
+                      setState(() {
+                        selectedLocation = value!;
+                      });
+                    },
+                    decoration: InputDecoration(labelText: 'Selected Location'),
+                    validator: (value) {
+                      if (value == null) {
+                        return 'Please select a location';
+                      }
+                      return null;
+                    },
+                  ),
+                ],
+              ),
+            ),
+          ),
+          actions: [
+            TextButton(
+              onPressed: () {
+                Navigator.pop(context); // Cierra el diálogo
+              },
+              child: Text('Cancelar'),
+            ),
+            TextButton(
+              onPressed: () async {
+                if (formKey.currentState!.validate()) {
+                  // Cierra el diálogo
+                  Navigator.pop(context);
+
+                  // Prepara los datos actualizados
+                  final updatedActivityData = {
+                    'title': titleController.text,
+                    'description': descriptionController.text,
+                    'startDate': startDateController.text,
+                    'endDate': endDateController.text,
+                    'location': locationController.text, // Ubicación ingresada por el usuario
+                    'user': creatorController.text,
+                  };
+
+                  // Llama al servicio para actualizar la actividad
+                  try {
+                    final activityService = ActivityService();
+                    await activityService.updateActivityInBackend(
+                      activity['id'].toString(),
+                      updatedActivityData,
+                    );
+                    fetchActivities(); // Actualiza la lista de actividades
+                  } catch (e) {
+                    if (context.mounted) {
+                      ScaffoldMessenger.of(context).showSnackBar(SnackBar(
+                        content: Text('Error al actualizar la actividad: ${e.toString()}'),
+                      ));
+                    }
+                  }
+                }
+              },
+              child: Text('Guardar'),
+            ),
+          ],
+        );
+      },
+    );
+  }
+
+// Función para mostrar el aviso de confirmación de eliminación
+  void _showDeleteConfirmation(Map<String, dynamic> activity) {
+    showDialog(
+      context: context,
+      builder: (context) {
+        return AlertDialog(
+          title: Text('Eliminar actividad'),
+          content: Text('¿Estás seguro de que quieres eliminar esta actividad?'),
+          actions: [
+            TextButton(
+              onPressed: () {
+                Navigator.pop(context); // Cierra el diálogo
+              },
+              child: Text('Cancelar'),
+            ),
+            TextButton(
+              onPressed: () async {
+                Navigator.pop(context); // Cierra el diálogo
+
+                // Llama al servicio para eliminar la actividad
+                try {
+                  final activityService = ActivityService();
+                  await activityService.deleteActivityFromBackend(activity['id'].toString());
+                  if (context.mounted) {
+                    ScaffoldMessenger.of(context).showSnackBar(SnackBar(
+                      content: Text("Actividad eliminada correctament."))
+                    );
+                  }
+                } catch (e) {
+                  if (context.mounted) {
+                    ScaffoldMessenger.of(context).showSnackBar(SnackBar(
+                        content: Text("Error al eliminar l'activitat: ${e.toString()}"))
+                    );
+                  }
+                }
+              },
+              child: Text('Eliminar', style: TextStyle(color: Colors.red)),
+            ),
+          ],
+        );
+      },
+    );
+  }
+
+// Función para navegar a la página de detalles (código original)
+  void _navigateToActivityDetails(Map<String, dynamic> activity) {
+    Navigator.push(
+      context,
+      MaterialPageRoute(
+        builder: (context) => ActivityDetailsPage(
+          id: activity['id'].toString(),
+          title: activity['nom'] ?? '',
+          creator: activity['creador'] ?? '',
+          description: activity['descripcio'] ?? '',
+          startDate: activity['dataInici'] ?? '',
+          endDate: activity['dataFi'] ?? '',
+          airQuality: 'Excel·lent', // Placeholder
+          airQualityColor: Colors.lightBlue, // Placeholder
+          isEditable: true,
+          onEdit: () => _showEditActivityForm(activity), // Pasamos la función de editar
+          onDelete: () => _showDeleteConfirmation(activity), // Pasamos la función de eliminar
+        ),
+      ),
+    );
+  }
+
+  void _showSavedLocationDetails(LatLng position, String details) {
+    _showPlaceDetails(position, details);
   }
 
   @override
   Widget build(BuildContext context) {
     return Scaffold(
       appBar: AppBar(title: const Text("OpenStreetMap Example")),
-      body: Stack(
-        children: [
-          FlutterMap(
-            mapController: mapController,
-            options: MapOptions(
-              initialCenter: currentPosition,
-              initialZoom: 15.0,
-              onTap: _onMapTapped,
-            ),
-            children: [
-              TileLayer(
-                urlTemplate: "https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png",
-                subdomains: ['a', 'b', 'c'],
-              ),
-              if (showAirQuality) PolygonLayer(polygons: polygons),
-              MarkerLayer(markers: markers),
-            ],
-          ),
-          Positioned(
-            top: 16,
-            right: 16,
-            child: FloatingActionButton(
-              onPressed: _toggleAirQuality,
-              child: Icon(showAirQuality ? Icons.visibility_off : Icons.visibility),
-            ),
-          ),
-        ],
+      body: map_ui.MapUI(
+        mapController: mapController,
+        currentPosition: currentPosition,
+        circles: circles,
+        onMapTapped: _onMapTapped,
+        activities: activities,
+        onActivityTap: _showActivityDetails, markers: markers,
       ),
       floatingActionButton: FloatingActionButton(
-        onPressed: _onButtonPressed,
+        onPressed: () {
+          if (savedLocations.entries.isNotEmpty) {
+            _showFormWithLocation(savedLocations.keys.first, placeDetails);
+          } else {
+            ScaffoldMessenger.of(context).showSnackBar(
+              SnackBar(content: Text('No tens ubicacions guardades. Selecciona una ubicació abans de crear una activitat.')),
+            );
+          }
+        },
         child: Icon(Icons.add_location),
       ),
     );
