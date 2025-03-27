@@ -6,10 +6,10 @@ class DeleteAccountPage extends StatefulWidget {
   const DeleteAccountPage({super.key});
 
   @override
-  _DeleteAccountPageState createState() => _DeleteAccountPageState();
+  DeleteAccountPageState createState() => DeleteAccountPageState();
 }
 
-class _DeleteAccountPageState extends State<DeleteAccountPage> {
+class DeleteAccountPageState extends State<DeleteAccountPage> {
   final FirebaseAuth _auth = FirebaseAuth.instance;
 
   Future<void> _deleteAccount() async {
@@ -18,29 +18,35 @@ class _DeleteAccountPageState extends State<DeleteAccountPage> {
     if (user != null) {
       try {
         await user.delete(); // Elimina l'usuari de Firebase Authentication
-        ScaffoldMessenger.of(context).showSnackBar(
-          const SnackBar(content: Text('Compte eliminat correctament')),
-        );
+        final actualContext = context;
+        if (actualContext.mounted) {
+          ScaffoldMessenger.of(actualContext).showSnackBar(
+            const SnackBar(content: Text('Compte eliminat correctament')),
+          );
 
-        // Tornar a la pantalla d'inici de sessió
-        Navigator.pushAndRemoveUntil(
-          context,
-          MaterialPageRoute(builder: (context) => const LoginPage()),
-              (Route<dynamic> route) => false,
-        );
+          // Tornar a la pantalla d'inici de sessió
+          Navigator.pushAndRemoveUntil(
+            actualContext,
+            MaterialPageRoute(builder: (context) => const LoginPage()),
+                (Route<dynamic> route) => false,
+          );
+        }
       } on FirebaseAuthException catch (e) {
-        if (e.code == 'requires-recent-login') {
-          ScaffoldMessenger.of(context).showSnackBar(
-            const SnackBar(
-              content: Text(
-                'Has de tornar a iniciar sessió per esborrar el compte',
+        final actualContext = context;
+        if (actualContext.mounted) {
+          if (e.code == 'requires-recent-login') {
+            ScaffoldMessenger.of(actualContext).showSnackBar(
+              const SnackBar(
+                content: Text(
+                  'Has de tornar a iniciar sessió per esborrar el compte',
+                ),
               ),
-            ),
-          );
-        } else {
-          ScaffoldMessenger.of(context).showSnackBar(
-            SnackBar(content: Text('Error: ${e.message}')),
-          );
+            );
+          } else {
+            ScaffoldMessenger.of(actualContext).showSnackBar(
+              SnackBar(content: Text('Error: ${e.message}')),
+            );
+          }
         }
       }
     }
