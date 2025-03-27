@@ -2,22 +2,18 @@ import 'package:flutter/material.dart';
 import 'package:firebase_auth/firebase_auth.dart';
 import 'package:http/http.dart' as http;
 import 'dart:convert'; // Para usar jsonEncode
-import 'package:prueba_flutter/main.dart';
-import 'admin_page.dart';
-import 'map_page.dart';
 import 'register.dart';  // Importem la pantalla de registre
 // La pantalla que indica "Sessió correcta"
-import 'home_page.dart';
 import 'reset_password.dart'; // Importem la pantalla de restabliment de contrasenya
 
 class LoginPage extends StatefulWidget {
   const LoginPage({super.key});
 
   @override
-  _LoginPageState createState() => _LoginPageState();
+  LoginPageState createState() => LoginPageState();
 }
 
-class _LoginPageState extends State<LoginPage> {
+class LoginPageState extends State<LoginPage> {
   final FirebaseAuth _auth = FirebaseAuth.instance;
   final TextEditingController _emailController = TextEditingController();
   final TextEditingController _passwordController = TextEditingController();
@@ -52,7 +48,7 @@ class _LoginPageState extends State<LoginPage> {
     } on FirebaseAuthException catch (e) {
       // Manejar errores de Firebase
       setState(() {
-        _errorMessage = "Error: Credencials incorrectes.";
+        _errorMessage = "Error: Credencials incorrectes: ${e.message}";
       });
     } catch (e) {
       // Manejar otros errores

@@ -5,7 +5,6 @@ import 'package:flutter/services.dart';
 import 'package:http/http.dart' as http;
 import 'package:prueba_flutter/terms_page.dart';
 import 'package:prueba_flutter/user_services.dart';
-import 'home_page.dart';
 import 'rive_controller.dart';
 
 class FormContentRegister extends StatefulWidget {

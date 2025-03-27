@@ -10,11 +10,8 @@ import 'package:prueba_flutter/utils/web_utils_stub.dart';
 import 'calendar_page.dart';
 import 'login_page.dart';
 import 'map_page.dart';
-import 'calendar_page.dart';
-import 'user_page.dart';
 import 'admin_page.dart';
 
-void main() {
 void main() async {
   WidgetsFlutterBinding.ensureInitialized();
   await Firebase.initializeApp(
@@ -31,7 +28,7 @@ void main() async {
   runApp(MiApp());
 }
 
-class MiApp extends StatelessWidget {
+class MiApp extends StatefulWidget {
   const MiApp({super.key});
 
   @override
@@ -76,13 +73,16 @@ class _MiAppState extends State<MiApp> with WidgetsBindingObserver {
         final email = user.email;
         if (email != null) {
           try {
-            final response = await http.post(
+            await http.post(
               Uri.parse('http://localhost:8080/api/usuaris/logout'),
               headers: {'Content-Type': 'application/json; charset=UTF-8'},
               body: jsonEncode({'email': email}),
             );
           } catch (e) {
-            print("Error al conectar con el backend: $e");
+            final actualContext = context;
+            if (actualContext.mounted) {
+              ScaffoldMessenger.of(actualContext).showSnackBar(SnackBar(content: Text("Error al conectar con el backend: $e")));
+            }
           }
         }
       }
@@ -92,7 +92,6 @@ class _MiAppState extends State<MiApp> with WidgetsBindingObserver {
   @override
   Widget build(BuildContext context) {
     return MaterialApp(
-      home: MyHomePage(),
       title: 'AirPlan',
       debugShowCheckedModeBanner: false,
       theme: ThemeData(
@@ -105,11 +104,13 @@ class _MiAppState extends State<MiApp> with WidgetsBindingObserver {
 }
 
 class AuthWrapper extends StatefulWidget {
+  const AuthWrapper({super.key});
+
   @override
-  _AuthWrapperState createState() => _AuthWrapperState();
+  AuthWrapperState createState() => AuthWrapperState();
 }
 
-class _AuthWrapperState extends State<AuthWrapper> {
+class AuthWrapperState extends State<AuthWrapper> {
   Future<bool> checkIfAdmin(String email) async {
     try {
       final response = await http.get(Uri.parse('http://localhost:8080/isAdmin/$email'));
@@ -118,7 +119,10 @@ class _AuthWrapperState extends State<AuthWrapper> {
         return data["isAdmin"] ?? false;
       }
     } catch (e) {
-      print("Error al conectar con el backend: $e");
+      final actualContext = context;
+      if (actualContext.mounted) {
+        ScaffoldMessenger.of(actualContext).showSnackBar(SnackBar(content: Text("Error al conectar con el backend: $e")));
+      }
     }
     return false;
   }
@@ -191,9 +195,6 @@ class MyHomePageState extends State<MyHomePage> {
             icon: Icon(Icons.person),
             label: 'User',
           ),
-          BottomNavigationBarItem(icon: Icon(Icons.map), label: 'Map'),
-          BottomNavigationBarItem(icon: Icon(Icons.calendar_today), label: 'Calendar'),
-          BottomNavigationBarItem(icon: Icon(Icons.person), label: 'User'),
         ],
         currentIndex: _selectedIndex,
         selectedItemColor: Colors.blue,

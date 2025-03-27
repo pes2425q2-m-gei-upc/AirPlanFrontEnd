@@ -1,5 +1,5 @@
 import 'package:flutter/material.dart';
-import 'DeleteAccountPage.dart';
+import 'delete_account_page.dart';
 
 class SuccessPage extends StatelessWidget {
   const SuccessPage({super.key});

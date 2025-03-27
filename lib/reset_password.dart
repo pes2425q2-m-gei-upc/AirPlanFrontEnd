@@ -5,10 +5,10 @@ class ResetPasswordPage extends StatefulWidget {
   const ResetPasswordPage({super.key});
 
   @override
-  _ResetPasswordPageState createState() => _ResetPasswordPageState();
+  ResetPasswordPageState createState() => ResetPasswordPageState();
 }
 
-class _ResetPasswordPageState extends State<ResetPasswordPage> {
+class ResetPasswordPageState extends State<ResetPasswordPage> {
   final FirebaseAuth _auth = FirebaseAuth.instance;
   final TextEditingController _emailController = TextEditingController();
   String _message = '';

@@ -1,6 +1,5 @@
 import 'package:flutter/material.dart';
 import 'package:firebase_auth/firebase_auth.dart';
-import 'package:http/http.dart' as http;
 import 'package:prueba_flutter/user_services.dart';
 import 'login_page.dart'; // Para redirigir al usuario después de eliminar la cuenta
 
@@ -37,19 +36,21 @@ class UserPage extends StatelessWidget {
 
     if (confirmacion == true) {
       final success = await UserService.deleteUser(user.email!);
-
-      if (success) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          const SnackBar(content: Text("Cuenta eliminada correctamente.")),
-        );
-        Navigator.pushReplacement(
-          context,
-          MaterialPageRoute(builder: (context) => const LoginPage()),
-        );
-      } else {
-        ScaffoldMessenger.of(context).showSnackBar(
-          const SnackBar(content: Text("Error al eliminar la cuenta")),
-        );
+      final actualContext = context;
+      if (actualContext.mounted) {
+        if (success) {
+          ScaffoldMessenger.of(actualContext).showSnackBar(
+            const SnackBar(content: Text("Cuenta eliminada correctamente.")),
+          );
+          Navigator.pushReplacement(
+            context,
+            MaterialPageRoute(builder: (context) => const LoginPage()),
+          );
+        } else {
+          ScaffoldMessenger.of(actualContext).showSnackBar(
+            const SnackBar(content: Text("Error al eliminar la cuenta")),
+          );
+        }
       }
     }
   }
@@ -57,7 +58,6 @@ class UserPage extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     var user = FirebaseAuth.instance.currentUser;
-    final displayName = user?.displayName ?? "UsuarioSinNombre";
     final em = user?.email ?? "UsuarioSinEmail";
     return Scaffold(
       appBar: AppBar(
