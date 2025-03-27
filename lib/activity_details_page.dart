@@ -1,3 +1,4 @@
+import 'package:firebase_auth/firebase_auth.dart';
 import 'package:flutter/material.dart';
 class ActivityDetailsPage extends StatelessWidget {
   final String id;
@@ -30,6 +31,9 @@ class ActivityDetailsPage extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final String? currentUser = FirebaseAuth.instance.currentUser?.displayName;
+    final bool isCurrentUserCreator = currentUser != null &&
+        creator == currentUser;
     return Scaffold(
       appBar: AppBar(
         title: Text('Activity Details'),
@@ -130,7 +134,7 @@ class ActivityDetailsPage extends StatelessWidget {
                 ),
               ],
             ),
-            if (isEditable) ...[
+            if (isCurrentUserCreator ) ...[
               SizedBox(height: 16),
               ElevatedButton(
                 onPressed: onEdit, // Usamos la función onEdit

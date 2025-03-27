@@ -1,4 +1,5 @@
 // map_page.dart
+import 'package:firebase_auth/firebase_auth.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_map/flutter_map.dart';
 import 'package:latlong2/latlong.dart';
@@ -215,6 +216,11 @@ class MapPageState extends State<MapPage> {
   }
 
   void _showActivityDetails(Map<String, dynamic> activity) {
+    // Obtener el usuario actual
+    final String? currentUser = FirebaseAuth.instance.currentUser?.displayName;
+    final bool isCurrentUserCreator = currentUser != null &&
+        activity['creador'] == currentUser;
+
     showModalBottomSheet(
       context: context,
       builder: (context) {
@@ -231,8 +237,8 @@ class MapPageState extends State<MapPage> {
                   children: [
                     GestureDetector(
                       onTap: () {
-                        Navigator.pop(context); // Cierra el bottom sheet
-                        _navigateToActivityDetails(activity); // Navega a la página de detalles
+                        Navigator.pop(context);
+                        _navigateToActivityDetails(activity);
                       },
                       child: Text(
                         activity['nom'] ?? '',
@@ -252,25 +258,26 @@ class MapPageState extends State<MapPage> {
                   ],
                 ),
               ),
-              // Botones a la derecha (editar y eliminar)
-              Row(
-                children: [
-                  IconButton(
-                    icon: Icon(Icons.edit, color: Colors.blue),
-                    onPressed: () {
-                      Navigator.pop(context); // Cierra el bottom sheet
-                      _showEditActivityForm(activity); // Muestra el formulario de edición
-                    },
-                  ),
-                  IconButton(
-                    icon: Icon(Icons.delete, color: Colors.red),
-                    onPressed: () {
-                      Navigator.pop(context); // Cierra el bottom sheet
-                      _showDeleteConfirmation(activity); // Muestra el aviso de eliminación
-                    },
-                  ),
-                ],
-              ),
+              // Botones a la derecha (solo si el usuario es el creador)
+              if (isCurrentUserCreator) // <-- Condición para mostrar los botones
+                Row(
+                  children: [
+                    IconButton(
+                      icon: Icon(Icons.edit, color: Colors.blue),
+                      onPressed: () {
+                        Navigator.pop(context);
+                        _showEditActivityForm(activity);
+                      },
+                    ),
+                    IconButton(
+                      icon: Icon(Icons.delete, color: Colors.red),
+                      onPressed: () {
+                        Navigator.pop(context);
+                        _showDeleteConfirmation(activity);
+                      },
+                    ),
+                  ],
+                ),
             ],
           ),
         );
@@ -341,16 +348,6 @@ class MapPageState extends State<MapPage> {
                     validator: (value) {
                       if (value == null || value.isEmpty) {
                         return 'Por favor, ingresa una fecha de fin';
-                      }
-                      return null;
-                    },
-                  ),
-                  TextFormField(
-                    controller: creatorController,
-                    decoration: InputDecoration(labelText: 'Creador'),
-                    validator: (value) {
-                      if (value == null || value.isEmpty) {
-                        return 'Por favor, ingresa un creador';
                       }
                       return null;
                     },

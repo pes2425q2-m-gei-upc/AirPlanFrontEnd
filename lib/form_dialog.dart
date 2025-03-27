@@ -1,4 +1,5 @@
 // form_dialog.dart
+import 'package:firebase_auth/firebase_auth.dart';
 import 'package:flutter/material.dart';
 import 'package:intl/intl.dart';
 import 'package:latlong2/latlong.dart';
@@ -107,16 +108,6 @@ class FormDialogState extends State<FormDialog> {
             ),
           ),
           TextFormField(
-            controller: _userController,
-            decoration: InputDecoration(labelText: 'User'),
-            validator: (value) {
-              if (value == null || value.isEmpty) {
-                return 'Please enter a user';
-              }
-              return null;
-            },
-          ),
-          TextFormField(
             controller: _titleController,
             decoration: InputDecoration(labelText: 'Title'),
             validator: (value) {
@@ -171,6 +162,10 @@ class FormDialogState extends State<FormDialog> {
           SizedBox(height: 20),
           ElevatedButton(
             onPressed: () {
+              String? nom = FirebaseAuth.instance.currentUser?.displayName;
+              if (nom != null) {
+                _userController.text = nom;
+              }
               if (_formKey.currentState!.validate()) {
                 Navigator.of(context).pop({
                   'location': widget.initialLocation,
