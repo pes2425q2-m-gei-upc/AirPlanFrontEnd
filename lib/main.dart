@@ -5,8 +5,8 @@ import 'package:flutter/material.dart';
 import 'package:firebase_auth/firebase_auth.dart';
 import 'package:http/http.dart' as http;
 import 'package:flutter/foundation.dart' show kIsWeb;
-import 'package:prueba_flutter/user_page.dart';
-import 'package:prueba_flutter/utils/web_utils_stub.dart';
+import 'package:airplan/user_page.dart';
+import 'package:airplan/utils/web_utils_stub.dart';
 import 'calendar_page.dart';
 import 'login_page.dart';
 import 'map_page.dart';
@@ -74,7 +74,7 @@ class _MiAppState extends State<MiApp> with WidgetsBindingObserver {
         if (email != null) {
           try {
             await http.post(
-              Uri.parse('http://localhost:8080/api/usuaris/logout'),
+              Uri.parse('http://nattech.fib.upc.edu:40350/api/usuaris/logout'),
               headers: {'Content-Type': 'application/json; charset=UTF-8'},
               body: jsonEncode({'email': email}),
             );
@@ -113,7 +113,7 @@ class AuthWrapper extends StatefulWidget {
 class AuthWrapperState extends State<AuthWrapper> {
   Future<bool> checkIfAdmin(String email) async {
     try {
-      final response = await http.get(Uri.parse('http://localhost:8080/isAdmin/$email'));
+      final response = await http.get(Uri.parse('http://nattech.fib.upc.edu:40350/isAdmin/$email'));
       if (response.statusCode == 200) {
         final data = jsonDecode(response.body);
         return data["isAdmin"] ?? false;

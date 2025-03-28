@@ -1,6 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:firebase_auth/firebase_auth.dart';
-import 'package:prueba_flutter/user_services.dart';
+import 'package:airplan/user_services.dart';
 import 'login_page.dart'; // Para redirigir al usuario después de eliminar la cuenta
 
 class UserPage extends StatelessWidget {

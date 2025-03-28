@@ -7,7 +7,7 @@ class UserService {
     try {
       // 1. Eliminar del backend
       final backendResponse = await http.delete(
-        Uri.parse('http://localhost:8080/api/usuaris/eliminar/$email'),
+        Uri.parse('http://nattech.fib.upc.edu:40350/api/usuaris/eliminar/$email'),
       );
 
       if (backendResponse.statusCode != 200) {
@@ -29,7 +29,7 @@ class UserService {
   static Future<bool> rollbackUserCreation(String email) async {
     try {
       final response = await http.delete(
-        Uri.parse('http://localhost:8080/api/usuaris/eliminar/$email'),
+        Uri.parse('http://nattech.fib.upc.edu:40350/api/usuaris/eliminar/$email'),
       );
       return response.statusCode == 200;
     } catch (e) {

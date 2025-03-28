@@ -1,4 +1,4 @@
-package com.example.prueba_flutter
+package com.example.AirPlan
 
 import io.flutter.embedding.android.FlutterActivity
 

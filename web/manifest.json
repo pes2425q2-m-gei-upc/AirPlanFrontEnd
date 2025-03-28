@@ -1,6 +1,6 @@
 {
-    "name": "prueba_flutter",
-    "short_name": "prueba_flutter",
+    "name": "AirPlan",
+    "short_name": "AirPlan",
     "start_url": ".",
     "display": "standalone",
     "background_color": "#0175C2",

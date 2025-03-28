@@ -1,12 +1,12 @@
 import 'package:firebase_auth/firebase_auth.dart';
 import 'package:flutter/material.dart';
+import 'package:airplan/air_quality.dart';
 class ActivityDetailsPage extends StatelessWidget {
   final String id;
   final String title;
   final String creator;
   final String description;
-  final String airQuality;
-  final Color airQualityColor;
+  final List<AirQualityData> airQualityData;
   final String startDate;
   final String endDate;
   final bool isEditable;
@@ -20,8 +20,7 @@ class ActivityDetailsPage extends StatelessWidget {
     required this.title,
     required this.creator,
     required this.description,
-    required this.airQuality,
-    required this.airQualityColor,
+    required this.airQualityData,
     required this.startDate,
     required this.endDate,
     required this.isEditable,
@@ -66,19 +65,23 @@ class ActivityDetailsPage extends StatelessWidget {
               style: TextStyle(fontSize: 16),
             ),
             SizedBox(height: 16),
-            Row(
-              children: [
-                Icon(Icons.air),
-                SizedBox(width: 8),
-                Text(
-                  airQuality,
-                  style: TextStyle(
-                    color: airQualityColor,
-                    fontWeight: FontWeight.bold,
-                    fontSize: 16,
-                  ),
-                ),
-              ],
+            Column(
+              children: airQualityData.map((data) {
+                return Row(
+                  children: [
+                    Icon(Icons.air),
+                    SizedBox(width: 8),
+                    Text(
+                      '${traduirContaminant(data.contaminant)}: ${traduirAQI(data.aqi)} (${data.value} ${data.units})',
+                      style: TextStyle(
+                        color: getColorForAirQuality(data.aqi),
+                        fontWeight: FontWeight.bold,
+                        fontSize: 16,
+                      ),
+                    ),
+                  ],
+                );
+              }).toList(),
             ),
             SizedBox(height: 16),
             Row(
@@ -149,5 +152,43 @@ class ActivityDetailsPage extends StatelessWidget {
         ),
       ),
     );
+  }
+
+  String traduirContaminant(Contaminant contaminant) {
+    switch (contaminant) {
+      case Contaminant.so2:
+        return 'SO2';
+      case Contaminant.pm10:
+        return 'PM10';
+      case Contaminant.pm2_5:
+        return 'PM2.5';
+      case Contaminant.no2:
+        return 'NO2';
+      case Contaminant.o3:
+        return 'O3';
+      case Contaminant.h2s:
+        return 'H2S';
+      case Contaminant.co:
+        return 'CO';
+      case Contaminant.c6h6:
+        return 'C6H6';
+    }
+  }
+
+  String traduirAQI(AirQuality aqi) {
+    switch (aqi) {
+      case AirQuality.excelent:
+        return 'Excelent';
+      case AirQuality.bona:
+        return 'Bona';
+      case AirQuality.dolenta:
+        return 'Dolenta';
+      case AirQuality.pocSaludable:
+        return 'Poc Saludable';
+      case AirQuality.moltPocSaludable:
+        return 'Molt Poc Saludable';
+      case AirQuality.perillosa:
+        return 'Perillosa';
+    }
   }
 }

@@ -29,6 +29,7 @@ class MapPageState extends State<MapPage> {
   LatLng currentPosition = LatLng(41.3851, 2.1734); // Default to Barcelona
   List<Map<String, dynamic>> activities = [];
   List<Marker> markers = [];
+  bool showAirQualityCircles = true;
 
   @override
   void initState() {
@@ -38,10 +39,20 @@ class MapPageState extends State<MapPage> {
   }
 
   Future<void> fetchAirQualityData() async {
-    final circles = await mapService.fetchAirQualityData(contaminantsPerLocation);
+    try {
+    final circles = await mapService.fetchAirQualityData(
+        contaminantsPerLocation);
     setState(() {
       this.circles = circles;
     });
+    } catch (e) {
+      final actualContext = context;
+      if (actualContext.mounted) {
+        ScaffoldMessenger.of(actualContext).showSnackBar(SnackBar(
+          content: Text('Error al obtenir dades de qualitat de l\'aire: ${e.toString()}'),
+        ));
+      }
+    }
   }
 
   Future<void> fetchActivities() async {
@@ -90,8 +101,19 @@ class MapPageState extends State<MapPage> {
         )),
       ];
     });
-    String details = await mapService.fetchPlaceDetails(position);
-    _showPlaceDetails(position,details);
+
+    String details;
+    try {
+      details = await mapService.fetchPlaceDetails(position);
+      _showPlaceDetails(position,details);
+    } catch (e) {
+      final actualContext = context;
+      if (actualContext.mounted) {
+        ScaffoldMessenger.of(actualContext).showSnackBar(SnackBar(
+          content: Text('Error al obtenir detalls del lloc: ${e.toString()}'),
+        ));
+      }
+    }
   }
 
   void _showPlaceDetails(LatLng selectedLocation, String placeDetails) {
@@ -472,8 +494,32 @@ class MapPageState extends State<MapPage> {
     );
   }
 
+  List<AirQualityData> findClosestAirQualityData(LatLng activityLocation) {
+    double closestDistance = double.infinity;
+    LatLng closestLocation = LatLng(0, 0);
+    List<AirQualityData> listAQD = [];
+
+    contaminantsPerLocation.forEach((location, dataMap) {
+      final distance = Distance().as(LengthUnit.Meter, activityLocation, location);
+      if (distance < closestDistance) {
+        closestDistance = distance;
+        closestLocation = location;
+      }
+    });
+
+    contaminantsPerLocation[closestLocation]?.forEach((contaminant, airQualityData) {
+      listAQD.add(airQualityData);
+    });
+
+    return listAQD;
+  }
+
 // Función para navegar a la página de detalles (código original)
   void _navigateToActivityDetails(Map<String, dynamic> activity) {
+    final ubicacio = activity['ubicacio'] as Map<String, dynamic>;
+    final lat = ubicacio['latitud'] as double;
+    final lon = ubicacio['longitud'] as double;
+    List<AirQualityData> airQualityData = findClosestAirQualityData(LatLng(lat, lon));
     Navigator.push(
       context,
       MaterialPageRoute(
@@ -484,8 +530,7 @@ class MapPageState extends State<MapPage> {
           description: activity['descripcio'] ?? '',
           startDate: activity['dataInici'] ?? '',
           endDate: activity['dataFi'] ?? '',
-          airQuality: 'Excel·lent', // Placeholder
-          airQualityColor: Colors.lightBlue, // Placeholder
+          airQualityData: airQualityData,
           isEditable: true,
           onEdit: () => _showEditActivityForm(activity), // Pasamos la función de editar
           onDelete: () => _showDeleteConfirmation(activity), // Pasamos la función de eliminar
@@ -498,17 +543,38 @@ class MapPageState extends State<MapPage> {
     _showPlaceDetails(position, details);
   }
 
+  void _toggleAirQualityCircles() {
+    setState(() {
+      showAirQualityCircles = !showAirQualityCircles;
+    });
+  }
+
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      appBar: AppBar(title: const Text("OpenStreetMap Example")),
-      body: map_ui.MapUI(
-        mapController: mapController,
-        currentPosition: currentPosition,
-        circles: circles,
-        onMapTapped: _onMapTapped,
-        activities: activities,
-        onActivityTap: _showActivityDetails, markers: markers,
+      appBar: AppBar(
+        title: const Text("AirPlan"),
+      ),
+      body: Stack(
+        children: [
+          map_ui.MapUI(
+            mapController: mapController,
+            currentPosition: currentPosition,
+            circles: showAirQualityCircles ? circles : [],
+            onMapTapped: _onMapTapped,
+            activities: activities,
+            onActivityTap: _showActivityDetails,
+            markers: markers,
+          ),
+          Positioned(
+            top: 10,
+            right: 10,
+            child: FloatingActionButton(
+              onPressed: _toggleAirQualityCircles,
+              child: Icon(showAirQualityCircles ? Icons.visibility : Icons.visibility_off),
+            ),
+          ),
+        ],
       ),
       floatingActionButton: FloatingActionButton(
         onPressed: () {

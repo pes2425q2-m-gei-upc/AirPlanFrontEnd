@@ -3,8 +3,8 @@ import 'package:firebase_auth/firebase_auth.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:http/http.dart' as http;
-import 'package:prueba_flutter/terms_page.dart';
-import 'package:prueba_flutter/user_services.dart';
+import 'package:airplan/terms_page.dart';
+import 'package:airplan/user_services.dart';
 import 'rive_controller.dart';
 
 class FormContentRegister extends StatefulWidget {
@@ -91,7 +91,7 @@ class _FormContentRegisterState extends State<FormContentRegister> {
 
       // 4. Enviar petición al backend
       final response = await http.post(
-        Uri.parse('http://localhost:8080/api/usuaris/crear'),
+        Uri.parse('http://nattech.fib.upc.edu:40350/api/usuaris/crear'),
         headers: {'Content-Type': 'application/json; charset=UTF-8'},
         body: jsonEncode(usuario),
       );
