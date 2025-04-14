@@ -2,6 +2,7 @@
 import 'package:firebase_auth/firebase_auth.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_map/flutter_map.dart';
+import 'package:geolocator/geolocator.dart';
 import 'package:latlong2/latlong.dart';
 import 'air_quality.dart';
 import 'form_dialog.dart';
@@ -30,12 +31,14 @@ class MapPageState extends State<MapPage> {
   List<Map<String, dynamic>> activities = [];
   List<Marker> markers = [];
   bool showAirQualityCircles = true;
+  List<LatLng> routePoints = [];
 
   @override
   void initState() {
     super.initState();
     fetchAirQualityData();
     fetchActivities();
+    fetchUserLocation();
   }
 
   Future<void> fetchAirQualityData() async {
@@ -69,6 +72,65 @@ class MapPageState extends State<MapPage> {
     setState(() {
       this.activities = activities;
     });
+  }
+
+  Future<void> fetchUserLocation() async {
+    bool serviceEnabled;
+    LocationPermission permission;
+
+    // Check if location services are enabled
+    serviceEnabled = await Geolocator.isLocationServiceEnabled();
+    if (!serviceEnabled) {
+      final actualContext = context;
+      if (actualContext.mounted) {
+        ScaffoldMessenger.of(actualContext).showSnackBar(
+          SnackBar(content: Text('Location services are disabled. Please enable them.')),
+        );
+      }
+      return;
+    }
+
+    // Check for location permissions
+    permission = await Geolocator.checkPermission();
+    if (permission == LocationPermission.denied) {
+      permission = await Geolocator.requestPermission();
+      if (permission == LocationPermission.denied) {
+        final actualContext = context;
+        if (actualContext.mounted) {
+          ScaffoldMessenger.of(actualContext).showSnackBar(
+            SnackBar(content: Text('Location permissions are denied.')),
+          );
+        }
+        return;
+      }
+    }
+
+    if (permission == LocationPermission.deniedForever) {
+      final actualContext = context;
+      if (actualContext.mounted) {
+        ScaffoldMessenger.of(actualContext).showSnackBar(
+          SnackBar(content: Text('Location permissions are permanently denied.')),
+        );
+      }
+      return;
+    }
+
+    // Fetch the current location
+    try {
+      Position position = await Geolocator.getCurrentPosition(
+        desiredAccuracy: LocationAccuracy.high,
+      );
+      setState(() {
+        currentPosition = LatLng(position.latitude, position.longitude);
+      });
+    } catch (e) {
+      final actualContext = context;
+      if (actualContext.mounted) {
+        ScaffoldMessenger.of(actualContext).showSnackBar(
+          SnackBar(content: Text('Failed to fetch location: $e')),
+        );
+      }
+    }
   }
 
   Future<void> _onMapTapped(TapPosition tapPosition, LatLng position) async {
@@ -116,6 +178,52 @@ class MapPageState extends State<MapPage> {
     }
   }
 
+  Future<void> showRouteOptions(BuildContext context, LatLng start, LatLng end, MapService mapService) async {
+    final selectedOption = await showDialog<int>(
+      context: context,
+      builder: (BuildContext context) {
+        return AlertDialog(
+          title: const Text('Selecciona el mode de transport'),
+          content: Column(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              ListTile(
+                leading: const Icon(Icons.directions_car),
+                title: const Text('Cotxe'),
+                onTap: () => Navigator.pop(context, 1),
+              ),
+              ListTile(
+                leading: const Icon(Icons.directions_walk),
+                title: const Text('A peu'),
+                onTap: () => Navigator.pop(context, 3),
+              ),
+            ],
+          ),
+        );
+      },
+    );
+
+    if (selectedOption != null) {
+      try {
+        final points = await mapService.getRoute(selectedOption, start, end);
+        setState(() {
+          routePoints = points;
+        });
+        if (context.mounted) {
+          ScaffoldMessenger.of(context).showSnackBar(
+            const SnackBar(content: Text('Ruta calculada correctament.')),
+          );
+        }
+      } catch (e) {
+        if (context.mounted) {
+          ScaffoldMessenger.of(context).showSnackBar(
+            SnackBar(content: Text('Error al calcular la ruta: ${e.toString()}')),
+          );
+        }
+      }
+    }
+  }
+
   void _showPlaceDetails(LatLng selectedLocation, String placeDetails) {
     showModalBottomSheet(
       context: context,
@@ -158,7 +266,7 @@ class MapPageState extends State<MapPage> {
                         ElevatedButton(
                           onPressed: () {
                             Navigator.pop(context);
-                            _showFormWithLocation(selectedLocation,placeDetails);
+                            _showFormWithLocation(selectedLocation, placeDetails);
                             savedLocations[selectedLocation] = placeDetails;
                           },
                           child: const Text("Crea Activitat"),
@@ -198,6 +306,12 @@ class MapPageState extends State<MapPage> {
                             Navigator.pop(context);
                           },
                           child: const Text("Guardar marcador"),
+                        ),
+                        ElevatedButton(
+                          onPressed: () {
+                            showRouteOptions(context, currentPosition, selectedLocation, mapService);
+                          },
+                          child: const Text("Com Arribar"),
                         ),
                       ],
                     ),
@@ -565,6 +679,7 @@ class MapPageState extends State<MapPage> {
             activities: activities,
             onActivityTap: _showActivityDetails,
             markers: markers,
+            route: routePoints,
           ),
           Positioned(
             top: 10,

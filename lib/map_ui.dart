@@ -11,6 +11,7 @@ class MapUI extends StatelessWidget {
   final List<Map<String, dynamic>> activities;
   final Function(Map<String, dynamic>) onActivityTap;
   final List<Marker> markers;
+  final List<LatLng> route;
 
   const MapUI({
     super.key,
@@ -21,6 +22,7 @@ class MapUI extends StatelessWidget {
     required this.onMapTapped,
     required this.activities,
     required this.onActivityTap,
+    required this.route
   });
 
   @override
@@ -52,6 +54,15 @@ class MapUI extends StatelessWidget {
                 ),
               );
             }),
+          ],
+        ),
+        PolylineLayer(
+          polylines: [
+            Polyline(
+              points: route,
+              strokeWidth: 4.0,
+              color: Colors.blue,
+            ),
           ],
         ),
       ],
