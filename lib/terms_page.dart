@@ -1,4 +1,6 @@
 import 'package:flutter/material.dart';
+import 'package:flutter/gestures.dart'; // Necesario para TapGestureRecognizer
+import 'package:url_launcher/url_launcher.dart'; // Para abrir enlaces externos
 
 class TermsPage extends StatelessWidget {
   const TermsPage({super.key});
@@ -30,24 +32,59 @@ class TermsPage extends StatelessWidget {
             ),
             const SizedBox(height: 30),
 
-            // 1. Acceptació
+            // 1. Acceptació (MODIFICADO)
             _buildSectionTitle(context, '1. Acceptació dels termes'),
-            const Text(
-              'En utilitzar l\'aplicació AirPlan ("l\'Aplicació"), acceptes automàticament aquests Termes i Condicions '
-                  'd\'Ús, així com la nostra Política de Privadesa. Si no estàs d\'acord amb qualsevol part d\'aquests termes, '
-                  'si us plau, no utilitzis el nostre servei.',
+            RichText(
+              text: TextSpan(
+                style: Theme.of(context).textTheme.bodyMedium,
+                children: [
+                  const TextSpan(
+                    text: 'En utilitzar l\'aplicació AirPlan ("l\'Aplicació"), acceptes automàticament aquests Termes i Condicions '
+                        'd\'Ús, així com la nostra ',
+                  ),
+                  TextSpan(
+                    text: 'Política de Privadesa',
+                    style: TextStyle(
+                      color: Colors.blue[800],
+                      decoration: TextDecoration.underline,
+                    ),
+                    recognizer: TapGestureRecognizer()
+                      ..onTap = () {
+
+                        // OPCIÓN 2: Si tienes una URL externa
+                         launchUrl(Uri.parse('https://doc-hosting.flycricket.io/airplan-privacy-policy/fbec6272-8f1b-4550-a7db-94fce657b8f0/privacy')); // MODIFICA_AQUÍ con tu URL real
+                      },
+                  ),
+                  const TextSpan(
+                    text: '. Si no estàs d\'acord amb qualsevol part d\'aquests termes, '
+                        'si us plau, no utilitzis el nostre servei.',
+                  ),
+                ],
+              ),
             ),
             const SizedBox(height: 20),
 
-            // 2. Compte d'usuari
+            // 2. Compte d'usuari (MODIFICADO para incluir eliminación de datos)
             _buildSectionTitle(context, '2. Compte d\'usuari'),
             const Text(
               '2.1. Per accedir a certes funcionalitats, hauràs de crear un compte amb email i contrasenya.\n\n'
                   '2.2. Ets l\'únic responsable de mantenir la confidencialitat de les teves credencials d\'accés.\n\n'
-                  '2.3. Acceptes notificar-nos immediatament qualsevol accés no autoritzat al teu compte.',
+                  '2.3. Acceptes notificar-nos immediatament qualsevol accés no autoritzat al teu compte.\n\n'
+                  '2.4. Pots eliminar el teu compte i dades en qualsevol moment enviant un correu a:',
+            ),
+            GestureDetector(
+              onTap: () => launchUrl(Uri.parse('mailto:soporte@tudominio.com')), // MODIFICA_AQUÍ con tu email de soporte
+              child: Text(
+                'soporte@tudominio.com', // MODIFICA_AQUÍ
+                style: TextStyle(
+                  color: Colors.blue[800],
+                  decoration: TextDecoration.underline,
+                ),
+              ),
             ),
             const SizedBox(height: 20),
 
+            // [Resto de las secciones se mantienen igual...]
             // 3. Conducta acceptable
             _buildSectionTitle(context, '3. Conducta acceptable'),
             const Text(
@@ -70,10 +107,12 @@ class TermsPage extends StatelessWidget {
             ),
             const SizedBox(height: 20),
 
-            // 5. Limitació de responsabilitat
+            // 5. Limitació de responsabilitat (MODIFICADO para mencionar Firebase)
             _buildSectionTitle(context, '5. Limitació de responsabilitat'),
             const Text(
-              '5.1. L\'Aplicació es proporciona "tal qual" sense garanties de cap tipus.\n\n'
+              '5.1. L\'Aplicació es proporciona "tal qual" sense garanties de cap tipus. Utilitzem serveis de Firebase per a:\n'
+                  '   • Autenticació d\'usuaris\n'
+                  '   • Emmagatzematge de dades\n\n'
                   '5.2. No ens fem responsables de:\n'
                   '   • Danys indirectes, especials o consequencials\n'
                   '   • Pèrdua de dades o beneficis\n'
@@ -81,6 +120,7 @@ class TermsPage extends StatelessWidget {
             ),
             const SizedBox(height: 20),
 
+            // [Resto de secciones permanecen igual...]
             // 6. Modificacions
             _buildSectionTitle(context, '6. Modificacions'),
             const Text(
