@@ -29,7 +29,7 @@ class LoginPageState extends State<LoginPage> {
 
       // Si el login en Firebase es correcto, enviar un POST al backend
       final response = await http.post(
-        Uri.parse('http://nattech.fib.upc.edu:40350/api/usuaris/login'), // Cambia la URL por la de tu backend
+        Uri.parse('http://localhost:8080/api/usuaris/login'), // Cambia la URL por la de tu backend
         headers: <String, String>{
           'Content-Type': 'application/json; charset=UTF-8',
         },

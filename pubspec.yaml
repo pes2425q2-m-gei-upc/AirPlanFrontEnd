@@ -42,6 +42,7 @@ dependencies:
   js_interop: ^0.0.1
   rive: ^0.13.20
   rive_common: ^0.4.15
+  image_picker: ^0.8.5+3
 
 dev_dependencies:
   flutter_test:

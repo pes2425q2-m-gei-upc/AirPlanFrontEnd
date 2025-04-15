@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:firebase_auth/firebase_auth.dart';
 import 'package:airplan/user_services.dart';
 import 'login_page.dart'; // Para redirigir al usuario después de eliminar la cuenta
+import 'edit_profile_page.dart';
 
 class UserPage extends StatelessWidget {
   const UserPage({super.key});
@@ -58,7 +59,10 @@ class UserPage extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     var user = FirebaseAuth.instance.currentUser;
-    final em = user?.email ?? "UsuarioSinEmail";
+    final email = user?.email ?? "UsuarioSinEmail";
+    final displayName = user?.displayName ?? "Nombre no disponible";
+    final username = user?.email?.split('@')[0] ?? "Username no disponible";
+
     return Scaffold(
       appBar: AppBar(
         title: const Text("Perfil de Usuario"),
@@ -67,9 +71,12 @@ class UserPage extends StatelessWidget {
         child: Column(
           mainAxisAlignment: MainAxisAlignment.center,
           children: [
-            const Text('User\nPróximamente', textAlign: TextAlign.center),
+            Text('Nombre: $displayName', textAlign: TextAlign.center),
+            const SizedBox(height: 10),
+            Text('Username: $username', textAlign: TextAlign.center),
+            const SizedBox(height: 10),
+            Text('Correo: $email', textAlign: TextAlign.center),
             const SizedBox(height: 20),
-            Text(em, textAlign: TextAlign.center),
             ElevatedButton(
               onPressed: () => _eliminarCuenta(context),
               style: ElevatedButton.styleFrom(
@@ -77,6 +84,16 @@ class UserPage extends StatelessWidget {
                 foregroundColor: Colors.white, // Texto blanco
               ),
               child: const Text("Eliminar Cuenta"),
+            ),
+            ElevatedButton(
+              onPressed: () {
+                Navigator.of(context).push(
+                  MaterialPageRoute(
+                    builder: (context) => EditProfilePage(), // Navigate to the edit profile page
+                  ),
+                );
+              },
+              child: const Text('Editar Perfil'),
             ),
           ],
         ),

@@ -91,7 +91,7 @@ class _FormContentRegisterState extends State<FormContentRegister> {
 
       // 4. Enviar petición al backend
       final response = await http.post(
-        Uri.parse('http://nattech.fib.upc.edu:40350/api/usuaris/crear'),
+        Uri.parse('http://localhost:8080/api/usuaris/crear'),
         headers: {'Content-Type': 'application/json; charset=UTF-8'},
         body: jsonEncode(usuario),
       );

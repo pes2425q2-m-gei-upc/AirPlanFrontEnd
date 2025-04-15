@@ -74,7 +74,7 @@ class _MiAppState extends State<MiApp> with WidgetsBindingObserver {
         if (email != null) {
           try {
             await http.post(
-              Uri.parse('http://nattech.fib.upc.edu:40350/api/usuaris/logout'),
+              Uri.parse('http://localhost:8080/api/usuaris/logout'),
               headers: {'Content-Type': 'application/json; charset=UTF-8'},
               body: jsonEncode({'email': email}),
             );
@@ -113,7 +113,7 @@ class AuthWrapper extends StatefulWidget {
 class AuthWrapperState extends State<AuthWrapper> {
   Future<bool> checkIfAdmin(String email) async {
     try {
-      final response = await http.get(Uri.parse('http://nattech.fib.upc.edu:40350/isAdmin/$email'));
+      final response = await http.get(Uri.parse('http://localhost:8080/isAdmin/$email'));
       if (response.statusCode == 200) {
         final data = jsonDecode(response.body);
         return data["isAdmin"] ?? false;
