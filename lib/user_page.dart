@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:firebase_auth/firebase_auth.dart';
 import 'package:airplan/user_services.dart';
 import 'login_page.dart'; // Para redirigir al usuario después de eliminar la cuenta
+import 'invitations_page.dart';
 
 class UserPage extends StatelessWidget {
   const UserPage({super.key});
@@ -77,6 +78,16 @@ class UserPage extends StatelessWidget {
                 foregroundColor: Colors.white, // Texto blanco
               ),
               child: const Text("Eliminar Cuenta"),
+            ),
+            const SizedBox(height: 20), // Espaciado entre botones
+            ElevatedButton(
+              onPressed: () {
+                Navigator.push(
+                  context,
+                  MaterialPageRoute(builder: (context) => const InvitationsPage()),
+                );
+              },
+              child: const Text("Ver Invitaciones"),
             ),
           ],
         ),
