@@ -1,11 +1,47 @@
 import 'package:flutter/material.dart';
 import 'package:firebase_auth/firebase_auth.dart';
 import 'package:airplan/user_services.dart';
-import 'login_page.dart'; // Para redirigir al usuario después de eliminar la cuenta
+import 'login_page.dart';
 import 'edit_profile_page.dart';
 
-class UserPage extends StatelessWidget {
+class UserPage extends StatefulWidget {
   const UserPage({super.key});
+
+  @override
+  State<UserPage> createState() => _UserPageState();
+}
+
+class _UserPageState extends State<UserPage> {
+  bool _isLoading = true;
+  String _realName = 'Cargando...';
+
+  @override
+  void initState() {
+    super.initState();
+    _loadUserData();
+  }
+
+  Future<void> _loadUserData() async {
+    final user = FirebaseAuth.instance.currentUser;
+    if (user != null && user.displayName != null) {
+      final username = user.displayName!;
+      final realName = await UserService.getUserRealName(username);
+
+      if (mounted) {
+        setState(() {
+          _realName = realName;
+          _isLoading = false;
+        });
+      }
+    } else {
+      if (mounted) {
+        setState(() {
+          _realName = 'Nombre no disponible';
+          _isLoading = false;
+        });
+      }
+    }
+  }
 
   Future<void> _eliminarCuenta(BuildContext context) async {
     final user = FirebaseAuth.instance.currentUser;
@@ -19,20 +55,26 @@ class UserPage extends StatelessWidget {
 
     final confirmacion = await showDialog<bool>(
       context: context,
-      builder: (context) => AlertDialog(
-        title: const Text("Eliminar cuenta"),
-        content: const Text("¿Estás seguro de que quieres eliminar tu cuenta? Esta acción no se puede deshacer."),
-        actions: [
-          TextButton(
-            onPressed: () => Navigator.of(context).pop(false),
-            child: const Text("Cancelar"),
+      builder:
+          (context) => AlertDialog(
+            title: const Text("Eliminar cuenta"),
+            content: const Text(
+              "¿Estás seguro de que quieres eliminar tu cuenta? Esta acción no se puede deshacer.",
+            ),
+            actions: [
+              TextButton(
+                onPressed: () => Navigator.of(context).pop(false),
+                child: const Text("Cancelar"),
+              ),
+              TextButton(
+                onPressed: () => Navigator.of(context).pop(true),
+                child: const Text(
+                  "Eliminar",
+                  style: TextStyle(color: Colors.red),
+                ),
+              ),
+            ],
           ),
-          TextButton(
-            onPressed: () => Navigator.of(context).pop(true),
-            child: const Text("Eliminar", style: TextStyle(color: Colors.red)),
-          ),
-        ],
-      ),
     );
 
     if (confirmacion == true) {
@@ -60,40 +102,128 @@ class UserPage extends StatelessWidget {
   Widget build(BuildContext context) {
     var user = FirebaseAuth.instance.currentUser;
     final email = user?.email ?? "UsuarioSinEmail";
-    final displayName = user?.displayName ?? "Nombre no disponible";
-    final username = user?.email?.split('@')[0] ?? "Username no disponible";
+    final username = user?.displayName ?? "Username no disponible";
+    final photoURL = user?.photoURL;
 
     return Scaffold(
-      appBar: AppBar(
-        title: const Text("Perfil de Usuario"),
-      ),
-      body: Center(
+      appBar: AppBar(title: const Text("Perfil de Usuario")),
+      body: Padding(
+        padding: const EdgeInsets.all(16.0),
         child: Column(
-          mainAxisAlignment: MainAxisAlignment.center,
+          crossAxisAlignment: CrossAxisAlignment.center,
           children: [
-            Text('Nombre: $displayName', textAlign: TextAlign.center),
-            const SizedBox(height: 10),
-            Text('Username: $username', textAlign: TextAlign.center),
-            const SizedBox(height: 10),
-            Text('Correo: $email', textAlign: TextAlign.center),
             const SizedBox(height: 20),
-            ElevatedButton(
-              onPressed: () => _eliminarCuenta(context),
-              style: ElevatedButton.styleFrom(
-                backgroundColor: Colors.red, // Color rojo para el botón de eliminar
-                foregroundColor: Colors.white, // Texto blanco
-              ),
-              child: const Text("Eliminar Cuenta"),
+            // Foto de perfil
+            CircleAvatar(
+              radius: 60,
+              backgroundColor: Colors.grey[300],
+              backgroundImage: photoURL != null ? NetworkImage(photoURL) : null,
+              child:
+                  photoURL == null
+                      ? const Icon(Icons.person, size: 60, color: Colors.grey)
+                      : null,
             ),
-            ElevatedButton(
-              onPressed: () {
-                Navigator.of(context).push(
-                  MaterialPageRoute(
-                    builder: (context) => EditProfilePage(), // Navigate to the edit profile page
+            const SizedBox(height: 30),
+            // Información del usuario
+            Card(
+              elevation: 4,
+              shape: RoundedRectangleBorder(
+                borderRadius: BorderRadius.circular(15),
+              ),
+              child: Padding(
+                padding: const EdgeInsets.all(16.0),
+                child: Column(
+                  children: [
+                    ListTile(
+                      leading: const Icon(Icons.person, color: Colors.blue),
+                      title: const Text(
+                        'Nombre',
+                        style: TextStyle(fontWeight: FontWeight.bold),
+                      ),
+                      subtitle:
+                          _isLoading
+                              ? const Center(
+                                child: SizedBox(
+                                  height: 20,
+                                  width: 20,
+                                  child: CircularProgressIndicator(
+                                    strokeWidth: 2,
+                                  ),
+                                ),
+                              )
+                              : Text(
+                                _realName,
+                                style: const TextStyle(fontSize: 16),
+                              ),
+                    ),
+                    const Divider(),
+                    ListTile(
+                      leading: const Icon(
+                        Icons.alternate_email,
+                        color: Colors.blue,
+                      ),
+                      title: const Text(
+                        'Username',
+                        style: TextStyle(fontWeight: FontWeight.bold),
+                      ),
+                      subtitle: Text(
+                        username,
+                        style: const TextStyle(fontSize: 16),
+                      ),
+                    ),
+                    const Divider(),
+                    ListTile(
+                      leading: const Icon(Icons.email, color: Colors.blue),
+                      title: const Text(
+                        'Correo',
+                        style: TextStyle(fontWeight: FontWeight.bold),
+                      ),
+                      subtitle: Text(
+                        email,
+                        style: const TextStyle(fontSize: 16),
+                      ),
+                    ),
+                  ],
+                ),
+              ),
+            ),
+            const SizedBox(height: 30),
+            // Botones de acción
+            Row(
+              mainAxisAlignment: MainAxisAlignment.spaceEvenly,
+              children: [
+                Expanded(
+                  child: ElevatedButton.icon(
+                    onPressed: () {
+                      Navigator.of(context).push(
+                        MaterialPageRoute(
+                          builder: (context) => EditProfilePage(),
+                        ),
+                      );
+                    },
+                    icon: const Icon(Icons.edit),
+                    label: const Text('Editar Perfil'),
+                    style: ElevatedButton.styleFrom(
+                      backgroundColor: Colors.blue,
+                      foregroundColor: Colors.white,
+                      padding: const EdgeInsets.symmetric(vertical: 12),
+                    ),
                   ),
-                );
-              },
-              child: const Text('Editar Perfil'),
+                ),
+                const SizedBox(width: 10),
+                Expanded(
+                  child: ElevatedButton.icon(
+                    onPressed: () => _eliminarCuenta(context),
+                    icon: const Icon(Icons.delete_forever),
+                    label: const Text("Eliminar Cuenta"),
+                    style: ElevatedButton.styleFrom(
+                      backgroundColor: Colors.red,
+                      foregroundColor: Colors.white,
+                      padding: const EdgeInsets.symmetric(vertical: 12),
+                    ),
+                  ),
+                ),
+              ],
             ),
           ],
         ),

@@ -2,9 +2,9 @@ import 'package:flutter/material.dart';
 import 'package:firebase_auth/firebase_auth.dart';
 import 'package:http/http.dart' as http;
 import 'dart:convert'; // Para usar jsonEncode
-import 'register.dart';  // Importem la pantalla de registre
-// La pantalla que indica "Sessió correcta"
+import 'register.dart'; // Importem la pantalla de registre
 import 'reset_password.dart'; // Importem la pantalla de restabliment de contrasenya
+import 'user_services.dart'; // Importamos el servicio de gestión de correos
 
 class LoginPage extends StatefulWidget {
   const LoginPage({super.key});
@@ -29,13 +29,13 @@ class LoginPageState extends State<LoginPage> {
 
       // Si el login en Firebase es correcto, enviar un POST al backend
       final response = await http.post(
-        Uri.parse('http://localhost:8080/api/usuaris/login'), // Cambia la URL por la de tu backend
+        Uri.parse(
+          'http://localhost:8080/api/usuaris/login',
+        ), // Cambia la URL por la de tu backend
         headers: <String, String>{
           'Content-Type': 'application/json; charset=UTF-8',
         },
-        body: jsonEncode({
-          "email": _emailController.text.trim(),
-        }),
+        body: jsonEncode({"email": _emailController.text.trim()}),
       );
 
       // Verificar la respuesta del backend
@@ -44,6 +44,10 @@ class LoginPageState extends State<LoginPage> {
         setState(() {
           _errorMessage = "Error en el backend: ${response.body}";
         });
+      } else {
+        // Login exitoso, ahora iniciamos el servicio de gestión de correos
+        await EmailChangeManager().initialize();
+        print('🔐 Login exitoso, EmailChangeManager inicializado');
       }
     } on FirebaseAuthException catch (e) {
       // Manejar errores de Firebase
@@ -102,7 +106,9 @@ class LoginPageState extends State<LoginPage> {
               onPressed: () {
                 Navigator.push(
                   context,
-                  MaterialPageRoute(builder: (context) => const ResetPasswordPage()),
+                  MaterialPageRoute(
+                    builder: (context) => const ResetPasswordPage(),
+                  ),
                 );
               },
               child: const Text("Has oblidat la contrasenya?"),

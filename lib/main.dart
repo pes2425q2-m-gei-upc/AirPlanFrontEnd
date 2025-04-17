@@ -11,6 +11,7 @@ import 'calendar_page.dart';
 import 'login_page.dart';
 import 'map_page.dart';
 import 'admin_page.dart';
+import 'user_services.dart'; // Importamos el servicio
 
 void main() async {
   WidgetsFlutterBinding.ensureInitialized();
@@ -25,6 +26,7 @@ void main() async {
       measurementId: "G-L70Y1N6J8Z",
     ),
   );
+
   runApp(MiApp());
 }
 
@@ -72,6 +74,8 @@ class _MiAppState extends State<MiApp> with WidgetsBindingObserver {
       if (user != null) {
         final email = user.email;
         if (email != null) {
+          // Simplemente hacemos logout, sin llamadas adicionales para sincronizar el correo
+          // ya que eso lo hará el servicio EmailChangeManager automáticamente
           try {
             await http.post(
               Uri.parse('http://localhost:8080/api/usuaris/logout'),
@@ -81,7 +85,9 @@ class _MiAppState extends State<MiApp> with WidgetsBindingObserver {
           } catch (e) {
             final actualContext = context;
             if (actualContext.mounted) {
-              ScaffoldMessenger.of(actualContext).showSnackBar(SnackBar(content: Text("Error al conectar con el backend: $e")));
+              ScaffoldMessenger.of(actualContext).showSnackBar(
+                SnackBar(content: Text("Error al conectar con el backend: $e")),
+              );
             }
           }
         }
@@ -113,7 +119,9 @@ class AuthWrapper extends StatefulWidget {
 class AuthWrapperState extends State<AuthWrapper> {
   Future<bool> checkIfAdmin(String email) async {
     try {
-      final response = await http.get(Uri.parse('http://localhost:8080/isAdmin/$email'));
+      final response = await http.get(
+        Uri.parse('http://localhost:8080/isAdmin/$email'),
+      );
       if (response.statusCode == 200) {
         final data = jsonDecode(response.body);
         return data["isAdmin"] ?? false;
@@ -121,7 +129,9 @@ class AuthWrapperState extends State<AuthWrapper> {
     } catch (e) {
       final actualContext = context;
       if (actualContext.mounted) {
-        ScaffoldMessenger.of(actualContext).showSnackBar(SnackBar(content: Text("Error al conectar con el backend: $e")));
+        ScaffoldMessenger.of(actualContext).showSnackBar(
+          SnackBar(content: Text("Error al conectar con el backend: $e")),
+        );
       }
     }
     return false;
@@ -135,11 +145,21 @@ class AuthWrapperState extends State<AuthWrapper> {
         if (snapshot.connectionState == ConnectionState.active) {
           final user = snapshot.data;
           if (user != null) {
+            // Inicializar el servicio EmailChangeManager cuando el usuario inicia sesión
+            Future.microtask(() async {
+              await EmailChangeManager().initialize();
+              print(
+                '🔄 EmailChangeManager inicializado para usuario: ${user.email}',
+              );
+            });
+
             return FutureBuilder<bool>(
               future: checkIfAdmin(user.email!),
               builder: (context, adminSnapshot) {
                 if (adminSnapshot.connectionState == ConnectionState.waiting) {
-                  return Scaffold(body: Center(child: CircularProgressIndicator()));
+                  return Scaffold(
+                    body: Center(child: CircularProgressIndicator()),
+                  );
                 } else {
                   final isAdmin = adminSnapshot.data ?? false;
                   return isAdmin ? AdminPage() : MyHomePage();
@@ -183,27 +203,18 @@ class MyHomePageState extends State<MyHomePage> {
       body: _widgetOptions.elementAt(_selectedIndex),
       bottomNavigationBar: BottomNavigationBar(
         items: const <BottomNavigationBarItem>[
-          BottomNavigationBarItem(
-            icon: Icon(Icons.map),
-            label: 'Map',
-          ),
+          BottomNavigationBarItem(icon: Icon(Icons.map), label: 'Map'),
           BottomNavigationBarItem(
             icon: Icon(Icons.calendar_today),
             label: 'Calendar',
           ),
-          BottomNavigationBarItem(
-            icon: Icon(Icons.person),
-            label: 'User',
-          ),
+          BottomNavigationBarItem(icon: Icon(Icons.person), label: 'User'),
         ],
         currentIndex: _selectedIndex,
         selectedItemColor: Colors.blue,
         onTap: _onItemTapped,
       ),
-      bottomSheet: Container(
-        height: 1,
-        color: Colors.grey,
-      ),
+      bottomSheet: Container(height: 1, color: Colors.grey),
     );
   }
 }
