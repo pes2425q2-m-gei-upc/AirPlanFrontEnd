@@ -1,3 +1,4 @@
+import 'package:airplan/transit_service.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_map/flutter_map.dart';
 import 'package:latlong2/latlong.dart';
@@ -11,6 +12,7 @@ class MapUI extends StatelessWidget {
   final Function(Map<String, dynamic>) onActivityTap;
   final List<Marker> markers;
   final List<LatLng>? route; // Make route nullable
+  final List<TransitStep>? steps;
 
   const MapUI({
     super.key,
@@ -21,7 +23,8 @@ class MapUI extends StatelessWidget {
     required this.onMapTapped,
     required this.activities,
     required this.onActivityTap,
-    this.route, // Optional parameter
+    this.route,
+    this.steps, // Add this parameter
   });
 
   @override
@@ -55,15 +58,13 @@ class MapUI extends StatelessWidget {
             }),
           ],
         ),
-        if (route != null && route!.isNotEmpty) // Check if route is not null and not empty
+        if (steps != null && steps!.isNotEmpty)
           PolylineLayer(
-            polylines: [
-              Polyline(
-                points: route!,
-                strokeWidth: 4.0,
-                color: Colors.blue,
-              ),
-            ],
+            polylines: steps!.map((step) => Polyline(
+              points: step.points,
+              strokeWidth: 4.0,
+              color: step.color,
+            )).toList(),
           ),
       ],
     );

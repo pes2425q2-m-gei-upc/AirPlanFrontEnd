@@ -1,4 +1,5 @@
 // map_page.dart
+import 'package:airplan/transit_service.dart';
 import 'package:firebase_auth/firebase_auth.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_map/flutter_map.dart';
@@ -33,6 +34,7 @@ class MapPageState extends State<MapPage> {
   bool showAirQualityCircles = true;
   List<dynamic> savedRoutes = [];
   List<LatLng> currentRoute = [];
+  List<TransitStep>? transitSteps;
 
   @override
   void initState() {
@@ -238,78 +240,30 @@ class MapPageState extends State<MapPage> {
           content: Column(
             mainAxisSize: MainAxisSize.min,
             children: [
-              ExpansionTile(
+              ListTile(
                 leading: const Icon(Icons.directions_walk),
                 title: const Text('A peu'),
-                children: [
-                  ListTile(
-                    leading: const Icon(Icons.directions_walk),
-                    title: const Text('A peu'),
-                    onTap: () => Navigator.pop(context, 3),
-                  ),
-                  ListTile(
-                    leading: const Icon(Icons.hiking),
-                    title: const Text('Senderisme'),
-                    onTap: () => Navigator.pop(context, 4),
-                  ),
-                ],
+                onTap: () => Navigator.pop(context, 3),
               ),
               ListTile(
-                leading: const Icon(Icons.accessible),
-                title: const Text('Cadira de rodes'),
-                onTap: () => Navigator.pop(context, 9),
-              ),
-              ExpansionTile(
                 leading: const Icon(Icons.pedal_bike),
                 title: const Text('Bicicleta'),
-                children: [
-                  ListTile(
-                    leading: const Icon(Icons.pedal_bike),
-                    title: const Text('Bicicleta'),
-                    onTap: () => Navigator.pop(context, 5),
-                  ),
-                  ListTile(
-                    leading: const Icon(Icons.mode_of_travel),
-                    title: const Text('Bicicleta de carretera'),
-                    onTap: () => Navigator.pop(context, 6),
-                  ),
-                  ListTile(
-                    leading: const Icon(Icons.terrain),
-                    title: const Text('Bicicleta de muntanya'),
-                    onTap: () => Navigator.pop(context, 7),
-                  ),
-                  ListTile(
-                    leading: const Icon(Icons.electric_bike),
-                    title: const Text('Bicicleta elèctrica'),
-                    onTap: () => Navigator.pop(context, 8),
-                  ),
-                ],
+                onTap: () => Navigator.pop(context, 4),
               ),
               ListTile(
                 leading: const Icon(Icons.directions_bus),
                 title: const Text('Transport públic'),
                 onTap: () => Navigator.pop(context, 10),
               ),
-              ExpansionTile(
+              ListTile(
                 leading: const Icon(Icons.directions_car),
                 title: const Text('Cotxe'),
-                children: [
-                  ListTile(
-                    leading: const Icon(Icons.directions_car),
-                    title: const Text('Cotxe'),
-                    onTap: () => Navigator.pop(context, 1),
-                  ),
-                  ListTile(
-                    leading: const Icon(Icons.local_shipping),
-                    title: const Text('Vehicle pesat'),
-                    onTap: () => Navigator.pop(context, 2),
-                  ),
-                ],
+                onTap: () => Navigator.pop(context, 1),
               ),
               ListTile(
                 leading: const Icon(Icons.directions_bike),
                 title: const Text('Moto'),
-                onTap: () => Navigator.pop(context, 1),
+                onTap: () => Navigator.pop(context, 2),
               ),
             ],
           ),
@@ -319,14 +273,21 @@ class MapPageState extends State<MapPage> {
 
     if (selectedOption != null) {
       try {
-        final points = await mapService.getRoute(selectedOption, start, end);
+        final transitRoute;
+        if (selectedOption == 10) {
+          // Public transit option
+          transitRoute = await mapService.getPublicTransportRoute(start, end);
+        } else {
+          // Other transport options
+          transitRoute = await mapService.getRoute(selectedOption, start, end);
+        }
         setState(() {
-          currentRoute = points;
+          currentRoute = transitRoute.fullRoute;
+          transitSteps = transitRoute.steps;
         });
+
         if (context.mounted) {
-          ScaffoldMessenger.of(context).showSnackBar(
-            const SnackBar(content: Text('Ruta calculada correctament.')),
-          );
+          _showRouteDetails(transitRoute);
         }
       } catch (e) {
         if (context.mounted) {
@@ -336,6 +297,41 @@ class MapPageState extends State<MapPage> {
         }
       }
     }
+  }
+
+  void _showRouteDetails(TransitRoute transitRoute) {
+    showModalBottomSheet(
+      context: context,
+      builder: (context) => ListView(
+        children: [
+          ListTile(
+            title: Text('Total Journey'),
+            subtitle: Text('Duration: ${transitRoute.duration} - Distance: ${transitRoute.distance}'),
+          ),
+          const Divider(),
+          ...transitRoute.steps.map((step) => ListTile(
+            leading: Icon(
+              step.mode == TipusVehicle.cap
+                  ? Icons.directions_walk
+                  : step.mode == TipusVehicle.cotxe
+                  ? Icons.directions_car
+                  : step.mode == TipusVehicle.autobus
+                  ? Icons.directions_bus
+                  : step.mode == TipusVehicle.tren
+                  ? Icons.train
+                  : step.mode == TipusVehicle.bicicleta
+                  ? Icons.pedal_bike
+                  : step.mode == TipusVehicle.moto
+                  ? Icons.directions_bike
+                  : Icons.directions_transit,
+              color: step.color
+            ),
+            title: Text(step.instruction),
+            subtitle: Text('${step.departure} - ${step.arrival}'),
+          )),
+        ],
+      ),
+    );
   }
 
   void _showPlaceDetails(LatLng selectedLocation, String placeDetails) {
@@ -821,6 +817,7 @@ class MapPageState extends State<MapPage> {
             onActivityTap: _showActivityDetails,
             markers: markers,
             route: currentRoute,
+            steps: transitSteps,
           ),
           Positioned(
             top: 10,
