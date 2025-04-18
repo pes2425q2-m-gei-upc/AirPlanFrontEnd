@@ -2,209 +2,6 @@
 import 'package:firebase_auth/firebase_auth.dart';
 import 'package:http/http.dart' as http;
 import 'dart:convert';
-import 'dart:async'; // Necesario para Timer
-
-// Servicio global para gestionar los correos electrónicos
-class EmailChangeManager {
-  // Singleton
-  static final EmailChangeManager _instance = EmailChangeManager._internal();
-  factory EmailChangeManager() => _instance;
-  EmailChangeManager._internal();
-
-  // Estado del servicio
-  bool _isInitialized = false;
-  Timer? _periodicCheckTimer;
-  bool _isLoading = false;
-  String? _lastEmailInDb;
-
-  // Inicializar el servicio una sola vez
-  Future<void> initialize() async {
-    if (_isInitialized) return;
-
-    print(
-      '📧 Inicializando EmailChangeManager - Servicio global de gestión de correos',
-    );
-
-    // Configurar una verificación periódica cada 5 segundos
-    _periodicCheckTimer = Timer.periodic(Duration(seconds: 5), (_) {
-      _periodicEmailCheck();
-    });
-
-    _isInitialized = true;
-  }
-
-  // Verificación periódica (único método para sincronizar correos)
-  void _periodicEmailCheck() {
-    print(
-      '🔄 Verificación periódica ejecutándose... (comprobación cada 5 segundos)',
-    );
-
-    if (_isLoading) {
-      print('⏸️ Verificación en pausa - hay una operación en curso');
-      return;
-    }
-
-    final user = FirebaseAuth.instance.currentUser;
-    if (user == null) {
-      print('👤 No hay usuario actualmente en sesión');
-      return;
-    }
-
-    // Forzar una recarga del usuario desde Firebase para obtener cambios externos
-    user
-        .reload()
-        .then((_) {
-          // Importante: Obtenemos de nuevo el usuario después de recargar para tener datos actualizados
-          final refreshedUser = FirebaseAuth.instance.currentUser;
-          if (refreshedUser == null) return;
-
-          final username = refreshedUser.displayName;
-          final firebaseEmail = refreshedUser.email;
-
-          print('🔄 Datos actualizados después de reload():');
-          print('   Username: $username');
-          print('   Email: $firebaseEmail');
-          print('   Email verificado: ${refreshedUser.emailVerified}');
-
-          if (username == null ||
-              firebaseEmail == null ||
-              firebaseEmail.isEmpty) {
-            print('⚠️ Usuario sin username o correo en Firebase');
-            return;
-          }
-
-          // Verificar si el correo en Firebase coincide con el de la base de datos para el mismo username
-          _checkEmailForUsernameInDatabase(username, firebaseEmail);
-        })
-        .catchError((error) {
-          print('❌ Error al recargar usuario: $error');
-        });
-  }
-
-  // Comprueba si el correo en la base de datos coincide con el de Firebase para el mismo username
-  Future<void> _checkEmailForUsernameInDatabase(
-    String username,
-    String firebaseEmail,
-  ) async {
-    _isLoading = true;
-    try {
-      print('🔍 Verificando correo para username: $username');
-      print('   Correo en Firebase: $firebaseEmail');
-
-      // Obtener datos del usuario desde la base de datos usando el username
-      final response = await http.get(
-        Uri.parse(
-          'http://localhost:8080/api/usuaris/usuario-por-username/$username',
-        ),
-      );
-
-      if (response.statusCode == 200) {
-        final userData = json.decode(response.body);
-        final databaseEmail = userData['email'] as String?;
-        final pendingEmail = userData['pendingEmail'] as String?;
-
-        _lastEmailInDb = databaseEmail;
-
-        print('📋 Usuario en base de datos:');
-        print('   Username: $username');
-        print('   Email en Firebase: $firebaseEmail');
-        print('   Email en DB: $databaseEmail');
-        print('   Email pendiente: $pendingEmail');
-
-        // Caso 1: El correo en Firebase es diferente al de la base de datos
-        if (databaseEmail != null && databaseEmail != firebaseEmail) {
-          print('⚠️ Diferencia detectada entre correos:');
-          print('   Firebase: $firebaseEmail');
-          print('   Base de datos: $databaseEmail');
-
-          // Actualizar el correo en la base de datos para que coincida con Firebase
-          await _updateEmailInDatabase(databaseEmail, firebaseEmail);
-        }
-        // Caso 2: El correo en Firebase coincide con pendingEmail
-        else if (pendingEmail != null && pendingEmail == firebaseEmail) {
-          print('🔄 El correo en Firebase coincide con el pendingEmail:');
-          print('   Firebase: $firebaseEmail');
-          print('   PendingEmail en DB: $pendingEmail');
-          print('   Actualizando email principal en la base de datos...');
-
-          // Actualizar el correo principal en la base de datos ya que se ha verificado en Firebase
-          await _confirmPendingEmail(databaseEmail!, firebaseEmail);
-        }
-      } else {
-        print(
-          '❌ Error al obtener usuario por username: ${response.statusCode}',
-        );
-      }
-    } catch (e) {
-      print('❌ Error verificando correo por username: $e');
-    } finally {
-      _isLoading = false;
-    }
-  }
-
-  // Actualiza el correo en la base de datos directamente (cuando Firebase y DB son diferentes)
-  Future<void> _updateEmailInDatabase(String oldEmail, String newEmail) async {
-    try {
-      print(
-        '✏️ Actualizando correo en la base de datos: $oldEmail → $newEmail',
-      );
-
-      final response = await http.post(
-        Uri.parse('http://localhost:8080/api/usuaris/directUpdateEmail'),
-        headers: {'Content-Type': 'application/json'},
-        body: json.encode({'oldEmail': oldEmail, 'newEmail': newEmail}),
-      );
-
-      if (response.statusCode == 200) {
-        print('✅ Correo actualizado correctamente en la base de datos');
-        _lastEmailInDb = newEmail;
-      } else {
-        print(
-          '❌ Error actualizando correo: ${response.statusCode} - ${response.body}',
-        );
-      }
-    } catch (e) {
-      print('❌ Error en actualización directa de correo: $e');
-    }
-  }
-
-  // Confirma un correo pendiente (cuando Firebase coincide con pendingEmail)
-  Future<void> _confirmPendingEmail(
-    String currentEmail,
-    String pendingEmail,
-  ) async {
-    try {
-      print(
-        '✅ Confirmando cambio de correo pendiente: $currentEmail → $pendingEmail',
-      );
-
-      final response = await http.post(
-        Uri.parse('http://localhost:8080/api/usuaris/confirmEmail'),
-        headers: {'Content-Type': 'application/json'},
-        body: json.encode({
-          'currentEmail': pendingEmail,
-          'oldEmail': currentEmail,
-        }),
-      );
-
-      if (response.statusCode == 200) {
-        print('✅ Correo pendiente confirmado en la base de datos');
-        _lastEmailInDb = pendingEmail;
-      } else {
-        print(
-          '❌ Error confirmando correo pendiente: ${response.statusCode} - ${response.body}',
-        );
-      }
-    } catch (e) {
-      print('❌ Error confirmando correo pendiente: $e');
-    }
-  }
-
-  // Método para limpiar recursos cuando se destruye la instancia
-  void dispose() {
-    _periodicCheckTimer?.cancel();
-  }
-}
 
 class UserService {
   static Future<bool> deleteUser(String email) async {
@@ -359,6 +156,75 @@ class UserService {
     } catch (e) {
       print('Error obteniendo el nombre del usuario: $e');
       return 'Nombre no disponible';
+    }
+  }
+
+  // Método para sincronizar el email de Firebase con la base de datos (para usar en la página de usuario)
+  static Future<bool> syncEmailOnProfileLoad() async {
+    try {
+      final user = FirebaseAuth.instance.currentUser;
+      if (user == null) return false;
+
+      // Forzar una recarga del usuario desde Firebase para obtener datos actualizados
+      await user.reload();
+
+      final refreshedUser = FirebaseAuth.instance.currentUser;
+      if (refreshedUser == null) return false;
+
+      final username = refreshedUser.displayName;
+      final firebaseEmail = refreshedUser.email;
+
+      if (username == null || firebaseEmail == null) {
+        print('⚠️ Usuario sin username o correo en Firebase');
+        return false;
+      }
+
+      print('🔄 Sincronizando correo al cargar perfil:');
+      print('   Username: $username');
+      print('   Email en Firebase: $firebaseEmail');
+
+      // Obtener datos del usuario desde la base de datos
+      final response = await http.get(
+        Uri.parse(
+          'http://localhost:8080/api/usuaris/usuario-por-username/$username',
+        ),
+      );
+
+      if (response.statusCode == 200) {
+        final userData = jsonDecode(response.body);
+        final databaseEmail = userData['email'] as String?;
+
+        // Si el correo en Firebase es diferente al de la base de datos, actualizar la base de datos
+        if (databaseEmail != null && databaseEmail != firebaseEmail) {
+          print('⚠️ Correo en Firebase diferente al de la base de datos:');
+          print('   - Firebase: $firebaseEmail');
+          print('   - Base de datos: $databaseEmail');
+
+          // Actualizar directamente el email en la base de datos
+          final updateResponse = await http.post(
+            Uri.parse('http://localhost:8080/api/usuaris/directUpdateEmail'),
+            headers: {'Content-Type': 'application/json'},
+            body: json.encode({
+              'oldEmail': databaseEmail,
+              'newEmail': firebaseEmail,
+            }),
+          );
+
+          if (updateResponse.statusCode == 200) {
+            print('✅ Correo actualizado correctamente en la base de datos');
+            // Retornar true para indicar que se detectó un cambio de correo
+            return true;
+          } else {
+            print('❌ Error actualizando correo: ${updateResponse.statusCode}');
+          }
+        } else {
+          print('✅ Los correos ya están sincronizados');
+        }
+      }
+      return false;
+    } catch (e) {
+      print('❌ Error sincronizando correo: $e');
+      return false;
     }
   }
 }

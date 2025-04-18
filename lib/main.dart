@@ -11,7 +11,7 @@ import 'calendar_page.dart';
 import 'login_page.dart';
 import 'map_page.dart';
 import 'admin_page.dart';
-import 'user_services.dart'; // Importamos el servicio
+// Importamos el servicio
 
 void main() async {
   WidgetsFlutterBinding.ensureInitialized();
@@ -74,8 +74,7 @@ class _MiAppState extends State<MiApp> with WidgetsBindingObserver {
       if (user != null) {
         final email = user.email;
         if (email != null) {
-          // Simplemente hacemos logout, sin llamadas adicionales para sincronizar el correo
-          // ya que eso lo hará el servicio EmailChangeManager automáticamente
+          // Realizar logout en el backend
           try {
             await http.post(
               Uri.parse('http://localhost:8080/api/usuaris/logout'),
@@ -145,14 +144,7 @@ class AuthWrapperState extends State<AuthWrapper> {
         if (snapshot.connectionState == ConnectionState.active) {
           final user = snapshot.data;
           if (user != null) {
-            // Inicializar el servicio EmailChangeManager cuando el usuario inicia sesión
-            Future.microtask(() async {
-              await EmailChangeManager().initialize();
-              print(
-                '🔄 EmailChangeManager inicializado para usuario: ${user.email}',
-              );
-            });
-
+            // El usuario está autenticado, verificar si es admin
             return FutureBuilder<bool>(
               future: checkIfAdmin(user.email!),
               builder: (context, adminSnapshot) {

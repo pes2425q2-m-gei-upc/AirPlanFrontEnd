@@ -22,24 +22,101 @@ class _UserPageState extends State<UserPage> {
   }
 
   Future<void> _loadUserData() async {
-    final user = FirebaseAuth.instance.currentUser;
-    if (user != null && user.displayName != null) {
-      final username = user.displayName!;
-      final realName = await UserService.getUserRealName(username);
+    try {
+      // Realizar un reload de la instancia de Firebase al entrar al perfil
+      final user = FirebaseAuth.instance.currentUser;
+      if (user != null) {
+        try {
+          // Intentar recargar el usuario desde Firebase
+          await user.reload();
 
+          // Verificar si el usuario sigue autenticado después del reload
+          final refreshedUser = FirebaseAuth.instance.currentUser;
+          if (refreshedUser == null) {
+            // La sesión ha caducado después del reload
+            if (mounted) {
+              await _showSessionExpiredDialog();
+              return;
+            }
+          }
+
+          if (refreshedUser != null && refreshedUser.displayName != null) {
+            final username = refreshedUser.displayName!;
+            final realName = await UserService.getUserRealName(username);
+
+            if (mounted) {
+              setState(() {
+                _realName = realName;
+                _isLoading = false;
+              });
+            }
+          }
+        } catch (e) {
+          // Error al recargar el usuario, probablemente la sesión expiró
+          print('Error al recargar usuario de Firebase: $e');
+          if (mounted) {
+            await _showSessionExpiredDialog();
+          }
+        }
+      } else {
+        // No hay usuario autenticado
+        if (mounted) {
+          await _showSessionExpiredDialog();
+        }
+      }
+    } catch (e) {
+      print('Error general al cargar datos de usuario: $e');
       if (mounted) {
         setState(() {
-          _realName = realName;
+          _realName = 'Error al cargar datos';
           _isLoading = false;
         });
       }
-    } else {
-      if (mounted) {
-        setState(() {
-          _realName = 'Nombre no disponible';
-          _isLoading = false;
-        });
-      }
+    }
+  }
+
+  // Método para mostrar el diálogo de sesión caducada
+  Future<void> _showSessionExpiredDialog() async {
+    await showDialog(
+      context: context,
+      barrierDismissible: false,
+      builder: (BuildContext context) {
+        return AlertDialog(
+          title: const Text('Sesión caducada'),
+          content: const Text(
+            'La sesión ha caducado, vuelve a iniciar sesión por favor.',
+          ),
+          actions: <Widget>[
+            TextButton(
+              child: const Text('Aceptar'),
+              onPressed: () {
+                // Cerrar el diálogo y navegar a la página de login
+                Navigator.of(context).pop();
+                Navigator.of(context).pushAndRemoveUntil(
+                  MaterialPageRoute(builder: (context) => const LoginPage()),
+                  (route) => false,
+                );
+              },
+            ),
+          ],
+        );
+      },
+    );
+  }
+
+  // También necesitamos recargar cuando la página obtiene el foco nuevamente
+  @override
+  void didChangeDependencies() {
+    super.didChangeDependencies();
+    // Esto captura cuando la página vuelve a estar visible, por ejemplo cuando el usuario
+    // regresa a ella después de editar su perfil
+    final route = ModalRoute.of(context);
+    if (route != null) {
+      route.addScopedWillPopCallback(() async {
+        // Esta función se llamará cuando se regrese a esta página
+        _loadUserData();
+        return false; // Permitir que la navegación continúe
+      });
     }
   }
 

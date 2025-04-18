@@ -4,7 +4,7 @@ import 'package:http/http.dart' as http;
 import 'dart:convert'; // Para usar jsonEncode
 import 'register.dart'; // Importem la pantalla de registre
 import 'reset_password.dart'; // Importem la pantalla de restabliment de contrasenya
-import 'user_services.dart'; // Importamos el servicio de gestión de correos
+// Importamos el servicio de gestión de correos
 
 class LoginPage extends StatefulWidget {
   const LoginPage({super.key});
@@ -22,33 +22,49 @@ class LoginPageState extends State<LoginPage> {
   Future<void> _signIn() async {
     try {
       // Iniciar sesión en Firebase
-      await _auth.signInWithEmailAndPassword(
+      final userCredential = await _auth.signInWithEmailAndPassword(
         email: _emailController.text.trim(),
         password: _passwordController.text.trim(),
       );
 
-      // Si el login en Firebase es correcto, enviar un POST al backend
+      final user = userCredential.user;
+      if (user == null) {
+        setState(() {
+          _errorMessage =
+              "Error: No se pudo obtener la información del usuario";
+        });
+        return;
+      }
+
+      final firebaseEmail = user.email;
+      final username = user.displayName;
+
+      if (username == null || firebaseEmail == null) {
+        setState(() {
+          _errorMessage = "Error: Falta información del usuario";
+        });
+        return;
+      }
+
+      // Enviar un POST al backend para el login, incluyendo ahora username
       final response = await http.post(
-        Uri.parse(
-          'http://localhost:8080/api/usuaris/login',
-        ), // Cambia la URL por la de tu backend
+        Uri.parse('http://localhost:8080/api/usuaris/login'),
         headers: <String, String>{
           'Content-Type': 'application/json; charset=UTF-8',
         },
-        body: jsonEncode({"email": _emailController.text.trim()}),
+        body: jsonEncode({"email": firebaseEmail, "username": username}),
       );
 
       // Verificar la respuesta del backend
       if (response.statusCode != 200) {
-        // Si el backend responde con un error, mostrar el mensaje de error
         setState(() {
           _errorMessage = "Error en el backend: ${response.body}";
         });
-      } else {
-        // Login exitoso, ahora iniciamos el servicio de gestión de correos
-        await EmailChangeManager().initialize();
-        print('🔐 Login exitoso, EmailChangeManager inicializado');
+        return;
       }
+
+      // La sincronización del email ya se está manejando en el backend
+      print('✅ Login exitoso');
     } on FirebaseAuthException catch (e) {
       // Manejar errores de Firebase
       setState(() {

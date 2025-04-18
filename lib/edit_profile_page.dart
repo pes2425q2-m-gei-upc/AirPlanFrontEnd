@@ -2,11 +2,13 @@ import 'package:flutter/material.dart';
 import 'package:airplan/user_services.dart';
 import 'package:firebase_auth/firebase_auth.dart';
 import 'dart:io';
-import 'dart:convert'; // Añadido para usar jsonEncode
+// Añadido para usar jsonEncode
 import 'package:image_picker/image_picker.dart';
 import 'package:http/http.dart' as http;
 import 'dart:typed_data';
+import 'dart:async'; // Para StreamSubscription
 import 'package:flutter/foundation.dart' show kIsWeb;
+import 'login_page.dart'; // Para la página de login
 
 class EditProfilePage extends StatefulWidget {
   const EditProfilePage({super.key});
@@ -22,6 +24,8 @@ class _EditProfilePageState extends State<EditProfilePage> {
   String _selectedLanguage = 'Castellano'; // Default language
   File? _selectedImage;
   Uint8List? _webImage; // Para almacenar la imagen en formato web
+  // Añadir un listener para los cambios de autenticación
+  StreamSubscription<User?>? _authStateSubscription;
 
   final List<String> _languages = [
     'Castellano',
@@ -38,6 +42,20 @@ class _EditProfilePageState extends State<EditProfilePage> {
       // Intentar cargar los datos actuales del usuario
       _loadUserData();
     }
+
+    // Añadir listener para los cambios de autenticación
+    _authStateSubscription = FirebaseAuth.instance.authStateChanges().listen((
+      User? user,
+    ) {
+      if (user == null && mounted) {
+        // Usuario ha cerrado sesión o ha cambiado su autenticación
+        // Navegar a la pantalla de inicio de sesión
+        Navigator.of(context).pushAndRemoveUntil(
+          MaterialPageRoute(builder: (context) => const LoginPage()),
+          (Route<dynamic> route) => false,
+        );
+      }
+    });
   }
 
   Future<void> _loadUserData() async {
@@ -57,6 +75,8 @@ class _EditProfilePageState extends State<EditProfilePage> {
     _nameController.dispose();
     _usernameController.dispose();
     _emailController.dispose();
+    // Cancelar la suscripción al listener cuando se destruye la página
+    _authStateSubscription?.cancel();
     super.dispose();
   }
 
@@ -289,123 +309,91 @@ class _EditProfilePageState extends State<EditProfilePage> {
     if (currentUser == null) return;
 
     try {
-      // 1. Guardar el nuevo correo como pendiente en el backend
-      final pendingResponse = await http.post(
-        Uri.parse('http://localhost:8080/api/usuaris/pendingEmail'),
-        headers: {'Content-Type': 'application/json'},
-        body: jsonEncode({
-          'currentEmail': currentEmail,
-          'pendingEmail': newEmail,
-        }),
+      // Intentar enviar correo de verificación a través de Firebase
+      await currentUser.verifyBeforeUpdateEmail(newEmail);
+
+      // Actualizar el resto de datos del perfil (sin cambiar el correo aún)
+      final profileResult = await UserService.editUser(
+        currentEmail,
+        updatedData,
       );
 
-      if (pendingResponse.statusCode != 200) {
+      if (profileResult['success']) {
         ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(
+          const SnackBar(
             content: Text(
-              'Error al guardar correo pendiente: ${pendingResponse.body}',
+              'Perfil actualizado. Verifica tu nuevo correo para completar el cambio.',
             ),
           ),
         );
-        return;
-      }
-
-      try {
-        // 2. Enviar correo de verificación a través de Firebase
-        await currentUser.verifyBeforeUpdateEmail(newEmail);
-
-        // No necesitamos configurar un listener aquí, ya que el servicio global
-        // EmailChangeManager se encargará de detectar y sincronizar el cambio
-
-        // 3. Actualizar el resto de datos del perfil (sin cambiar el correo aún)
-        final profileResult = await UserService.editUser(
-          currentEmail,
-          updatedData,
+      } else {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: Text(
+              'Error al actualizar perfil: ${profileResult['error']}',
+            ),
+          ),
         );
+      }
+    } catch (e) {
+      // Detectar el error específico de re-autenticación
+      if (e is FirebaseAuthException && e.code == 'requires-recent-login') {
+        // Mostrar diálogo para re-autenticación
+        final password = await _showReauthDialog();
 
-        if (profileResult['success']) {
-          ScaffoldMessenger.of(context).showSnackBar(
-            SnackBar(
-              content: Text(
-                'Perfil actualizado. Verifica tu nuevo correo para completar el cambio.',
-              ),
-            ),
-          );
-        } else {
-          ScaffoldMessenger.of(context).showSnackBar(
-            SnackBar(
-              content: Text(
-                'Error al actualizar perfil: ${profileResult['error']}',
-              ),
-            ),
-          );
-        }
-      } catch (e) {
-        // Detectar el error específico de re-autenticación
-        if (e is FirebaseAuthException && e.code == 'requires-recent-login') {
-          // Mostrar diálogo para re-autenticación
-          final password = await _showReauthDialog();
+        if (password != null && password.isNotEmpty) {
+          // Intentar re-autenticar al usuario
+          final reauthSuccess = await _reauthenticateUser(password);
 
-          if (password != null && password.isNotEmpty) {
-            // Intentar re-autenticar al usuario
-            final reauthSuccess = await _reauthenticateUser(password);
+          if (reauthSuccess) {
+            // Intentar nuevamente la operación después de la re-autenticación
+            try {
+              await currentUser.verifyBeforeUpdateEmail(newEmail);
 
-            if (reauthSuccess) {
-              // Intentar nuevamente la operación después de la re-autenticación
-              try {
-                await currentUser.verifyBeforeUpdateEmail(newEmail);
+              // Actualizar el resto de datos del perfil
+              final profileResult = await UserService.editUser(
+                currentEmail,
+                updatedData,
+              );
 
-                // El servicio global detectará el cambio cuando ocurra
-
-                // Actualizar el resto de datos del perfil
-                final profileResult = await UserService.editUser(
-                  currentEmail,
-                  updatedData,
+              if (profileResult['success']) {
+                ScaffoldMessenger.of(context).showSnackBar(
+                  const SnackBar(
+                    content: Text(
+                      'Perfil actualizado. Verifica tu nuevo correo para completar el cambio.',
+                    ),
+                  ),
                 );
-
-                if (profileResult['success']) {
-                  ScaffoldMessenger.of(context).showSnackBar(
-                    SnackBar(
-                      content: Text(
-                        'Perfil actualizado. Verifica tu nuevo correo para completar el cambio.',
-                      ),
-                    ),
-                  );
-                } else {
-                  ScaffoldMessenger.of(context).showSnackBar(
-                    SnackBar(
-                      content: Text(
-                        'Error al actualizar perfil: ${profileResult['error']}',
-                      ),
-                    ),
-                  );
-                }
-              } catch (finalError) {
+              } else {
                 ScaffoldMessenger.of(context).showSnackBar(
                   SnackBar(
                     content: Text(
-                      'Error después de re-autenticación: $finalError',
+                      'Error al actualizar perfil: ${profileResult['error']}',
                     ),
                   ),
                 );
               }
+            } catch (finalError) {
+              ScaffoldMessenger.of(context).showSnackBar(
+                SnackBar(
+                  content: Text(
+                    'Error después de re-autenticación: $finalError',
+                  ),
+                ),
+              );
             }
-          } else {
-            ScaffoldMessenger.of(context).showSnackBar(
-              SnackBar(content: Text('Re-autenticación cancelada')),
-            );
           }
         } else {
-          // Otro tipo de error
           ScaffoldMessenger.of(context).showSnackBar(
-            SnackBar(content: Text('Error al procesar cambio de correo: $e')),
+            const SnackBar(content: Text('Re-autenticación cancelada')),
           );
         }
+      } else {
+        // Otro tipo de error
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(content: Text('Error al procesar cambio de correo: $e')),
+        );
       }
-    } catch (e) {
-      ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(content: Text('Error al procesar cambio de correo: $e')),
-      );
     }
   }
 
