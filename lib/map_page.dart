@@ -31,7 +31,8 @@ class MapPageState extends State<MapPage> {
   List<Map<String, dynamic>> activities = [];
   List<Marker> markers = [];
   bool showAirQualityCircles = true;
-  List<LatLng> routePoints = [];
+  List<dynamic> savedRoutes = [];
+  List<LatLng> currentRoute = [];
 
   @override
   void initState() {
@@ -39,6 +40,7 @@ class MapPageState extends State<MapPage> {
     fetchAirQualityData();
     fetchActivities();
     fetchUserLocation();
+    fetchRoutes();
   }
 
   Future<void> fetchAirQualityData() async {
@@ -67,6 +69,19 @@ class MapPageState extends State<MapPage> {
       final lon = ubicacio['longitud'] as double;
       String details = await mapService.fetchPlaceDetails(LatLng(lat, lon));
       savedLocations[LatLng(lat, lon)] = details;
+      markers.add(Marker(
+        width: 80.0,
+        height: 80.0,
+        point: LatLng(lat, lon),
+        child: GestureDetector(
+          onTap: () => _showSavedLocationDetails(LatLng(lat, lon), details),
+          child: const Icon(
+            Icons.push_pin,
+            color: Colors.red,
+            size: 40.0,
+          ),
+        ),
+      ));
     }
 
     setState(() {
@@ -122,6 +137,16 @@ class MapPageState extends State<MapPage> {
       );
       setState(() {
         currentPosition = LatLng(position.latitude, position.longitude);
+        markers.add(Marker(
+          width: 80.0,
+          height: 80.0,
+          point: currentPosition,
+          child: const Icon(
+            Icons.my_location,
+            color: Colors.blue,
+            size: 40.0,
+          ),
+        ));
       });
     } catch (e) {
       final actualContext = context;
@@ -129,6 +154,22 @@ class MapPageState extends State<MapPage> {
         ScaffoldMessenger.of(actualContext).showSnackBar(
           SnackBar(content: Text('Failed to fetch location: $e')),
         );
+      }
+    }
+  }
+
+  Future<void> fetchRoutes() async {
+    try {
+      final routes = await mapService.fetchRoutes();
+      setState(() {
+        savedRoutes = routes;
+      });
+    } catch (e) {
+      final actualContext = context;
+      if (actualContext.mounted) {
+        ScaffoldMessenger.of(actualContext).showSnackBar(SnackBar(
+          content: Text("Error al obtenir les rutes de l'usuari: ${e.toString()}"),
+        ));
       }
     }
   }
@@ -144,6 +185,16 @@ class MapPageState extends State<MapPage> {
           child: const Icon(
             Icons.location_on,
             color: Colors.red,
+            size: 40.0,
+          ),
+        ),
+        Marker(
+          width: 80.0,
+          height: 80.0,
+          point: currentPosition,
+          child: const Icon(
+            Icons.my_location,
+            color: Colors.blue,
             size: 40.0,
           ),
         ),
@@ -187,15 +238,78 @@ class MapPageState extends State<MapPage> {
           content: Column(
             mainAxisSize: MainAxisSize.min,
             children: [
-              ListTile(
-                leading: const Icon(Icons.directions_car),
-                title: const Text('Cotxe'),
-                onTap: () => Navigator.pop(context, 1),
-              ),
-              ListTile(
+              ExpansionTile(
                 leading: const Icon(Icons.directions_walk),
                 title: const Text('A peu'),
-                onTap: () => Navigator.pop(context, 3),
+                children: [
+                  ListTile(
+                    leading: const Icon(Icons.directions_walk),
+                    title: const Text('A peu'),
+                    onTap: () => Navigator.pop(context, 3),
+                  ),
+                  ListTile(
+                    leading: const Icon(Icons.hiking),
+                    title: const Text('Senderisme'),
+                    onTap: () => Navigator.pop(context, 4),
+                  ),
+                ],
+              ),
+              ListTile(
+                leading: const Icon(Icons.accessible),
+                title: const Text('Cadira de rodes'),
+                onTap: () => Navigator.pop(context, 9),
+              ),
+              ExpansionTile(
+                leading: const Icon(Icons.pedal_bike),
+                title: const Text('Bicicleta'),
+                children: [
+                  ListTile(
+                    leading: const Icon(Icons.pedal_bike),
+                    title: const Text('Bicicleta'),
+                    onTap: () => Navigator.pop(context, 5),
+                  ),
+                  ListTile(
+                    leading: const Icon(Icons.mode_of_travel),
+                    title: const Text('Bicicleta de carretera'),
+                    onTap: () => Navigator.pop(context, 6),
+                  ),
+                  ListTile(
+                    leading: const Icon(Icons.terrain),
+                    title: const Text('Bicicleta de muntanya'),
+                    onTap: () => Navigator.pop(context, 7),
+                  ),
+                  ListTile(
+                    leading: const Icon(Icons.electric_bike),
+                    title: const Text('Bicicleta elèctrica'),
+                    onTap: () => Navigator.pop(context, 8),
+                  ),
+                ],
+              ),
+              ListTile(
+                leading: const Icon(Icons.directions_bus),
+                title: const Text('Transport públic'),
+                onTap: () => Navigator.pop(context, 10),
+              ),
+              ExpansionTile(
+                leading: const Icon(Icons.directions_car),
+                title: const Text('Cotxe'),
+                children: [
+                  ListTile(
+                    leading: const Icon(Icons.directions_car),
+                    title: const Text('Cotxe'),
+                    onTap: () => Navigator.pop(context, 1),
+                  ),
+                  ListTile(
+                    leading: const Icon(Icons.local_shipping),
+                    title: const Text('Vehicle pesat'),
+                    onTap: () => Navigator.pop(context, 2),
+                  ),
+                ],
+              ),
+              ListTile(
+                leading: const Icon(Icons.directions_bike),
+                title: const Text('Moto'),
+                onTap: () => Navigator.pop(context, 1),
               ),
             ],
           ),
@@ -207,7 +321,7 @@ class MapPageState extends State<MapPage> {
       try {
         final points = await mapService.getRoute(selectedOption, start, end);
         setState(() {
-          routePoints = points;
+          currentRoute = points;
         });
         if (context.mounted) {
           ScaffoldMessenger.of(context).showSnackBar(
@@ -284,6 +398,16 @@ class MapPageState extends State<MapPage> {
                                   child: const Icon(
                                     Icons.location_on,
                                     color: Colors.red,
+                                    size: 40.0,
+                                  ),
+                                ),
+                                Marker(
+                                  width: 80.0,
+                                  height: 80.0,
+                                  point: currentPosition,
+                                  child: const Icon(
+                                    Icons.my_location,
+                                    color: Colors.blue,
                                     size: 40.0,
                                   ),
                                 ),
@@ -395,9 +519,9 @@ class MapPageState extends State<MapPage> {
                 ),
               ),
               // Botones a la derecha (solo si el usuario es el creador)
-              if (isCurrentUserCreator) // <-- Condición para mostrar los botones
-                Row(
-                  children: [
+              Row(
+                children: [
+                  if (isCurrentUserCreator) // <-- Condición para mostrar los botones
                     IconButton(
                       icon: Icon(Icons.edit, color: Colors.blue),
                       onPressed: () {
@@ -405,6 +529,7 @@ class MapPageState extends State<MapPage> {
                         _showEditActivityForm(activity);
                       },
                     ),
+                  if (isCurrentUserCreator) // <-- Condición para mostrar los botones
                     IconButton(
                       icon: Icon(Icons.delete, color: Colors.red),
                       onPressed: () {
@@ -412,12 +537,28 @@ class MapPageState extends State<MapPage> {
                         _showDeleteConfirmation(activity);
                       },
                     ),
-                  ],
-                ),
+                  ElevatedButton(
+                    onPressed: () {
+                      final ubicacio = activity['ubicacio'] as Map<String, dynamic>;
+                      final lat = ubicacio['latitud'] as double;
+                      final lon = ubicacio['longitud'] as double;
+                      showRouteOptions(context, currentPosition, LatLng(lat, lon), mapService);
+                    },
+                    child: const Text("Com Arribar"),
+                  ),
+                ],
+              ),
             ],
           ),
         );
       },
+    );
+
+    ElevatedButton(
+      onPressed: () {
+        showRouteOptions(context, currentPosition, selectedLocation, mapService);
+      },
+      child: const Text("Com Arribar"),
     );
   }
 
@@ -679,7 +820,7 @@ class MapPageState extends State<MapPage> {
             activities: activities,
             onActivityTap: _showActivityDetails,
             markers: markers,
-            route: routePoints,
+            route: currentRoute,
           ),
           Positioned(
             top: 10,

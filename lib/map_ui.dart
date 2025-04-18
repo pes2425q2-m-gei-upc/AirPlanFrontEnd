@@ -1,4 +1,3 @@
-// map_ui.dart
 import 'package:flutter/material.dart';
 import 'package:flutter_map/flutter_map.dart';
 import 'package:latlong2/latlong.dart';
@@ -11,7 +10,7 @@ class MapUI extends StatelessWidget {
   final List<Map<String, dynamic>> activities;
   final Function(Map<String, dynamic>) onActivityTap;
   final List<Marker> markers;
-  final List<LatLng> route;
+  final List<LatLng>? route; // Make route nullable
 
   const MapUI({
     super.key,
@@ -22,7 +21,7 @@ class MapUI extends StatelessWidget {
     required this.onMapTapped,
     required this.activities,
     required this.onActivityTap,
-    required this.route
+    this.route, // Optional parameter
   });
 
   @override
@@ -56,15 +55,16 @@ class MapUI extends StatelessWidget {
             }),
           ],
         ),
-        PolylineLayer(
-          polylines: [
-            Polyline(
-              points: route,
-              strokeWidth: 4.0,
-              color: Colors.blue,
-            ),
-          ],
-        ),
+        if (route != null && route!.isNotEmpty) // Check if route is not null and not empty
+          PolylineLayer(
+            polylines: [
+              Polyline(
+                points: route!,
+                strokeWidth: 4.0,
+                color: Colors.blue,
+              ),
+            ],
+          ),
       ],
     );
   }

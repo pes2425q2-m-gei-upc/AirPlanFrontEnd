@@ -44,6 +44,7 @@ dependencies:
   rive_common: ^0.4.15
   geolocator: ^13.0.4
   flutter_polyline_points: ^2.1.0
+  flexible_polyline_dart: ^1.0.1
 
 dev_dependencies:
   flutter_test:
