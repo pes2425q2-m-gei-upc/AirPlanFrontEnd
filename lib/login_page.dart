@@ -79,7 +79,7 @@ class LoginPageState extends State<LoginPage> {
     } on FirebaseAuthException catch (e) {
       // Manejar errores de Firebase
       setState(() {
-        _errorMessage = "Error: Credencials incorrectes: ${e.message}";
+        _errorMessage = "Error: Credencials incorrectes";
       });
     } catch (e) {
       // Manejar otros errores

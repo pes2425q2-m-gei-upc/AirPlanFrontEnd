@@ -9,6 +9,7 @@ import 'dart:typed_data';
 import 'dart:async'; // Para StreamSubscription
 import 'package:flutter/foundation.dart' show kIsWeb;
 import 'login_page.dart'; // Para la página de login
+import 'dart:convert'; // Para json.decode
 
 class EditProfilePage extends StatefulWidget {
   const EditProfilePage({super.key});
@@ -21,7 +22,15 @@ class _EditProfilePageState extends State<EditProfilePage> {
   final TextEditingController _nameController = TextEditingController();
   final TextEditingController _usernameController = TextEditingController();
   final TextEditingController _emailController = TextEditingController();
+  final TextEditingController _currentPasswordController =
+      TextEditingController();
+  final TextEditingController _newPasswordController = TextEditingController();
+  final TextEditingController _confirmPasswordController =
+      TextEditingController();
   String _selectedLanguage = 'Castellano'; // Default language
+  bool _isCurrentPasswordVisible = false;
+  bool _isNewPasswordVisible = false;
+  bool _isConfirmPasswordVisible = false;
   File? _selectedImage;
   Uint8List? _webImage; // Para almacenar la imagen en formato web
   // Añadir un listener para los cambios de autenticación
@@ -59,14 +68,47 @@ class _EditProfilePageState extends State<EditProfilePage> {
   }
 
   Future<void> _loadUserData() async {
-    // TODO: Aquí podrías hacer una solicitud al backend para obtener los datos actuales
-    // Por ahora, solo cargamos lo que tenemos en Firebase
+    // Obtener usuario actual de Firebase
     final user = FirebaseAuth.instance.currentUser;
     if (user != null) {
-      setState(() {
-        _nameController.text = user.displayName ?? '';
-        // Otros campos se podrían cargar si estuvieran disponibles
-      });
+      // El displayName en Firebase contiene el username
+      final username = user.displayName ?? '';
+      
+      try {
+        // Obtener datos completos del usuario desde el backend
+        final response = await http.get(
+          Uri.parse('http://localhost:8080/api/usuaris/usuario-por-username/$username'),
+        );
+        
+        if (response.statusCode == 200) {
+          final userData = json.decode(response.body);
+          
+          // Actualizar los campos del formulario
+          setState(() {
+            // Nombre real desde la base de datos
+            _nameController.text = userData['nom'] ?? '';
+            // Username desde Firebase
+            _usernameController.text = username;
+            // Email desde Firebase (ya asignado en initState, pero lo mantenemos por completitud)
+            _emailController.text = user.email ?? '';
+            // Idioma si está disponible
+            if (userData['idioma'] != null) {
+              _selectedLanguage = userData['idioma'];
+            }
+          });
+        } else {
+          // Si no se puede obtener datos del backend, al menos configuramos el username
+          setState(() {
+            _usernameController.text = username;
+          });
+        }
+      } catch (e) {
+        print('Error al cargar datos de usuario: $e');
+        // En caso de error, configuramos el username desde Firebase
+        setState(() {
+          _usernameController.text = username;
+        });
+      }
     }
   }
 
@@ -75,6 +117,9 @@ class _EditProfilePageState extends State<EditProfilePage> {
     _nameController.dispose();
     _usernameController.dispose();
     _emailController.dispose();
+    _currentPasswordController.dispose();
+    _newPasswordController.dispose();
+    _confirmPasswordController.dispose();
     // Cancelar la suscripción al listener cuando se destruye la página
     _authStateSubscription?.cancel();
     super.dispose();
@@ -397,13 +442,110 @@ class _EditProfilePageState extends State<EditProfilePage> {
     }
   }
 
+  // Método para cambiar la contraseña
+  Future<void> _changePassword() async {
+    // Obtener el usuario actual
+    final user = FirebaseAuth.instance.currentUser;
+    if (user == null) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(content: Text('No hay usuario autenticado')),
+      );
+      return;
+    }
+
+    // Validar contraseñas
+    if (_currentPasswordController.text.isEmpty) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(content: Text('Debes introducir tu contraseña actual')),
+      );
+      return;
+    }
+
+    if (_newPasswordController.text.isEmpty) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(
+          content: Text('La nueva contraseña no puede estar vacía'),
+        ),
+      );
+      return;
+    }
+
+    // Validar que la nueva contraseña tenga al menos 6 caracteres (requisito de Firebase)
+    if (_newPasswordController.text.length < 6) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(
+          content: Text('La nueva contraseña debe tener al menos 6 caracteres'),
+        ),
+      );
+      return;
+    }
+
+    // Validar que las contraseñas coincidan
+    if (_newPasswordController.text != _confirmPasswordController.text) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(content: Text('Las contraseñas no coinciden')),
+      );
+      return;
+    }
+
+    try {
+      // Crear credenciales para reautenticar
+      final credential = EmailAuthProvider.credential(
+        email: user.email!,
+        password: _currentPasswordController.text,
+      );
+
+      // Reautenticar usuario
+      await user.reauthenticateWithCredential(credential);
+
+      // Cambiar contraseña
+      await user.updatePassword(_newPasswordController.text);
+
+      // Limpiar los campos de contraseña
+      _currentPasswordController.clear();
+      _newPasswordController.clear();
+      _confirmPasswordController.clear();
+
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(content: Text('Contraseña actualizada correctamente')),
+      );
+    } on FirebaseAuthException catch (e) {
+      String errorMessage;
+
+      switch (e.code) {
+        case 'wrong-password':
+          errorMessage = 'La contraseña actual es incorrecta';
+          break;
+        case 'requires-recent-login':
+          errorMessage =
+              'Esta operación es sensible y requiere autenticación reciente. Inicia sesión de nuevo.';
+          break;
+        case 'weak-password':
+          errorMessage =
+              'La contraseña es débil. Usa una contraseña más fuerte.';
+          break;
+        default:
+          errorMessage = 'Error: ${e.message}';
+      }
+
+      ScaffoldMessenger.of(
+        context,
+      ).showSnackBar(SnackBar(content: Text(errorMessage)));
+    } catch (e) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(content: Text('Error al cambiar la contraseña: $e')),
+      );
+    }
+  }
+
   @override
   Widget build(BuildContext context) {
     return Scaffold(
       appBar: AppBar(title: Text('Edit Profile')),
-      body: Padding(
+      body: SingleChildScrollView(
         padding: const EdgeInsets.all(16.0),
         child: Column(
+          crossAxisAlignment: CrossAxisAlignment.stretch,
           children: [
             // Mostrar la imagen previa elegida
             if (_selectedImage != null && !kIsWeb)
@@ -471,6 +613,95 @@ class _EditProfilePageState extends State<EditProfilePage> {
             ElevatedButton(
               onPressed: _saveProfile,
               child: Text('Save Changes'),
+            ),
+
+            // Sección de cambio de contraseña
+            SizedBox(height: 40),
+            Divider(),
+            Padding(
+              padding: const EdgeInsets.symmetric(vertical: 16.0),
+              child: Text(
+                'Cambiar Contraseña',
+                style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold),
+              ),
+            ),
+
+            // Contraseña actual
+            TextField(
+              controller: _currentPasswordController,
+              obscureText: !_isCurrentPasswordVisible,
+              decoration: InputDecoration(
+                labelText: 'Contraseña Actual',
+                border: OutlineInputBorder(),
+                suffixIcon: IconButton(
+                  icon: Icon(
+                    _isCurrentPasswordVisible
+                        ? Icons.visibility
+                        : Icons.visibility_off,
+                  ),
+                  onPressed: () {
+                    setState(() {
+                      _isCurrentPasswordVisible = !_isCurrentPasswordVisible;
+                    });
+                  },
+                ),
+              ),
+            ),
+            SizedBox(height: 16),
+
+            // Nueva contraseña
+            TextField(
+              controller: _newPasswordController,
+              obscureText: !_isNewPasswordVisible,
+              decoration: InputDecoration(
+                labelText: 'Nueva Contraseña',
+                border: OutlineInputBorder(),
+                suffixIcon: IconButton(
+                  icon: Icon(
+                    _isNewPasswordVisible
+                        ? Icons.visibility
+                        : Icons.visibility_off,
+                  ),
+                  onPressed: () {
+                    setState(() {
+                      _isNewPasswordVisible = !_isNewPasswordVisible;
+                    });
+                  },
+                ),
+              ),
+            ),
+            SizedBox(height: 16),
+
+            // Confirmar nueva contraseña
+            TextField(
+              controller: _confirmPasswordController,
+              obscureText: !_isConfirmPasswordVisible,
+              decoration: InputDecoration(
+                labelText: 'Confirmar Nueva Contraseña',
+                border: OutlineInputBorder(),
+                suffixIcon: IconButton(
+                  icon: Icon(
+                    _isConfirmPasswordVisible
+                        ? Icons.visibility
+                        : Icons.visibility_off,
+                  ),
+                  onPressed: () {
+                    setState(() {
+                      _isConfirmPasswordVisible = !_isConfirmPasswordVisible;
+                    });
+                  },
+                ),
+              ),
+            ),
+            SizedBox(height: 24),
+
+            ElevatedButton(
+              onPressed: _changePassword,
+              style: ElevatedButton.styleFrom(
+                backgroundColor: Colors.blue,
+                foregroundColor: Colors.white,
+              ),
+              child: Text('Actualizar Contraseña'),
             ),
           ],
         ),
