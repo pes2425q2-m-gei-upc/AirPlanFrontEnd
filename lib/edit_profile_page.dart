@@ -233,11 +233,27 @@ class _EditProfilePageState extends State<EditProfilePage> {
 
     final currentEmail = currentUser.email ?? '';
     final newEmail = _emailController.text.trim();
+    final newUsername = _usernameController.text.trim();
+
+    // Actualizar el displayName en Firebase Auth si el username ha cambiado
+    if (newUsername != currentUser.displayName) {
+      try {
+        await currentUser.updateDisplayName(newUsername);
+        print('Firebase displayName updated to: $newUsername');
+      } catch (e) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: Text('Error updating username in Firebase Auth: $e'),
+          ),
+        );
+        return;
+      }
+    }
 
     // Preparar datos actualizados sin incluir el correo si ha cambiado
     final updatedData = {
       'nom': _nameController.text.trim(),
-      'username': _usernameController.text.trim(),
+      'username': newUsername,
       'idioma': _selectedLanguage,
       'photoURL': imageUrl,
     };

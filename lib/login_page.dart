@@ -76,7 +76,7 @@ class LoginPageState extends State<LoginPage> {
           (route) => false, // Esto elimina todas las rutas anteriores
         );
       }
-    } on FirebaseAuthException catch (e) {
+    } on FirebaseAuthException {
       // Manejar errores de Firebase
       setState(() {
         _errorMessage = "Error: Credencials incorrectes";
