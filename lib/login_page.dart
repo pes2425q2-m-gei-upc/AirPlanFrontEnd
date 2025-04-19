@@ -4,6 +4,7 @@ import 'package:http/http.dart' as http;
 import 'dart:convert'; // Para usar jsonEncode
 import 'register.dart'; // Importem la pantalla de registre
 import 'reset_password.dart'; // Importem la pantalla de restabliment de contrasenya
+import 'main.dart'; // Importamos main.dart para acceder a AuthWrapper
 // Importamos el servicio de gestión de correos
 
 class LoginPage extends StatefulWidget {
@@ -65,6 +66,16 @@ class LoginPageState extends State<LoginPage> {
 
       // La sincronización del email ya se está manejando en el backend
       print('✅ Login exitoso');
+
+      // Forzar la navegación a la página principal usando AuthWrapper
+      if (mounted) {
+        // Usando Navigator.pushAndRemoveUntil para limpiar la pila de navegación
+        Navigator.pushAndRemoveUntil(
+          context,
+          MaterialPageRoute(builder: (context) => AuthWrapper()),
+          (route) => false, // Esto elimina todas las rutas anteriores
+        );
+      }
     } on FirebaseAuthException catch (e) {
       // Manejar errores de Firebase
       setState(() {

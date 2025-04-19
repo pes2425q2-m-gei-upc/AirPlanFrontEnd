@@ -271,12 +271,21 @@ class _UserPageState extends State<UserPage> {
               children: [
                 Expanded(
                   child: ElevatedButton.icon(
-                    onPressed: () {
-                      Navigator.of(context).push(
+                    onPressed: () async {
+                      // Navegar a la página de edición y esperar a que regrese
+                      await Navigator.of(context).push(
                         MaterialPageRoute(
                           builder: (context) => EditProfilePage(),
                         ),
                       );
+
+                      // Cuando regresamos de la página de edición, recargamos los datos
+                      if (mounted) {
+                        setState(() {
+                          _isLoading = true;
+                        });
+                        await _loadUserData();
+                      }
                     },
                     icon: const Icon(Icons.edit),
                     label: const Text('Editar Perfil'),
