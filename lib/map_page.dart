@@ -4,6 +4,7 @@ import 'package:firebase_auth/firebase_auth.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_map/flutter_map.dart';
 import 'package:geolocator/geolocator.dart';
+import 'package:intl/intl.dart';
 import 'package:latlong2/latlong.dart';
 import 'air_quality.dart';
 import 'form_dialog.dart';
@@ -33,8 +34,14 @@ class MapPageState extends State<MapPage> {
   List<Marker> markers = [];
   bool showAirQualityCircles = true;
   List<dynamic> savedRoutes = [];
-  List<LatLng> currentRoute = [];
-  List<TransitStep>? transitSteps;
+  TransitRoute currentRoute = TransitRoute(
+    fullRoute: [],
+    steps: [],
+    duration: '',
+    distance: '',
+    departure: DateTime.now(),
+    arrival: DateTime.now(),
+  );
 
   @override
   void initState() {
@@ -275,24 +282,22 @@ class MapPageState extends State<MapPage> {
       try {
         final transitRoute;
         if (selectedOption == 10) {
-          // Public transit option
           transitRoute = await mapService.getPublicTransportRoute(start, end);
         } else {
-          // Other transport options
           transitRoute = await mapService.getRoute(selectedOption, start, end);
         }
         setState(() {
-          currentRoute = transitRoute.fullRoute;
-          transitSteps = transitRoute.steps;
+          currentRoute = transitRoute;
         });
-
         if (context.mounted) {
-          _showRouteDetails(transitRoute);
+          ScaffoldMessenger.of(context).showSnackBar(
+              SnackBar(content: Text("Ruta calculada correctament."))
+          );
         }
       } catch (e) {
         if (context.mounted) {
           ScaffoldMessenger.of(context).showSnackBar(
-            SnackBar(content: Text('Error al calcular la ruta: ${e.toString()}')),
+            SnackBar(content: Text('Error al calcular la ruta: ${e.toString()}'))
           );
         }
       }
@@ -306,28 +311,43 @@ class MapPageState extends State<MapPage> {
         children: [
           ListTile(
             title: Text('Total Journey'),
-            subtitle: Text('Duration: ${transitRoute.duration} - Distance: ${transitRoute.distance}'),
+            subtitle: Text('Duració: ${transitRoute.duration} - Distancia: ${transitRoute.distance} - Sortida: ${DateFormat.Hm().format(transitRoute.departure)} - Arribada: ${DateFormat.Hm().format(transitRoute.arrival)}'),
           ),
           const Divider(),
-          ...transitRoute.steps.map((step) => ListTile(
-            leading: Icon(
-              step.mode == TipusVehicle.cap
-                  ? Icons.directions_walk
-                  : step.mode == TipusVehicle.cotxe
-                  ? Icons.directions_car
-                  : step.mode == TipusVehicle.autobus
-                  ? Icons.directions_bus
-                  : step.mode == TipusVehicle.tren
-                  ? Icons.train
-                  : step.mode == TipusVehicle.bicicleta
-                  ? Icons.pedal_bike
-                  : step.mode == TipusVehicle.moto
-                  ? Icons.directions_bike
-                  : Icons.directions_transit,
-              color: step.color
-            ),
-            title: Text(step.instruction),
-            subtitle: Text('${step.departure} - ${step.arrival}'),
+          ...transitRoute.steps.map((step) => Column(
+            children: [
+              ListTile(
+                leading: Icon(
+                    step.mode == TipusVehicle.cap
+                        ? Icons.directions_walk
+                        : step.mode == TipusVehicle.cotxe
+                        ? Icons.directions_car
+                        : step.mode == TipusVehicle.autobus
+                        ? Icons.directions_bus
+                        : step.mode == TipusVehicle.tren
+                        ? Icons.train
+                        : step.mode == TipusVehicle.bicicleta
+                        ? Icons.pedal_bike
+                        : step.mode == TipusVehicle.moto
+                        ? Icons.directions_bike
+                        : Icons.directions_transit,
+                    color: step.color
+                ),
+                title: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: step.instructions
+                      .map((instruction) => Column(
+                    children: [
+                      Text(instruction),
+                      const Divider(), // Add a separator after each instruction
+                    ],
+                  ))
+                      .toList(),
+                ),
+                subtitle: Text('${DateFormat.Hm().format(step.departure)} - ${DateFormat.Hm().format(step.arrival)}'),
+              ),
+              const Divider(), // Add a separator after each instruction
+            ],
           )),
         ],
       ),
@@ -816,20 +836,84 @@ class MapPageState extends State<MapPage> {
             activities: activities,
             onActivityTap: _showActivityDetails,
             markers: markers,
-            route: currentRoute,
-            steps: transitSteps,
+            route: currentRoute.fullRoute,
+            steps: currentRoute.steps,
           ),
+          // Air quality toggle button
           Positioned(
             top: 10,
             right: 10,
             child: FloatingActionButton(
+              heroTag: "toggleAirQuality",
               onPressed: _toggleAirQualityCircles,
               child: Icon(showAirQualityCircles ? Icons.visibility : Icons.visibility_off),
             ),
           ),
+          // Route action buttons - only show when route is active
+          if (currentRoute.fullRoute.isNotEmpty) ...[
+            Positioned(
+              top: 80,
+              right: 10,
+              child: Column(
+                children: [
+                  FloatingActionButton(
+                    heroTag: "startRoute",
+                    backgroundColor: Colors.green,
+                    onPressed: () {
+                      ScaffoldMessenger.of(context).showSnackBar(
+                        const SnackBar(content: Text('Start route functionality coming soon')),
+                      );
+                    },
+                    child: const Icon(Icons.play_arrow),
+                  ),
+                  const SizedBox(height: 10),
+                  FloatingActionButton(
+                    heroTag: "showInstructions",
+                    backgroundColor: Colors.blue,
+                    onPressed: () {
+                      if (currentRoute.steps.isNotEmpty) {
+                        _showRouteDetails(currentRoute);
+                      }
+                    },
+                    child: const Icon(Icons.list),
+                  ),
+                  const SizedBox(height: 10),
+                  FloatingActionButton(
+                    heroTag: "saveRoute",
+                    backgroundColor: Colors.orange,
+                    onPressed: () {
+                      ScaffoldMessenger.of(context).showSnackBar(
+                        const SnackBar(content: Text('Save route functionality coming soon')),
+                      );
+                    },
+                    child: const Icon(Icons.save),
+                  ),
+                  const SizedBox(height: 10),
+                  FloatingActionButton(
+                    heroTag: "unwatchRoute",
+                    backgroundColor: Colors.grey,
+                    onPressed: () {
+                      setState(() {
+                        currentRoute = TransitRoute(
+                          fullRoute: [],
+                          steps: [],
+                          duration: '',
+                          distance: '',
+                          departure: DateTime.now(),
+                          arrival: DateTime.now(),
+                        );
+                      });
+                    },
+                    child: const Icon(Icons.close),
+                  ),
+                ],
+              ),
+            ),
+          ],
         ],
       ),
       floatingActionButton: FloatingActionButton(
+        heroTag: "addLocation",
         onPressed: () {
           if (savedLocations.entries.isNotEmpty) {
             _showFormWithLocation(savedLocations.keys.first, placeDetails);

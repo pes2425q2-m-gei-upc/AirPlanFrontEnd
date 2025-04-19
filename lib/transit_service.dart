@@ -19,17 +19,17 @@ enum TipusVehicle {
 
 class TransitStep {
   final TipusVehicle mode;
-  final String instruction;
+  final List<String> instructions;
   final String line;
-  final String departure;
-  final String arrival;
+  final DateTime departure;
+  final DateTime arrival;
   final List<LatLng> points;
   final String station;
   final Color color;
 
   TransitStep({
     required this.mode,
-    required this.instruction,
+    required this.instructions,
     required this.line,
     required this.departure,
     required this.arrival,
@@ -44,12 +44,16 @@ class TransitRoute {
   final List<TransitStep> steps;
   final String duration;
   final String distance;
+  final DateTime departure;
+  final DateTime arrival;
 
   TransitRoute({
     required this.fullRoute,
     required this.steps,
     required this.duration,
     required this.distance,
+    required this.departure,
+    required this.arrival,
   });
 }
 
@@ -75,6 +79,8 @@ Future<TransitRoute> calculatePublicTransportRoute(LatLng source, LatLng destina
         final sections = route['sections'];
         double totalDurationD = 0.0;
         double totalDistanceD = 0.0;
+        DateTime departure = DateTime.parse(sections[0]['departure']['time'] ?? '');
+        DateTime arrival = DateTime.parse(sections[sections.length - 1]['arrival']['time'] ?? '');
         for (var section in sections) {
           totalDurationD += section["travelSummary"]["duration"];
           totalDistanceD += section["travelSummary"]["length"];
@@ -101,15 +107,14 @@ Future<TransitRoute> calculatePublicTransportRoute(LatLng source, LatLng destina
               // Add detailed walking steps
               for (var step in walkingRoute.steps) {
                 steps.add(TransitStep(
-                  mode: TipusVehicle.cap,
-                  instruction: step.instruction,
-                  line: '',
-                  departure: section['departure']['time'] ?? '',
-                  arrival: section['arrival']['time'] ?? '',
-                  points: sectionPoints, // Could be enhanced to include segment points
-                  station: '',
-                  color: Colors.blue, // Default color for walking
-                ));
+                    mode: _translateMode(mode), 
+                    instructions: step.instructions, 
+                    line: '',
+                    departure: DateTime.parse(section['departure']['time']),
+                    arrival: DateTime.parse(section['arrival']['time']), 
+                    points: step.points, 
+                    station: '', 
+                    color: step.color));
               }
             } catch (e) {
               // Fallback to HERE polyline if ORS fails
@@ -136,21 +141,20 @@ Future<TransitRoute> calculatePublicTransportRoute(LatLng source, LatLng destina
                   point.longitude.abs() <= 180)
                   .toList();
             }
-          }
-
-          // Add step if we have valid points
-          if (sectionPoints.isNotEmpty) {
-            steps.add(TransitStep(
-              mode: _translateMode(mode),
-              instruction: _getInstruction(section),
-              line: section['transport']?['name'] ?? '',
-              departure: section['departure']['time'] ?? '',
-              arrival: section['arrival']['time'] ?? '',
-              points: sectionPoints,
-              station: section['departure']['place']['name'] ?? '',
-              color: _translateColor(section)
-            ));
-            allPoints.addAll(sectionPoints);
+            if (sectionPoints.isNotEmpty) {
+              List<String> instructions = [_getInstruction(section)];
+              steps.add(TransitStep(
+                  mode: _translateMode(mode),
+                  instructions: instructions,
+                  line: section['transport']?['name'] ?? '',
+                  departure: DateTime.parse(section['departure']['time']),
+                  arrival: DateTime.parse(section['arrival']['time']),
+                  points: sectionPoints,
+                  station: section['departure']['place']['name'] ?? '',
+                  color: _translateColor(section)
+              ));
+              allPoints.addAll(sectionPoints);
+            }
           }
         }
 
@@ -159,6 +163,8 @@ Future<TransitRoute> calculatePublicTransportRoute(LatLng source, LatLng destina
           steps: steps,
           duration: totalDuration,
           distance: totalDistance,
+          departure: departure,
+          arrival: arrival,
         );
       }
     }
@@ -279,25 +285,27 @@ Future<TransitRoute> calculateRoute(int option, LatLng source, LatLng destinatio
           .map((point) => LatLng(point.latitude, point.longitude))
           .toList();
 
-      List<TransitStep> steps = [];
+      List<String> instructions = [];
       for (var step in segments['steps']) {
-        steps.add(TransitStep(
-          mode: vehicleType,
-          instruction: step['instruction'],
-          line: '',
-          departure: '',
-          arrival: '',
-          points: fullRoute, // Steps don't include individual geometries in this response
-          station: step['name'] ?? '',
-          color: color, // Default color for driving
-        ));
+        instructions.add(step['instruction']);
       }
-
+      List<TransitStep> steps = [TransitStep(
+        mode: vehicleType,
+        instructions: instructions,
+        line: '',
+        departure: DateTime.now(),
+        arrival: DateTime.now().add(Duration(minutes: (summary['duration'] / 60).round())),
+        points: fullRoute, // Steps don't include individual geometries in this response
+        station: '',
+        color: color, // Default color for driving
+      )];
       return TransitRoute(
         fullRoute: fullRoute,
         steps: steps,
         duration: '${(summary['duration'] / 60).round()} min',
         distance: '${(summary['distance'] / 1000).toStringAsFixed(2)} km',
+        departure: DateTime.now(),
+        arrival: DateTime.now().add(Duration(minutes: (summary['duration'] / 60).round())),
       );
     } else {
       throw Exception('Error: ${response.statusCode} - ${response.body}');
