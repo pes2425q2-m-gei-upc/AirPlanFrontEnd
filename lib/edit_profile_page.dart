@@ -73,16 +73,18 @@ class _EditProfilePageState extends State<EditProfilePage> {
     if (user != null) {
       // El displayName en Firebase contiene el username
       final username = user.displayName ?? '';
-      
+
       try {
         // Obtener datos completos del usuario desde el backend
         final response = await http.get(
-          Uri.parse('http://localhost:8080/api/usuaris/usuario-por-username/$username'),
+          Uri.parse(
+            'http://localhost:8080/api/usuaris/usuario-por-username/$username',
+          ),
         );
-        
+
         if (response.statusCode == 200) {
           final userData = json.decode(response.body);
-          
+
           // Actualizar los campos del formulario
           setState(() {
             // Nombre real desde la base de datos
@@ -470,11 +472,11 @@ class _EditProfilePageState extends State<EditProfilePage> {
       return;
     }
 
-    // Validar que la nueva contraseña tenga al menos 6 caracteres (requisito de Firebase)
-    if (_newPasswordController.text.length < 6) {
+    // Validar que la nueva contraseña tenga al menos 8 caracteres (requisito de Firebase)
+    if (_newPasswordController.text.length < 8) {
       ScaffoldMessenger.of(context).showSnackBar(
         const SnackBar(
-          content: Text('La nueva contraseña debe tener al menos 6 caracteres'),
+          content: Text('La nueva contraseña debe tener al menos 8 caracteres'),
         ),
       );
       return;
