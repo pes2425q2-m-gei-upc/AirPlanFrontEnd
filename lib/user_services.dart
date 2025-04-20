@@ -2,6 +2,7 @@
 import 'package:firebase_auth/firebase_auth.dart';
 import 'package:http/http.dart' as http;
 import 'dart:convert';
+import 'services/websocket_service.dart'; // Importar WebSocketService
 
 class UserService {
   static Future<bool> deleteUser(String email) async {
@@ -47,9 +48,16 @@ class UserService {
 
       // Filtrar valores nulos y convertir todos los valores a String
       final filteredData = <String, String>{};
+      String? oldUsername; // Para guardar el nombre de usuario original
+
       updatedData.forEach((key, value) {
         if (value != null) {
-          filteredData[key] = value.toString();
+          // Guardar el oldUsername si está presente pero no incluirlo en los datos a enviar
+          if (key == 'oldUsername') {
+            oldUsername = value.toString();
+          } else {
+            filteredData[key] = value.toString();
+          }
         }
       });
 
@@ -65,6 +73,9 @@ class UserService {
       // Imprimir datos para depuración
       print('📤 Enviando actualización para: $currentEmail');
       print('📋 Datos filtrados: $filteredData');
+      if (oldUsername != null) {
+        print('👤 Nombre de usuario original: $oldUsername');
+      }
 
       // Intentar realizar la actualización sin verificación previa
       final response = await http.put(
@@ -82,16 +93,18 @@ class UserService {
       } else if (response.statusCode == 404) {
         // Si el usuario no se encuentra, intentar obtenerlo por username como respaldo
         final user = FirebaseAuth.instance.currentUser;
-        if (user != null && user.displayName != null) {
-          print(
-            '🔍 Intentando localizar usuario por username: ${user.displayName}',
-          );
+
+        // Usar oldUsername si está disponible, de lo contrario usar el displayName actual
+        final usernameToUse = oldUsername ?? user?.displayName;
+
+        if (usernameToUse != null) {
+          print('🔍 Intentando localizar usuario por username: $usernameToUse');
 
           try {
             // Intentar obtener el usuario por username
             final usernameResponse = await http.get(
               Uri.parse(
-                'http://localhost:8080/api/usuaris/usuario-por-username/${user.displayName}',
+                'http://localhost:8080/api/usuaris/usuario-por-username/$usernameToUse',
               ),
             );
 
@@ -200,6 +213,12 @@ class UserService {
           print('   - Firebase: $firebaseEmail');
           print('   - Base de datos: $databaseEmail');
 
+          // Obtener el clientId para enviarlo con la actualización
+          final clientId = WebSocketService().clientId;
+          print(
+            '🆔 Usando clientId: $clientId para la actualización de correo',
+          );
+
           // Actualizar directamente el email en la base de datos
           final updateResponse = await http.post(
             Uri.parse('http://localhost:8080/api/usuaris/directUpdateEmail'),
@@ -207,6 +226,8 @@ class UserService {
             body: json.encode({
               'oldEmail': databaseEmail,
               'newEmail': firebaseEmail,
+              'clientId':
+                  clientId, // Añadir el clientId para identificar el dispositivo
             }),
           );
 
@@ -224,6 +245,30 @@ class UserService {
       return false;
     } catch (e) {
       print('❌ Error sincronizando correo: $e');
+      return false;
+    }
+  }
+
+  // Método para cerrar sesión en el backend
+  static Future<bool> logoutUser(String email) async {
+    try {
+      print('🔌 Cerrando sesión para el usuario: $email');
+      final response = await http.post(
+        Uri.parse('http://localhost:8080/api/usuaris/logout'),
+        headers: {'Content-Type': 'application/json'},
+        body: json.encode({'email': email}),
+      );
+
+      if (response.statusCode == 200) {
+        print('✅ Sesión cerrada exitosamente en el backend');
+        return true;
+      } else {
+        print('❌ Error al cerrar sesión en el backend: ${response.statusCode}');
+        print('   Respuesta: ${response.body}');
+        return false;
+      }
+    } catch (e) {
+      print('❌ Excepción al cerrar sesión en el backend: $e');
       return false;
     }
   }

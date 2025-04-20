@@ -10,6 +10,8 @@ import 'dart:async'; // Para StreamSubscription
 import 'package:flutter/foundation.dart' show kIsWeb;
 import 'login_page.dart'; // Para la página de login
 import 'dart:convert'; // Para json.decode
+import 'services/websocket_service.dart'; // Add WebSocket service
+import 'services/notification_service.dart'; // Importar nuestro nuevo servicio
 
 class EditProfilePage extends StatefulWidget {
   const EditProfilePage({super.key});
@@ -35,6 +37,8 @@ class _EditProfilePageState extends State<EditProfilePage> {
   Uint8List? _webImage; // Para almacenar la imagen en formato web
   // Añadir un listener para los cambios de autenticación
   StreamSubscription<User?>? _authStateSubscription;
+  StreamSubscription<String>?
+  _profileUpdateSubscription; // For WebSocket updates
 
   final List<String> _languages = [
     'Castellano',
@@ -63,6 +67,44 @@ class _EditProfilePageState extends State<EditProfilePage> {
           MaterialPageRoute(builder: (context) => const LoginPage()),
           (Route<dynamic> route) => false,
         );
+      }
+    });
+
+    // Initialize and connect to WebSocket service
+    _initWebSocketService();
+  }
+
+  // Initialize WebSocket service and subscribe to updates
+  void _initWebSocketService() {
+    // Connect to WebSocket for real-time updates
+    WebSocketService().connect();
+
+    // Subscribe to profile update events
+    _profileUpdateSubscription = WebSocketService().profileUpdates.listen((
+      message,
+    ) {
+      try {
+        // Parse WebSocket message
+        final data = json.decode(message);
+
+        // Check if this is a profile update notification
+        if (data['type'] == 'PROFILE_UPDATE') {
+          // Check if this update is relevant for the current user
+          final currentUser = FirebaseAuth.instance.currentUser;
+          if (currentUser != null &&
+              (data['username'] == currentUser.displayName ||
+                  data['email'] == currentUser.email)) {
+            print('💫 Received profile update notification, reloading data...');
+
+            // Reload user data from Firebase
+            currentUser.reload().then((_) {
+              // Then reload the updated user data from backend
+              _loadUserData();
+            });
+          }
+        }
+      } catch (e) {
+        print('Error processing WebSocket message: $e');
       }
     });
   }
@@ -124,6 +166,8 @@ class _EditProfilePageState extends State<EditProfilePage> {
     _confirmPasswordController.dispose();
     // Cancelar la suscripción al listener cuando se destruye la página
     _authStateSubscription?.cancel();
+    // Cancel WebSocket subscription
+    _profileUpdateSubscription?.cancel();
     super.dispose();
   }
 
@@ -169,10 +213,10 @@ class _EditProfilePageState extends State<EditProfilePage> {
         final responseBody = await response.stream.bytesToString();
         return responseBody;
       } else {
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(
-            content: Text('Error uploading image: ${response.statusCode}'),
-          ),
+        // Reemplazar SnackBar con notificación de error
+        NotificationService.showError(
+          context,
+          'Error al subir la imagen: ${response.statusCode}',
         );
         return null;
       }
@@ -193,10 +237,10 @@ class _EditProfilePageState extends State<EditProfilePage> {
         final responseBody = await response.stream.bytesToString();
         return responseBody;
       } else {
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(
-            content: Text('Error uploading image: ${response.statusCode}'),
-          ),
+        // Reemplazar SnackBar con notificación de error
+        NotificationService.showError(
+          context,
+          'Error al subir la imagen: ${response.statusCode}',
         );
         return null;
       }
@@ -206,8 +250,10 @@ class _EditProfilePageState extends State<EditProfilePage> {
   void _saveProfile() async {
     final currentUser = FirebaseAuth.instance.currentUser;
     if (currentUser == null) {
-      ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(content: Text('No user is currently logged in.')),
+      // Reemplazar SnackBar con notificación de error
+      NotificationService.showError(
+        context,
+        'No hay ningún usuario con sesión iniciada.',
       );
       return;
     }
@@ -221,10 +267,10 @@ class _EditProfilePageState extends State<EditProfilePage> {
           await currentUser.updatePhotoURL(imageUrl);
           print('Firebase profile image URL updated: $imageUrl');
         } catch (e) {
-          ScaffoldMessenger.of(context).showSnackBar(
-            SnackBar(
-              content: Text('Error updating profile image in Firebase: $e'),
-            ),
+          // Reemplazar SnackBar con notificación de error
+          NotificationService.showError(
+            context,
+            'Error al actualizar la imagen de perfil en Firebase: $e',
           );
           return;
         }
@@ -233,18 +279,20 @@ class _EditProfilePageState extends State<EditProfilePage> {
 
     final currentEmail = currentUser.email ?? '';
     final newEmail = _emailController.text.trim();
+    final currentUsername =
+        currentUser.displayName ?? ''; // Nombre de usuario actual
     final newUsername = _usernameController.text.trim();
 
     // Actualizar el displayName en Firebase Auth si el username ha cambiado
-    if (newUsername != currentUser.displayName) {
+    if (newUsername != currentUsername) {
       try {
         await currentUser.updateDisplayName(newUsername);
         print('Firebase displayName updated to: $newUsername');
       } catch (e) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(
-            content: Text('Error updating username in Firebase Auth: $e'),
-          ),
+        // Reemplazar SnackBar con notificación de error
+        NotificationService.showError(
+          context,
+          'Error al actualizar el nombre de usuario en Firebase Auth: $e',
         );
         return;
       }
@@ -254,6 +302,7 @@ class _EditProfilePageState extends State<EditProfilePage> {
     final updatedData = {
       'nom': _nameController.text.trim(),
       'username': newUsername,
+      'oldUsername': currentUsername, // Añadir el nombre de usuario original
       'idioma': _selectedLanguage,
       'photoURL': imageUrl,
     };
@@ -266,13 +315,36 @@ class _EditProfilePageState extends State<EditProfilePage> {
       final result = await UserService.editUser(currentEmail, updatedData);
 
       if (result['success']) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          const SnackBar(content: Text('¡Perfil actualizado correctamente!')),
-        );
-      } else {
-        ScaffoldMessenger.of(
+        // Reemplazar SnackBar con notificación de éxito
+        NotificationService.showSuccess(
           context,
-        ).showSnackBar(SnackBar(content: Text('Error: ${result['error']}')));
+          '¡Perfil actualizado correctamente!',
+        );
+
+        // Notify backend of profile update for WebSocket notification to other devices
+        try {
+          final clientId = WebSocketService().clientId;
+          await http.post(
+            Uri.parse(
+              'http://localhost:8080/api/notifications/profile-updated',
+            ),
+            headers: {'Content-Type': 'application/json'},
+            body: json.encode({
+              'username':
+                  currentUsername, // Usar el username anterior para la notificación
+              'newUsername': newUsername, // Añadir el nuevo username
+              'email': currentEmail,
+              'updatedFields': updatedData.keys.toList(),
+              'clientId': clientId, // Incluir el clientId en la notificación
+            }),
+          );
+          print('✅ Profile update notification sent with clientId: $clientId');
+        } catch (e) {
+          print('❌ Error sending profile update notification: $e');
+        }
+      } else {
+        // Reemplazar SnackBar con notificación de error
+        NotificationService.showError(context, 'Error: ${result['error']}');
       }
     }
   }
@@ -293,8 +365,10 @@ class _EditProfilePageState extends State<EditProfilePage> {
       await user.reauthenticateWithCredential(credential);
       return true;
     } catch (e) {
-      ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(content: Text('Error en la re-autenticación: $e')),
+      // Reemplazar SnackBar con notificación de error
+      NotificationService.showError(
+        context,
+        'Error en la re-autenticación: $e',
       );
       return false;
     }
@@ -382,81 +456,44 @@ class _EditProfilePageState extends State<EditProfilePage> {
       );
 
       if (profileResult['success']) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          const SnackBar(
-            content: Text(
-              'Perfil actualizado. Verifica tu nuevo correo para completar el cambio.',
-            ),
-          ),
+        // Reemplazar SnackBar con notificación de información
+        NotificationService.showInfo(
+          context,
+          'Perfil actualizado. Verifica tu nuevo correo para completar el cambio.',
         );
       } else {
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(
-            content: Text(
-              'Error al actualizar perfil: ${profileResult['error']}',
-            ),
-          ),
+        // Reemplazar SnackBar con notificación de error
+        NotificationService.showError(
+          context,
+          'Error al actualizar perfil: ${profileResult['error']}',
         );
       }
     } catch (e) {
-      // Detectar el error específico de re-autenticación
-      if (e is FirebaseAuthException && e.code == 'requires-recent-login') {
-        // Mostrar diálogo para re-autenticación
+      // Manejar el error específicamente
+      String errorMessage;
+      if (e.toString().contains('requires-recent-login')) {
+        // Si se requiere re-autenticación, mostrar diálogo
         final password = await _showReauthDialog();
-
         if (password != null && password.isNotEmpty) {
           // Intentar re-autenticar al usuario
-          final reauthSuccess = await _reauthenticateUser(password);
-
-          if (reauthSuccess) {
-            // Intentar nuevamente la operación después de la re-autenticación
-            try {
-              await currentUser.verifyBeforeUpdateEmail(newEmail);
-
-              // Actualizar el resto de datos del perfil
-              final profileResult = await UserService.editUser(
-                currentEmail,
-                updatedData,
-              );
-
-              if (profileResult['success']) {
-                ScaffoldMessenger.of(context).showSnackBar(
-                  const SnackBar(
-                    content: Text(
-                      'Perfil actualizado. Verifica tu nuevo correo para completar el cambio.',
-                    ),
-                  ),
-                );
-              } else {
-                ScaffoldMessenger.of(context).showSnackBar(
-                  SnackBar(
-                    content: Text(
-                      'Error al actualizar perfil: ${profileResult['error']}',
-                    ),
-                  ),
-                );
-              }
-            } catch (finalError) {
-              ScaffoldMessenger.of(context).showSnackBar(
-                SnackBar(
-                  content: Text(
-                    'Error después de re-autenticación: $finalError',
-                  ),
-                ),
-              );
-            }
+          final success = await _reauthenticateUser(password);
+          if (success) {
+            // Si la re-autenticación fue exitosa, intentar nuevamente
+            _handleEmailChange(currentEmail, newEmail, updatedData);
+            return;
           }
         } else {
-          ScaffoldMessenger.of(context).showSnackBar(
-            const SnackBar(content: Text('Re-autenticación cancelada')),
-          );
+          // El usuario canceló la re-autenticación
+          NotificationService.showInfo(context, 'Cambio de correo cancelado.');
+          return;
         }
+        errorMessage =
+            'Se requiere iniciar sesión nuevamente para cambiar el correo.';
       } else {
-        // Otro tipo de error
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(content: Text('Error al procesar cambio de correo: $e')),
-        );
+        errorMessage = 'Error al cambiar el correo electrónico: $e';
       }
+      // Mostrar mensaje de error
+      NotificationService.showError(context, errorMessage);
     }
   }
 
@@ -465,44 +502,44 @@ class _EditProfilePageState extends State<EditProfilePage> {
     // Obtener el usuario actual
     final user = FirebaseAuth.instance.currentUser;
     if (user == null) {
-      ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(content: Text('No hay usuario autenticado')),
-      );
+      // Reemplazar SnackBar con notificación de error
+      NotificationService.showError(context, 'No hay usuario autenticado');
       return;
     }
 
     // Validar contraseñas
     if (_currentPasswordController.text.isEmpty) {
-      ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(content: Text('Debes introducir tu contraseña actual')),
+      // Reemplazar SnackBar con notificación de error
+      NotificationService.showError(
+        context,
+        'Debes introducir tu contraseña actual',
       );
       return;
     }
 
     if (_newPasswordController.text.isEmpty) {
-      ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(
-          content: Text('La nueva contraseña no puede estar vacía'),
-        ),
+      // Reemplazar SnackBar con notificación de error
+      NotificationService.showError(
+        context,
+        'La nueva contraseña no puede estar vacía',
       );
       return;
     }
 
     // Validar que la nueva contraseña tenga al menos 8 caracteres (requisito de Firebase)
     if (_newPasswordController.text.length < 8) {
-      ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(
-          content: Text('La nueva contraseña debe tener al menos 8 caracteres'),
-        ),
+      // Reemplazar SnackBar con notificación de error
+      NotificationService.showError(
+        context,
+        'La nueva contraseña debe tener al menos 8 caracteres',
       );
       return;
     }
 
     // Validar que las contraseñas coincidan
     if (_newPasswordController.text != _confirmPasswordController.text) {
-      ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(content: Text('Las contraseñas no coinciden')),
-      );
+      // Reemplazar SnackBar con notificación de error
+      NotificationService.showError(context, 'Las contraseñas no coinciden');
       return;
     }
 
@@ -524,8 +561,10 @@ class _EditProfilePageState extends State<EditProfilePage> {
       _newPasswordController.clear();
       _confirmPasswordController.clear();
 
-      ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(content: Text('Contraseña actualizada correctamente')),
+      // Reemplazar SnackBar con notificación de éxito
+      NotificationService.showSuccess(
+        context,
+        'Contraseña actualizada correctamente',
       );
     } on FirebaseAuthException catch (e) {
       String errorMessage;
@@ -546,12 +585,13 @@ class _EditProfilePageState extends State<EditProfilePage> {
           errorMessage = 'Error: ${e.message}';
       }
 
-      ScaffoldMessenger.of(
-        context,
-      ).showSnackBar(SnackBar(content: Text(errorMessage)));
+      // Reemplazar SnackBar con notificación de error
+      NotificationService.showError(context, errorMessage);
     } catch (e) {
-      ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(content: Text('Error al cambiar la contraseña: $e')),
+      // Reemplazar SnackBar con notificación de error
+      NotificationService.showError(
+        context,
+        'Error al cambiar la contraseña: $e',
       );
     }
   }
