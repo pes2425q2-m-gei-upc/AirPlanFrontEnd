@@ -588,6 +588,8 @@ class AuthWrapper extends StatefulWidget {
 class AuthWrapperState extends State<AuthWrapper> {
   // Flag para indicar si el usuario estaba previamente autenticado
   bool _wasAuthenticated = false;
+  // Flag para indicar si el logout fue manual
+  bool _isManualLogout = false;
 
   @override
   void initState() {
@@ -596,6 +598,13 @@ class AuthWrapperState extends State<AuthWrapper> {
     // Verificar si hay un usuario actualmente autenticado
     final currentUser = FirebaseAuth.instance.currentUser;
     _wasAuthenticated = currentUser != null;
+  }
+
+  // Método para establecer que el logout es manual
+  void setManualLogout(bool isManual) {
+    setState(() {
+      _isManualLogout = isManual;
+    });
   }
 
   Future<bool> checkIfAdmin(String email) async {
@@ -627,8 +636,8 @@ class AuthWrapperState extends State<AuthWrapper> {
           final user = snapshot.data;
 
           // Comprobar si la sesión ha caducado (estaba autenticado pero ahora no)
-          if (_wasAuthenticated && user == null) {
-            // La sesión ha caducado, mostrar notificación
+          if (_wasAuthenticated && user == null && !_isManualLogout) {
+            // La sesión ha caducado, mostrar notificación solo si NO es logout manual
             print("🚨 Sesión caducada detectada en AuthWrapper");
 
             // Usar el servicio global de notificaciones
@@ -644,6 +653,14 @@ class AuthWrapperState extends State<AuthWrapper> {
             _wasAuthenticated = false;
           } else if (user != null) {
             _wasAuthenticated = true;
+            // Resetear la bandera de logout manual cuando hay un nuevo login
+            _isManualLogout = false;
+          } else if (user == null && _isManualLogout) {
+            // Si es un logout manual, simplemente actualizamos el estado sin mostrar notificación
+            _wasAuthenticated = false;
+            print("👋 Logout manual detectado, sin mostrar notificación");
+            // Resetear la bandera después de procesarla
+            _isManualLogout = false;
           }
 
           if (user != null) {

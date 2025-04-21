@@ -4,6 +4,8 @@ import 'package:firebase_auth/firebase_auth.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 import 'package:uuid/uuid.dart';
 import 'dart:convert';
+import 'package:flutter/material.dart';
+import 'package:airplan/main.dart'; // Importar para acceder a navigatorKey
 
 /// WebSocketService manages real-time communication for profile updates across devices
 class WebSocketService {
@@ -223,10 +225,95 @@ class WebSocketService {
         return; // No procesamos mensajes de nuestro propio dispositivo
       }
 
+      // Comprobar si es un mensaje de cuenta eliminada
+      if (data['type'] == 'ACCOUNT_DELETED') {
+        _handleAccountDeletedMessage(data);
+        return;
+      }
+
       // Emit the message to all listeners
       _profileUpdateController.add(message);
     } catch (e) {
       print('❌ Error processing WebSocket message: $e');
+    }
+  }
+
+  // Maneja mensajes de eliminación de cuenta
+  void _handleAccountDeletedMessage(Map<String, dynamic> data) {
+    try {
+      final String email = data['email'] ?? '';
+      final String username = data['username'] ?? '';
+
+      print('⚠️ Cuenta eliminada detectada: $username ($email)');
+
+      // Verificar si el mensaje es relevante para este usuario
+      final currentUser = FirebaseAuth.instance.currentUser;
+      if (currentUser != null &&
+          (currentUser.email == email || currentUser.displayName == username)) {
+        print('🚨 Esta cuenta ha sido eliminada desde otro dispositivo');
+
+        // Mostrar alerta al usuario y cerrar sesión
+        _showAccountDeletedDialog();
+
+        // Cerrar sesión después de un breve retraso
+        Future.delayed(const Duration(seconds: 2), () {
+          _forceLogout();
+        });
+      }
+    } catch (e) {
+      print('❌ Error procesando mensaje de cuenta eliminada: $e');
+    }
+  }
+
+  // Muestra un diálogo de cuenta eliminada si hay contexto disponible
+  void _showAccountDeletedDialog() {
+    final context = navigatorKey.currentContext;
+    if (context != null) {
+      showDialog(
+        context: context,
+        barrierDismissible: false,
+        builder: (BuildContext dialogContext) {
+          return AlertDialog(
+            title: const Text('Cuenta eliminada'),
+            content: const Text(
+              'Tu cuenta ha sido eliminada desde otro dispositivo. '
+              'Esta sesión se cerrará automáticamente.',
+            ),
+            actions: <Widget>[
+              TextButton(
+                child: const Text('Entendido'),
+                onPressed: () {
+                  // Cerrar el diálogo
+                  Navigator.of(dialogContext).pop();
+                  // Forzar cierre de sesión
+                  _forceLogout();
+                },
+              ),
+            ],
+          );
+        },
+      );
+    }
+  }
+
+  // Fuerza el cierre de sesión cuando la cuenta se elimina
+  Future<void> _forceLogout() async {
+    try {
+      print('🚪 Forzando cierre de sesión por eliminación de cuenta');
+
+      // Desconectar WebSocket
+      disconnect();
+
+      // Cerrar sesión en Firebase
+      await FirebaseAuth.instance.signOut();
+
+      // Redirigir a la página de login
+      final context = navigatorKey.currentContext;
+      if (context != null) {
+        Navigator.pushNamedAndRemoveUntil(context, '/', (route) => false);
+      }
+    } catch (e) {
+      print('❌ Error durante el cierre de sesión forzado: $e');
     }
   }
 

@@ -6,9 +6,12 @@ import 'dart:convert'; // For JSON processing
 import 'login_page.dart';
 import 'edit_profile_page.dart';
 import 'dart:async'; // Añade esta importación para StreamSubscription
+import 'main.dart'; // Importar main.dart para acceder a navigatorKey
 
 class UserPage extends StatefulWidget {
-  const UserPage({super.key});
+  final bool isEmbedded;
+
+  const UserPage({super.key, this.isEmbedded = false});
 
   @override
   State<UserPage> createState() => _UserPageState();
@@ -17,6 +20,10 @@ class UserPage extends StatefulWidget {
 class _UserPageState extends State<UserPage> {
   bool _isLoading = true;
   String _realName = 'Cargando...';
+  // Variables para tipo de usuario y nivel
+  String _userType = '';
+  int _userLevel = 0;
+  bool _isClient = false;
   // WebSocket subscription for real-time updates
   StreamSubscription<String>? _profileUpdateSubscription;
 
@@ -459,12 +466,29 @@ class _UserPageState extends State<UserPage> {
             _addDebugMessage(
               "Obteniendo nombre real para el usuario: $username",
             );
+
+            // Cargar el nombre real del usuario
             final realName = await UserService.getUserRealName(username);
             _addDebugMessage("✅ Datos cargados correctamente: $realName");
+
+            // Obtener el tipo de usuario y nivel si es cliente
+            final tipoInfo = await UserService.getUserTypeAndLevel(username);
+            _addDebugMessage("🧩 Tipo de usuario: ${tipoInfo['tipo']}");
+
+            final tipo = tipoInfo['tipo'] as String?;
+            final isClient = tipo == 'cliente';
+            final nivel = isClient ? (tipoInfo['nivell'] as int?) ?? 0 : 0;
+
+            if (isClient) {
+              _addDebugMessage("⭐ Nivel de cliente: $nivel");
+            }
 
             if (mounted) {
               setState(() {
                 _realName = realName;
+                _userType = tipo ?? 'desconocido';
+                _isClient = isClient;
+                _userLevel = nivel;
                 _isLoading = false;
               });
             }
@@ -584,6 +608,23 @@ class _UserPageState extends State<UserPage> {
     );
 
     if (confirmacion == true) {
+      // Desconecta el WebSocket antes de eliminar la cuenta
+      WebSocketService().disconnect();
+
+      // Obtener una instancia de AuthWrapper para establecer la bandera de logout manual
+      try {
+        final authWrapperState =
+            context.findAncestorStateOfType<AuthWrapperState>();
+        if (authWrapperState != null) {
+          // Establecer bandera de logout manual para evitar la notificación
+          authWrapperState.setManualLogout(true);
+        }
+      } catch (e) {
+        _addDebugMessage(
+          "⚠️ No se pudo establecer bandera de logout manual: $e",
+        );
+      }
+
       final success = await UserService.deleteUser(user.email!);
       final actualContext = context;
       if (actualContext.mounted) {
@@ -604,6 +645,74 @@ class _UserPageState extends State<UserPage> {
     }
   }
 
+  Future<void> _logout(BuildContext context) async {
+    // Mostrar diálogo de confirmación antes de cerrar sesión
+    final confirmacion = await showDialog<bool>(
+      context: context,
+      builder:
+          (context) => AlertDialog(
+            title: const Text("Cerrar Sesión"),
+            content: const Text("¿Estás seguro de que quieres cerrar sesión?"),
+            actions: [
+              TextButton(
+                onPressed: () => Navigator.of(context).pop(false),
+                child: const Text("Cancelar"),
+              ),
+              TextButton(
+                onPressed: () => Navigator.of(context).pop(true),
+                child: const Text(
+                  "Cerrar Sesión",
+                  style: TextStyle(color: Colors.red),
+                ),
+              ),
+            ],
+          ),
+    );
+
+    // Si el usuario no confirmó, salir del método
+    if (confirmacion != true) {
+      return;
+    }
+
+    _addDebugMessage("🚪 Ejecutando logout");
+
+    try {
+      // Obtener el email del usuario actual
+      final user = FirebaseAuth.instance.currentUser;
+      final email = user?.email;
+
+      // Cerrar sesión en el backend
+      if (email != null) {
+        try {
+          await UserService.logoutUser(email);
+          _addDebugMessage("✅ Sesión cerrada correctamente en el backend");
+        } catch (e) {
+          _addDebugMessage("⚠️ Error al cerrar sesión en el backend: $e");
+        }
+      }
+
+      // Desconectar WebSocket antes de cerrar sesión en Firebase
+      WebSocketService().disconnect();
+
+      // Cerrar sesión en Firebase
+      await FirebaseAuth.instance.signOut();
+      _addDebugMessage("✅ Sesión cerrada correctamente en Firebase");
+
+      // Redirigir a la página de login
+      if (mounted) {
+        Navigator.of(context).pushAndRemoveUntil(
+          MaterialPageRoute(builder: (context) => const LoginPage()),
+          (route) => false,
+        );
+      }
+    } catch (e) {
+      _addDebugMessage("❌ Error durante el logout: $e");
+      ScaffoldMessenger.of(
+        context,
+      ).showSnackBar(const SnackBar(content: Text("Error al cerrar sesión")));
+    }
+  }
+
   @override
   Widget build(BuildContext context) {
     var user = FirebaseAuth.instance.currentUser;
@@ -611,37 +720,16 @@ class _UserPageState extends State<UserPage> {
     final username = user?.displayName ?? "Username no disponible";
     final photoURL = user?.photoURL;
 
-    return Scaffold(
-      appBar: AppBar(
-        title: const Text("Perfil de Usuario"),
-        actions: [
-          // Botón para activar/desactivar mensajes de depuración
-          IconButton(
-            icon: Icon(
-              _showDebugMessages ? Icons.visibility_off : Icons.visibility,
-            ),
-            onPressed: () {
-              setState(() {
-                _showDebugMessages = !_showDebugMessages;
-              });
-            },
-            tooltip:
-                _showDebugMessages
-                    ? 'Ocultar depuración'
-                    : 'Mostrar depuración',
-          ),
-        ],
-      ),
-      body: Stack(
-        children: [
-          Padding(
+    // Contenido principal de la página de usuario
+    Widget content = Stack(
+      children: [
+        // Envolver todo el contenido en SingleChildScrollView para permitir desplazamiento
+        SingleChildScrollView(
+          child: Padding(
             padding: const EdgeInsets.all(16.0),
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.center,
               children: [
-                // ...existing code...
-
-                // Añadir el resto de los widgets existentes aquí
                 const SizedBox(height: 20),
                 // Foto de perfil
                 CircleAvatar(
@@ -718,6 +806,38 @@ class _UserPageState extends State<UserPage> {
                             style: const TextStyle(fontSize: 16),
                           ),
                         ),
+                        // Mostrar nivel del cliente solo si el usuario es cliente
+                        if (_isClient) ...[
+                          const Divider(),
+                          ListTile(
+                            leading: const Icon(
+                              Icons.star,
+                              color: Colors.amber,
+                            ),
+                            title: const Text(
+                              'Nivel',
+                              style: TextStyle(fontWeight: FontWeight.bold),
+                            ),
+                            subtitle:
+                                _isLoading
+                                    ? const Center(
+                                      child: SizedBox(
+                                        height: 20,
+                                        width: 20,
+                                        child: CircularProgressIndicator(
+                                          strokeWidth: 2,
+                                        ),
+                                      ),
+                                    )
+                                    : Text(
+                                      '$_userLevel',
+                                      style: const TextStyle(
+                                        fontSize: 16,
+                                        fontWeight: FontWeight.bold,
+                                      ),
+                                    ),
+                          ),
+                        ],
                       ],
                     ),
                   ),
@@ -769,68 +889,113 @@ class _UserPageState extends State<UserPage> {
                     ),
                   ],
                 ),
+                const SizedBox(height: 20),
+                // Botón de logout
+                SizedBox(
+                  width: double.infinity,
+                  child: ElevatedButton.icon(
+                    onPressed: () => _logout(context),
+                    icon: const Icon(Icons.logout),
+                    label: const Text("Cerrar Sesión"),
+                    style: ElevatedButton.styleFrom(
+                      backgroundColor: Colors.grey.shade800,
+                      foregroundColor: Colors.white,
+                      padding: const EdgeInsets.symmetric(vertical: 12),
+                    ),
+                  ),
+                ),
+                // Añadimos un espacio extra al final para pantallas pequeñas
+                const SizedBox(height: 20),
               ],
             ),
           ),
+        ),
 
-          // Mostrar panel de depuración si está activado
-          if (_showDebugMessages)
-            Positioned(
-              bottom: 0,
-              left: 0,
-              right: 0,
-              child: Container(
-                height: 200,
-                color: Colors.black.withOpacity(0.8),
-                padding: const EdgeInsets.all(8),
-                child: Column(
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  children: [
-                    Row(
-                      mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                      children: [
-                        const Text(
-                          'Panel de Depuración',
-                          style: TextStyle(
-                            color: Colors.white,
-                            fontWeight: FontWeight.bold,
-                          ),
+        // Panel de depuración
+        if (_showDebugMessages)
+          Positioned(
+            bottom: 0,
+            left: 0,
+            right: 0,
+            child: Container(
+              height: 200,
+              color: Colors.black.withOpacity(0.8),
+              padding: const EdgeInsets.all(8),
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Row(
+                    mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                    children: [
+                      const Text(
+                        'Panel de Depuración',
+                        style: TextStyle(
+                          color: Colors.white,
+                          fontWeight: FontWeight.bold,
                         ),
-                        IconButton(
-                          icon: const Icon(Icons.refresh, color: Colors.white),
-                          onPressed: () {
-                            _addDebugMessage(
-                              "Forzando recarga manual de datos",
-                            );
-                            setState(() {
-                              _isLoading = true;
-                            });
-                            _loadUserData();
-                          },
-                          tooltip: 'Forzar recarga',
-                        ),
-                      ],
-                    ),
-                    Expanded(
-                      child: ListView.builder(
-                        itemCount: _debugMessages.length,
-                        itemBuilder: (context, index) {
-                          return Text(
-                            _debugMessages[index],
-                            style: const TextStyle(
-                              color: Colors.white,
-                              fontSize: 10,
-                            ),
-                          );
-                        },
                       ),
+                      IconButton(
+                        icon: const Icon(Icons.refresh, color: Colors.white),
+                        onPressed: () {
+                          _addDebugMessage("Forzando recarga manual de datos");
+                          setState(() {
+                            _isLoading = true;
+                          });
+                          _loadUserData();
+                        },
+                        tooltip: 'Forzar recarga',
+                      ),
+                    ],
+                  ),
+                  Expanded(
+                    child: ListView.builder(
+                      itemCount: _debugMessages.length,
+                      itemBuilder: (context, index) {
+                        return Text(
+                          _debugMessages[index],
+                          style: const TextStyle(
+                            color: Colors.white,
+                            fontSize: 10,
+                          ),
+                        );
+                      },
                     ),
-                  ],
-                ),
+                  ),
+                ],
               ),
             ),
+          ),
+      ],
+    );
+
+    // Si la página está embebida dentro de otra (como en AdminPage), devuelve solo el contenido
+    if (widget.isEmbedded) {
+      return content;
+    }
+
+    // De lo contrario, envuelve el contenido en un Scaffold completo
+    return Scaffold(
+      appBar: AppBar(
+        title: const Text("Perfil de Usuario"),
+        actions: [
+          // Botón para activar/desactivar mensajes de depuración
+          IconButton(
+            icon: Icon(
+              _showDebugMessages ? Icons.visibility_off : Icons.visibility,
+            ),
+            onPressed: () {
+              setState(() {
+                _showDebugMessages = !_showDebugMessages;
+              });
+            },
+            tooltip:
+                _showDebugMessages
+                    ? 'Ocultar depuración'
+                    : 'Mostrar depuración',
+          ),
         ],
       ),
+      body: content,
     );
   }
 }

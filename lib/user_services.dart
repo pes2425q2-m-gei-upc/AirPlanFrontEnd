@@ -7,9 +7,20 @@ import 'services/websocket_service.dart'; // Importar WebSocketService
 class UserService {
   static Future<bool> deleteUser(String email) async {
     try {
-      // 1. Eliminar del backend
+      final user = FirebaseAuth.instance.currentUser;
+      final username = user?.displayName ?? "";
+
+      // Obtener el clientId para identificar el dispositivo actual
+      final clientId = WebSocketService().clientId;
+
+      // 0. Enviar notificación de eliminación de cuenta a otros dispositivos antes de eliminarla
+      await sendAccountDeletedNotification(email, username, clientId);
+
+      // 1. Eliminar del backend - Incluir clientId como parámetro de consulta
       final backendResponse = await http.delete(
-        Uri.parse('http://localhost:8080/api/usuaris/eliminar/$email'),
+        Uri.parse(
+          'http://localhost:8080/api/usuaris/eliminar/$email?clientId=$clientId',
+        ),
       );
 
       if (backendResponse.statusCode != 200) {
@@ -17,14 +28,47 @@ class UserService {
       }
 
       // 2. Eliminar de Firebase Auth
-      final user = FirebaseAuth.instance.currentUser;
       if (user != null && user.email == email) {
         await user.delete();
       }
 
       return true;
     } catch (e) {
+      print('❌ Error eliminando usuario: $e');
       return false;
+    }
+  }
+
+  // Método para notificar a otros dispositivos sobre la eliminación de cuenta
+  static Future<void> sendAccountDeletedNotification(
+    String email,
+    String username,
+    String clientId,
+  ) async {
+    try {
+      print('🗑️ Enviando notificación de cuenta eliminada para: $email');
+
+      // Enviar notificación al backend para que notifique a otros dispositivos
+      final response = await http.post(
+        Uri.parse('http://localhost:8080/api/notifications/account-deleted'),
+        headers: {'Content-Type': 'application/json'},
+        body: json.encode({
+          'email': email,
+          'username': username,
+          'clientId':
+              clientId, // Identificar este dispositivo para no recibir la propia notificación
+        }),
+      );
+
+      if (response.statusCode == 200) {
+        print('✅ Notificación de eliminación de cuenta enviada correctamente');
+      } else {
+        print(
+          '⚠️ Error al enviar notificación de eliminación: ${response.statusCode}',
+        );
+      }
+    } catch (e) {
+      print('❌ Error enviando notificación de eliminación de cuenta: $e');
     }
   }
 
@@ -169,6 +213,30 @@ class UserService {
     } catch (e) {
       print('Error obteniendo el nombre del usuario: $e');
       return 'Nombre no disponible';
+    }
+  }
+
+  // Método para obtener el tipo de usuario y nivel (si es cliente)
+  static Future<Map<String, dynamic>> getUserTypeAndLevel(
+    String username,
+  ) async {
+    try {
+      print('🔍 Obteniendo tipo de usuario y nivel para: $username');
+      final response = await http.get(
+        Uri.parse('http://localhost:8080/api/usuaris/tipo-usuario/$username'),
+      );
+
+      if (response.statusCode == 200) {
+        final data = jsonDecode(response.body);
+        print('✅ Tipo de usuario obtenido: ${data['tipo']}');
+        return data;
+      } else {
+        print('❌ Error al obtener tipo de usuario: ${response.statusCode}');
+        return {'error': 'No se pudo obtener el tipo de usuario'};
+      }
+    } catch (e) {
+      print('❌ Error obteniendo tipo y nivel de usuario: $e');
+      return {'error': e.toString()};
     }
   }
 
