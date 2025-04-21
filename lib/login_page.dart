@@ -1,10 +1,14 @@
+import 'dart:math';
+
 import 'package:flutter/material.dart';
 import 'package:firebase_auth/firebase_auth.dart';
 import 'package:http/http.dart' as http;
-import 'dart:convert'; // Para usar jsonEncode
-import 'register.dart';  // Importem la pantalla de registre
-// La pantalla que indica "Sessió correcta"
-import 'reset_password.dart'; // Importem la pantalla de restabliment de contrasenya
+import 'dart:convert';
+import 'package:sign_button/sign_button.dart';
+import 'package:oauth2_client/oauth2_client.dart';
+import 'package:oauth2_client/github_oauth2_client.dart';
+import 'package:flutter_web_auth_2/flutter_web_auth_2.dart';
+import 'package:flutter/foundation.dart' show kIsWeb;
 
 class LoginPage extends StatefulWidget {
   const LoginPage({super.key});
@@ -18,100 +22,318 @@ class LoginPageState extends State<LoginPage> {
   final TextEditingController _emailController = TextEditingController();
   final TextEditingController _passwordController = TextEditingController();
   String _errorMessage = '';
+  bool _isLoading = false;
 
   Future<void> _signIn() async {
+    setState(() {
+      _isLoading = true;
+      _errorMessage = '';
+    });
+
     try {
-      // Iniciar sesión en Firebase
       await _auth.signInWithEmailAndPassword(
         email: _emailController.text.trim(),
         password: _passwordController.text.trim(),
       );
 
-      // Si el login en Firebase es correcto, enviar un POST al backend
+      await _sendLoginToBackend(_emailController.text.trim());
+    } on FirebaseAuthException catch (e) {
+      setState(() {
+        _errorMessage = "Error: Credenciales incorrectas: ${e.message}";
+      });
+    } catch (e) {
+      setState(() {
+        _errorMessage = "Error: ${e.toString()}";
+      });
+    } finally {
+      setState(() {
+        _isLoading = false;
+      });
+    }
+  }
+
+  Future<void> _signInWithGitHub() async {
+    setState(() {
+      _isLoading = true;
+      _errorMessage = '';
+    });
+
+    try {
+      if (kIsWeb) {
+        // 🌐 FLUJO PARA WEB
+        final githubProvider = GithubAuthProvider();
+        githubProvider.addScope('read:user');
+        githubProvider.addScope('user:email');
+
+        final userCredential = await _auth.signInWithPopup(githubProvider);
+        print("Usuario autenticado con Firebase (web): ${userCredential.user?.uid}");
+        print("Usuario autenticado con Firebase (web): ${userCredential.user?.displayName}");
+        final email = userCredential.user?.email;
+
+        final OAuthCredential githubAuthCredential = userCredential.credential as OAuthCredential;
+        final String? githubAccessToken = githubAuthCredential.accessToken;
+
+        if (email != null && githubAccessToken != null) {
+          // Obtener datos del usuario de GitHub
+          final response = await http.get(
+            Uri.parse('https://api.github.com/user'),
+            headers: {
+              'Authorization': 'token $githubAccessToken',
+              'Accept': 'application/vnd.github.v3+json',
+            },
+          );
+
+          if (response.statusCode == 200) {
+            final userData = jsonDecode(response.body);
+            String username = userData['login'];
+            final int githubId = userData['id'];
+
+            // Verificar si el usuario existe
+            final userExists = await _checkUserExists(email);
+            if (!userExists) {
+              // Crear el usuario
+              await _createUserInBackend(email, username, githubId.toString());
+            }
+
+            //preguntar MARWAN, AYUDA
+            final user = _auth.currentUser;
+            if (user != null && (user.displayName == null || user.displayName!.isEmpty)) {
+              await user.updateDisplayName(username + "_" + githubId.toString());
+              await user.reload();
+              print("DisplayName actualizado en móvil: ${user.displayName}");
+            }
+
+            // Login
+            await _sendLoginToBackend(email);
+          }
+        }
+      } else {
+        // 📱 FLUJO PARA MÓVIL
+        final client = GitHubOAuth2Client(
+          redirectUri: 'myapp://callback',
+          customUriScheme: 'myapp',
+        );
+
+        final authParams = {
+          'response_type': 'code',
+          'state': _generateRandomString(32),
+        };
+
+        final tokenResp = await client.getTokenWithAuthCodeFlow(
+          clientId: 'Ov23ctwZIlv1RaLobwtX',
+          clientSecret: '8136bf808d8880450ae7a600edcf217862d30422',
+          scopes: ['read:user', 'user:email'],
+          authCodeParams: authParams,
+        );
+
+        final githubAccessToken = tokenResp.accessToken;
+        if (githubAccessToken == null) {
+          throw Exception("No se pudo obtener el token de acceso de GitHub");
+        }
+
+        // 👉 Obtener username y ID de GitHub
+        final response = await http.get(
+          Uri.parse('https://api.github.com/user'),
+          headers: {
+            'Authorization': 'token $githubAccessToken',
+            'Accept': 'application/vnd.github.v3+json',
+          },
+        );
+
+        if (response.statusCode != 200) {
+          throw Exception(
+              "Error al obtener datos del usuario de GitHub: ${response.body}");
+        }
+
+        final userData = jsonDecode(response.body);
+        String username = userData['login'];
+        final int githubId = userData['id'];
+
+        // 🔐 Autenticación con Firebase
+        final credential = GithubAuthProvider.credential(githubAccessToken);
+        final userCredential = await _auth.signInWithCredential(credential);
+        print("Usuario autenticado con Firebase (móvil): ${userCredential.user?.uid}");
+        print("Usuario autenticado con Firebase (móvil): ${userCredential.user?.displayName}");
+
+        // Actualizar el displayName del usuario
+        final user = _auth.currentUser;
+        if (user != null && (user.displayName == null || user.displayName!.isEmpty)) {
+          await user.updateDisplayName(username + "_" + githubId.toString());
+          await user.reload();
+          print("DisplayName actualizado en móvil: ${user.displayName}");
+        }
+
+        print("Usuario autenticado con Firebase (móvil): ${userCredential.user?.uid}");
+        print("Usuario autenticado con Firebase (móvil): ${userCredential.user?.displayName}");
+
+        final email = userCredential.user?.email;
+
+        if (email != null) {
+          final userExists = await _checkUserExists(email);
+          if (!userExists) {
+            // Crear el usuario con username único e ID de GitHub
+            await _createUserInBackend(email, username, githubId.toString());
+          }
+          // Login en backend
+          await _sendLoginToBackend(email);
+        }
+      }
+    } catch (e) {
+      setState(() {
+        _errorMessage = "Error de autenticación: ${e.toString()}";
+      });
+    } finally {
+      setState(() {
+        _isLoading = false;
+      });
+    }
+  }
+
+// Función para verificar si el usuario existe en el backend
+  Future<bool> _checkUserExists(String email) async {
+    try {
+      final response = await http.get(
+        Uri.parse('http://nattech.fib.upc.edu:40350/api/usuaris/usuarios/$email'),
+      );
+
+      if (response.statusCode == 200) {
+        // Si el backend responde con 200, el usuario existe
+        return true;
+      } else if (response.statusCode == 404) {
+        // Si el backend responde con 404, el usuario no existe
+        return false;
+      } else {
+        throw Exception('Error al verificar usuario: ${response.body}');
+      }
+    } catch (e) {
+      setState(() {
+        _errorMessage = 'Error al contactar con el backend: ${e.toString()}';
+      });
+      return false;
+    }
+  }
+
+
+// Función para crear un nuevo usuario en el backend
+  Future<void> _createUserInBackend(String email, String displayName, String githubId) async {
+    try {
+      print ("Creando usuario en el backend con email: $email");
+      print ("Creando usuario en el backend con displayName: $displayName");
+      print ("Creando usuario en el backend con githubId: $githubId");
       final response = await http.post(
-        Uri.parse('http://nattech.fib.upc.edu:40350/api/usuaris/login'), // Cambia la URL por la de tu backend
+        Uri.parse('http://localhost:8080/api/usuaris/crear'),
         headers: <String, String>{
           'Content-Type': 'application/json; charset=UTF-8',
         },
         body: jsonEncode({
-          "email": _emailController.text.trim(),
+          "username": displayName + "_" + githubId,
+          "nom": displayName,
+          "email": email,
+          "sesionIniciada": true,
+          "idioma": 'Castellano', // Puedes modificar el idioma si lo necesitas
+          "isAdmin": false,
         }),
       );
 
-      // Verificar la respuesta del backend
-      if (response.statusCode != 200) {
-        // Si el backend responde con un error, mostrar el mensaje de error
-        setState(() {
-          _errorMessage = "Error en el backend: ${response.body}";
-        });
+      if (response.statusCode != 201) {
+        throw Exception('Error al crear el usuario: ${response.body}');
       }
-    } on FirebaseAuthException catch (e) {
-      // Manejar errores de Firebase
-      setState(() {
-        _errorMessage = "Error: Credencials incorrectes: ${e.message}";
-      });
     } catch (e) {
-      // Manejar otros errores
       setState(() {
-        _errorMessage = "Error: ${e.toString()}";
+        _errorMessage = 'Error al crear el usuario: ${e.toString()}';
       });
+    }
+    print ("Creado usuario en el backend con email: $displayName");
+  }
+
+
+
+
+// Función para generar estado aleatorio
+String _generateRandomString(int length) {
+  const chars = 'abcdefghijklmnopqrstuvwxyz0123456789';
+  final random = Random.secure();
+  return String.fromCharCodes(
+    Iterable.generate(
+      length,
+      (_) => chars.codeUnitAt(random.nextInt(chars.length)),
+    ),
+  );
+}
+
+  Future<void> _sendLoginToBackend(String email) async {
+    try {
+      final response = await http.post(
+        Uri.parse('http://localhost:8080/api/usuaris/login'),
+        headers: <String, String>{
+          'Content-Type': 'application/json; charset=UTF-8',
+        },
+        body: jsonEncode({"email": email}),
+      );
+
+      if (response.statusCode != 200) {
+        throw Exception('Error del backend: ${response.body}');
+      }
+    } catch (e) {
+      setState(() {
+        _errorMessage = e.toString();
+      });
+      await _auth.signOut();
+      rethrow;
     }
   }
 
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      appBar: AppBar(title: const Text("Iniciar Sessió")),
-      body: Padding(
-        padding: const EdgeInsets.all(16.0),
-        child: Column(
-          mainAxisAlignment: MainAxisAlignment.center,
-          children: [
-            TextField(
-              controller: _emailController,
-              decoration: const InputDecoration(
-                labelText: "Correu electrònic",
-                border: OutlineInputBorder(),
+      appBar: AppBar(title: const Text("Iniciar Sesión")),
+      body: SingleChildScrollView(
+        child: Padding(
+          padding: const EdgeInsets.all(16.0),
+          child: Column(
+            mainAxisAlignment: MainAxisAlignment.center,
+            children: [
+              TextField(
+                controller: _emailController,
+                decoration: const InputDecoration(
+                  labelText: "Correo electrónico",
+                  border: OutlineInputBorder(),
+                ),
               ),
-            ),
-            const SizedBox(height: 12),
-            TextField(
-              controller: _passwordController,
-              obscureText: true,
-              decoration: const InputDecoration(
-                labelText: "Contrasenya",
-                border: OutlineInputBorder(),
-              ),
-            ),
-            const SizedBox(height: 12),
-            ElevatedButton(
-              onPressed: _signIn,
-              child: const Text("Iniciar Sessió"),
-            ),
-            const SizedBox(height: 12),
-            TextButton(
-              onPressed: () {
-                Navigator.push(
-                  context,
-                  MaterialPageRoute(builder: (context) => const SignUpPage()),
-                );
-              },
-              child: const Text("No tens compte? Registra't aquí"),
-            ),
-            TextButton(
-              onPressed: () {
-                Navigator.push(
-                  context,
-                  MaterialPageRoute(builder: (context) => const ResetPasswordPage()),
-                );
-              },
-              child: const Text("Has oblidat la contrasenya?"),
-            ),
-            if (_errorMessage.isNotEmpty) ...[
               const SizedBox(height: 12),
-              Text(_errorMessage, style: const TextStyle(color: Colors.red)),
+              TextField(
+                controller: _passwordController,
+                obscureText: true,
+                decoration: const InputDecoration(
+                  labelText: "Contraseña",
+                  border: OutlineInputBorder(),
+                ),
+              ),
+              const SizedBox(height: 12),
+              ElevatedButton(
+                onPressed: _isLoading ? null : _signIn,
+                child: _isLoading
+                    ? const CircularProgressIndicator()
+                    : const Text("Iniciar Sesión"),
+              ),
+              const SizedBox(height: 12),
+              // Botón de GitHub con sign_button
+              SignInButton(
+                buttonType: ButtonType.github,
+                buttonSize: ButtonSize.large,
+                onPressed: _isLoading ? null : _signInWithGitHub,
+              ),
+              const SizedBox(height: 12),
+              if (_errorMessage.isNotEmpty) ...[
+                const SizedBox(height: 12),
+                Text(
+                  _errorMessage,
+                  style: const TextStyle(color: Colors.red),
+                  textAlign: TextAlign.center,
+                ),
+              ],
             ],
-          ],
+          ),
         ),
       ),
     );

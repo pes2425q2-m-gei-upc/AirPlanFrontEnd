@@ -42,6 +42,9 @@ dependencies:
   js_interop: ^0.0.1
   rive: ^0.13.20
   rive_common: ^0.4.15
+  sign_button: ^2.0.0
+  flutter_web_auth_2: ^3.1.0 # Para manejar el flujo OAuth en web/móvil
+  oauth2_client: ^3.0.0  # Paquete alternativo para OAuth2 con GitHub
 
 dev_dependencies:
   flutter_test:

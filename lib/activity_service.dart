@@ -17,6 +17,7 @@ class ActivityService {
   }
 
   Future<void> sendActivityToBackend(Map<String, String> activityData) async {
+    print ("Soy el creador "+ activityData['user']!+" soy el creador");
     final url = Uri.parse('http://nattech.fib.upc.edu:40350/api/activitats/crear');
     final dateFormat = DateFormat("yyyy-MM-dd'T'HH:mm:ss");
     final ubicacioParts = activityData['location']!.split(',');
