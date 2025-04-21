@@ -5,6 +5,7 @@ import 'dart:convert'; // Para usar jsonEncode
 import 'register.dart';  // Importem la pantalla de registre
 // La pantalla que indica "Sessió correcta"
 import 'reset_password.dart'; // Importem la pantalla de restabliment de contrasenya
+// import 'package:twitter_login/twitter_login.dart';
 
 class LoginPage extends StatefulWidget {
   const LoginPage({super.key});
@@ -57,6 +58,50 @@ class LoginPageState extends State<LoginPage> {
       });
     }
   }
+  Future<void> _signInWithTwitter() async {
+    try {
+      /*final twitterLogin = TwitterLogin(
+        apiKey: 'Q3pGSDU5V25YVWFlUm54QVViYlA6MTpjaQ',
+        apiSecretKey: 'vVZHYKun6Q-spBotpxUMp9mA5GnsIq4jp_REGBZUXLsd_RVADe',
+        redirectURI: 'https://airplan-f08be.firebaseapp.com/__/auth/handler', // Configurar en Twitter Developer
+      );
+
+      final authResult = await twitterLogin.login();
+
+      if (authResult.status == TwitterLoginStatus.loggedIn) {
+        // 1. Autenticar con Firebase
+        final credential = TwitterAuthProvider.credential(
+          accessToken: authResult.authToken!,
+          secret: authResult.authTokenSecret!,
+        );
+
+        final userCredential = await _auth.signInWithCredential(credential);
+        final user = userCredential.user;
+
+        // 2. Comunicar con tu backend Kotlin
+        final response = await http.post(
+          Uri.parse('http://nattech.fib.upc.edu:40350/api/usuaris/login'),
+          headers: {'Content-Type': 'application/json'},
+          body: jsonEncode({
+            "email": user?.email ?? "${user?.uid}@twitter.com",
+            "contrasena": user?.uid // Usamos el UID como contraseña temporal
+          }),
+        );
+
+        if (response.statusCode == 200) {
+          // Navegar a pantalla principal
+        } else {
+          setState(() {
+            _errorMessage = "Error en el backend: ${response.body}";
+          });
+        }
+      }*/
+    } catch (e) {
+      setState(() {
+        _errorMessage = "Error con Twitter: ${e.toString()}";
+      });
+    }
+  }
 
   @override
   Widget build(BuildContext context) {
@@ -87,6 +132,21 @@ class LoginPageState extends State<LoginPage> {
             ElevatedButton(
               onPressed: _signIn,
               child: const Text("Iniciar Sessió"),
+            ),
+            const SizedBox(height: 12),
+            ElevatedButton(
+              onPressed: _signInWithTwitter,
+              style: ElevatedButton.styleFrom(
+                backgroundColor: Colors.black,
+              ),
+              child: const Row(
+                mainAxisSize: MainAxisSize.min,
+                children: [
+                  Icon(Icons.abc, color: Colors.white), // Reemplaza con tu icono de Twitter
+                  SizedBox(width: 8),
+                  Text("Iniciar con Twitter", style: TextStyle(color: Colors.white)),
+                ],
+              ),
             ),
             const SizedBox(height: 12),
             TextButton(
