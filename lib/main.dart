@@ -35,7 +35,6 @@ class GlobalNotificationService {
 
   // Añadir una notificación a la cola
   void addNotification(String message, String type, {bool isUrgent = false}) {
-    print("🔔 [GlobalNotificationService] Añadiendo notificación: $message");
     _pendingNotifications.add({
       'message': message,
       'type': type,
@@ -52,9 +51,6 @@ class GlobalNotificationService {
     if (navigatorKey.currentState == null ||
         _isShowingNotification ||
         _pendingNotifications.isEmpty) {
-      print(
-        "⏳ [GlobalNotificationService] No se pueden mostrar notificaciones ahora. navigatorKey disponible: ${navigatorKey.currentState != null}, mostrando: $_isShowingNotification, pendientes: ${_pendingNotifications.length}",
-      );
       return;
     }
 
@@ -63,18 +59,12 @@ class GlobalNotificationService {
 
     // Tomar la primera notificación de la cola
     final notification = _pendingNotifications.removeAt(0);
-    print(
-      "📢 [GlobalNotificationService] Mostrando notificación: ${notification['message']}",
-    );
 
     // Mostrar la notificación usando el context del navigator
     final context = navigatorKey.currentContext;
     if (context != null) {
       _showMaterialBanner(context, notification);
     } else {
-      print(
-        "⚠️ [GlobalNotificationService] Contexto no disponible, reintentando luego",
-      );
       _isShowingNotification = false;
       // Volver a añadir la notificación a la cola
       _pendingNotifications.insert(0, notification);
@@ -138,17 +128,6 @@ class GlobalNotificationService {
         _processPendingNotifications();
       });
     }
-  }
-
-  // Refrescar la pantalla actual
-  void _refreshCurrentScreen(BuildContext context) {
-    print("🔄 [GlobalNotificationService] Refrescando pantalla");
-
-    // Navegar a AuthWrapper para refrescar la UI
-    Navigator.of(context).pushAndRemoveUntil(
-      MaterialPageRoute(builder: (context) => const AuthWrapper()),
-      (route) => false,
-    );
   }
 
   // Determinar el color según el tipo de notificación
@@ -258,12 +237,10 @@ class _MiAppState extends State<MiApp> with WidgetsBindingObserver {
         _handleWebSocketMessage(message);
       },
       onError: (error) {
-        print("❌ Error global en WebSocket: $error");
         // Intentar reconectar el WebSocket
         WebSocketService().reconnect();
       },
       onDone: () {
-        print("⚠️ Conexión WebSocket global cerrada");
         // Intentar reconectar después de un breve retraso
         Future.delayed(const Duration(seconds: 2), () {
           if (FirebaseAuth.instance.currentUser != null) {
@@ -272,14 +249,11 @@ class _MiAppState extends State<MiApp> with WidgetsBindingObserver {
         });
       },
     );
-
-    print("🌐 Escucha global de WebSocket inicializada");
   }
 
   // Procesa los mensajes recibidos del WebSocket
   void _handleWebSocketMessage(String message) {
     try {
-      print("📩 [Global] WebSocket mensaje recibido: $message");
       final data = json.decode(message);
 
       // Comprobar si es un mensaje de actualización de perfil
@@ -291,11 +265,6 @@ class _MiAppState extends State<MiApp> with WidgetsBindingObserver {
           final updatedFields = data['updatedFields'] as List<dynamic>;
           final isEmailUpdate = updatedFields.contains('email');
 
-          print(
-            "💫 [Global] NOTIFICACIÓN RECIBIDA: Actualización de perfil detectada",
-          );
-          print("📋 [Global] Campos actualizados: ${updatedFields.join(', ')}");
-
           // Emitir el evento a través del StreamController para que otros widgets puedan reaccionar
           profileUpdateStreamController.add({
             'type': 'profile_update',
@@ -305,14 +274,9 @@ class _MiAppState extends State<MiApp> with WidgetsBindingObserver {
 
           // Si es un cambio de correo, necesitamos manejar la sesión
           if (isEmailUpdate) {
-            print("🚨 [Global] Cambio de correo electrónico detectado");
             _handleEmailChangeGlobally();
           } else {
             // Para otros cambios, actualizamos la información de usuario y mostramos notificación
-            print(
-              "ℹ️ [Global] Actualización detectada en: ${updatedFields.join(', ')}",
-            );
-
             // Crear mensaje de notificación basado en campos actualizados
             String mensaje = _createProfileUpdateMessage(updatedFields);
 
@@ -329,29 +293,12 @@ class _MiAppState extends State<MiApp> with WidgetsBindingObserver {
             }
 
             // Recargar datos de usuario en Firebase para mantener sincronización
-            FirebaseAuth.instance.currentUser
-                ?.reload()
-                .then((_) {
-                  print(
-                    "✅ [Global] Usuario recargado después de actualización de perfil",
-                  );
-                })
-                .catchError((error) {
-                  print("⚠️ [Global] Error recargando usuario: $error");
-                });
+            FirebaseAuth.instance.currentUser?.reload();
           }
-        } else {
-          print("⚠️ [Global] Notificación no relevante para este usuario");
-          print(
-            "Username actual: ${currentUser?.displayName}, recibido: ${data['username']}",
-          );
-          print(
-            "Email actual: ${currentUser?.email}, recibido: ${data['email']}",
-          );
         }
       }
     } catch (e) {
-      print("❌ [Global] Error procesando mensaje WebSocket: $e");
+      // Error silencioso - el manejo de errores ya está implementado en los listeners
     }
   }
 
@@ -397,38 +344,20 @@ class _MiAppState extends State<MiApp> with WidgetsBindingObserver {
     if (user != null &&
         data['username'] != null &&
         data['username'] != user.displayName) {
-      print("👤 [Global] Actualizando nombre de usuario en Firebase Auth");
-      user
-          .updateDisplayName(data['username'])
-          .then((_) {
-            print("✅ [Global] Nombre de usuario actualizado en Firebase Auth");
-          })
-          .catchError((error) {
-            print("⚠️ [Global] Error actualizando nombre de usuario: $error");
-          });
+      user.updateDisplayName(data['username']);
     }
   }
 
   // Maneja globalmente un cambio de correo electrónico
   void _handleEmailChangeGlobally() {
     try {
-      print(
-        "🔄 [Global] Forzando reload() del usuario Firebase por cambio de email",
-      );
-
       // Hacer reload del usuario actual para que Firebase actualice su estado
       FirebaseAuth.instance.currentUser
           ?.reload()
           .then((_) {
-            print("✅ [Global] Reload de Firebase completado");
-
             // Verificar el estado de autenticación
             final user = FirebaseAuth.instance.currentUser;
             if (user != null) {
-              print(
-                "⚠️ [Global] Usuario aún está autenticado después del cambio de email",
-              );
-
               // Usar el servicio global de notificaciones
               GlobalNotificationService().addNotification(
                 'Tu correo electrónico ha sido modificado en otro dispositivo. Necesitas volver a iniciar sesión.',
@@ -440,41 +369,32 @@ class _MiAppState extends State<MiApp> with WidgetsBindingObserver {
               Future.delayed(const Duration(seconds: 3), () {
                 _logoutAfterEmailChange();
               });
-            } else {
-              print("✅ [Global] Sesión ya invalidada por Firebase");
             }
           })
-          .catchError((error) {
-            print("❌ [Global] Error en reload Firebase: $error");
+          .catchError((_) {
             // Si hay un error, forzar cierre de sesión
             _logoutAfterEmailChange();
           });
     } catch (e) {
-      print("❌ [Global] Error general manejando cambio de email: $e");
       _logoutAfterEmailChange();
     }
   }
 
   // Cierra sesión después de un cambio de correo
   Future<void> _logoutAfterEmailChange() async {
-    print("🚪 [Global] Cerrando sesión después de cambio de email");
-
     final user = FirebaseAuth.instance.currentUser;
     final email = user?.email;
 
     // Cerrar sesión en el backend
     if (email != null) {
       try {
-        final response = await http.post(
+        await http.post(
           Uri.parse('http://localhost:8080/api/usuaris/logout'),
           headers: {'Content-Type': 'application/json; charset=UTF-8'},
           body: jsonEncode({'email': email}),
         );
-        print(
-          "🔌 [Global] Logout en backend ${response.statusCode == 200 ? 'exitoso' : 'fallido'}",
-        );
       } catch (e) {
-        print("⚠️ [Global] Error en logout backend: $e");
+        // Error silencioso
       }
     }
 
@@ -484,12 +404,8 @@ class _MiAppState extends State<MiApp> with WidgetsBindingObserver {
     // Cerrar sesión en Firebase
     try {
       await FirebaseAuth.instance.signOut();
-      print("✅ [Global] Sesión cerrada en Firebase");
-
       // El listener de authStateChanges redirigirá automáticamente a LoginPage
     } catch (e) {
-      print("❌ [Global] Error cerrando sesión en Firebase: $e");
-
       // Si hay un error, intentar forzar la navegación
       if (navigatorKey.currentState != null) {
         navigatorKey.currentState!.pushAndRemoveUntil(
@@ -504,7 +420,6 @@ class _MiAppState extends State<MiApp> with WidgetsBindingObserver {
   void _disposeGlobalWebSocketListener() {
     _globalWebSocketSubscription?.cancel();
     _globalWebSocketSubscription = null;
-    print("🛑 Escucha global de WebSocket finalizada");
   }
 
   @override
@@ -638,8 +553,6 @@ class AuthWrapperState extends State<AuthWrapper> {
           // Comprobar si la sesión ha caducado (estaba autenticado pero ahora no)
           if (_wasAuthenticated && user == null && !_isManualLogout) {
             // La sesión ha caducado, mostrar notificación solo si NO es logout manual
-            print("🚨 Sesión caducada detectada en AuthWrapper");
-
             // Usar el servicio global de notificaciones
             Future.delayed(Duration.zero, () {
               GlobalNotificationService().addNotification(
@@ -658,7 +571,6 @@ class AuthWrapperState extends State<AuthWrapper> {
           } else if (user == null && _isManualLogout) {
             // Si es un logout manual, simplemente actualizamos el estado sin mostrar notificación
             _wasAuthenticated = false;
-            print("👋 Logout manual detectado, sin mostrar notificación");
             // Resetear la bandera después de procesarla
             _isManualLogout = false;
           }
@@ -669,23 +581,23 @@ class AuthWrapperState extends State<AuthWrapper> {
               future: checkIfAdmin(user.email!),
               builder: (context, adminSnapshot) {
                 if (adminSnapshot.connectionState == ConnectionState.waiting) {
-                  return Scaffold(
+                  return const Scaffold(
                     body: Center(child: CircularProgressIndicator()),
                   );
                 } else {
                   final isAdmin = adminSnapshot.data ?? false;
                   // Ensure WebSocket is connected
                   WebSocketService().connect();
-                  return isAdmin ? AdminPage() : MyHomePage();
+                  return isAdmin ? AdminPage() : const MyHomePage();
                 }
               },
             );
           }
           // Disconnect WebSocket if user is not authenticated
           WebSocketService().disconnect();
-          return LoginPage();
+          return const LoginPage();
         }
-        return Scaffold(body: Center(child: CircularProgressIndicator()));
+        return const Scaffold(body: Center(child: CircularProgressIndicator()));
       },
     );
   }

@@ -65,10 +65,7 @@ class WebSocketService {
         _clientId = const Uuid().v4();
         await prefs.setString('websocket_client_id', _clientId);
       }
-
-      print('🆔 Cliente WebSocket ID: $_clientId');
     } catch (e) {
-      print('❌ Error inicializando clientId: $e');
       // Generar un ID temporal si hay error con SharedPreferences
       _clientId =
           'temp_${DateTime.now().millisecondsSinceEpoch}_${const Uuid().v4()}';
@@ -91,10 +88,6 @@ class WebSocketService {
 
     // Verificar si cambiaron las credenciales
     if (newUsername != _currentUsername || newEmail != _currentEmail) {
-      print('🔄 Credenciales de usuario actualizadas:');
-      print('   - Username anterior: $_currentUsername → Nuevo: $newUsername');
-      print('   - Email anterior: $_currentEmail → Nuevo: $newEmail');
-
       _currentUsername = newUsername;
       _currentEmail = newEmail;
 
@@ -109,14 +102,12 @@ class WebSocketService {
   // Connect to WebSocket server with current user credentials
   void connect() {
     if (_isConnected) {
-      print('⚠️ WebSocket ya está conectado. No es necesario reconectar.');
       return;
     }
 
     // Actualizar las credenciales del usuario antes de conectar
     final user = FirebaseAuth.instance.currentUser;
     if (user == null) {
-      print('❌ No se puede conectar WebSocket: No hay usuario autenticado');
       return;
     }
 
@@ -124,10 +115,6 @@ class WebSocketService {
     _currentEmail = user.email ?? '';
 
     try {
-      print(
-        '🔌 Conectando WebSocket con: Username=$_currentUsername, Email=$_currentEmail',
-      );
-
       // Connect to WebSocket server with user credentials as query parameters
       _channel = WebSocketChannel.connect(
         Uri.parse(
@@ -145,25 +132,20 @@ class WebSocketService {
         },
         onDone: () {
           _isConnected = false;
-          print('WebSocket connection closed');
           // Attempt to reconnect after a delay
           _scheduleReconnect();
         },
         onError: (error) {
           _isConnected = false;
-          print('❌ WebSocket error: $error');
           // Attempt to reconnect after a delay
           _scheduleReconnect();
         },
       );
 
-      print('✅ WebSocket connected successfully');
-
       // Iniciar el ping periódico para mantener la conexión activa
       _startPingTimer();
     } catch (e) {
       _isConnected = false;
-      print('❌ Failed to connect to WebSocket: $e');
       // Attempt to reconnect after a delay
       _scheduleReconnect();
     }
@@ -176,9 +158,7 @@ class WebSocketService {
       if (_isConnected && _channel != null) {
         try {
           _channel!.sink.add('{"type":"PING"}');
-          print('📡 Ping enviado al servidor WebSocket');
         } catch (e) {
-          print('❌ Error enviando ping: $e');
           _isConnected = false;
           _scheduleReconnect();
         }
@@ -193,10 +173,8 @@ class WebSocketService {
     // Cancelar cualquier timer de reconexión existente
     _reconnectTimer?.cancel();
 
-    print('⏱️ Programando reconexión WebSocket en 5 segundos...');
     _reconnectTimer = Timer(const Duration(seconds: 5), () {
       if (!_isConnected) {
-        print('🔄 Intentando reconectar WebSocket...');
         connect();
       }
     });
@@ -205,12 +183,9 @@ class WebSocketService {
   // Handle incoming WebSocket messages
   void _handleIncomingMessage(String message) {
     try {
-      print('📩 Received WebSocket message: $message');
-
       // No procesar mensajes ping-pong
       if (message.contains('"type":"PING"') ||
           message.contains('"type":"PONG"')) {
-        print('📡 Mensaje de ping/pong recibido');
         return;
       }
 
@@ -219,9 +194,6 @@ class WebSocketService {
 
       // Comprobar si el mensaje proviene del mismo dispositivo (mismo clientId)
       if (data.containsKey('clientId') && data['clientId'] == _clientId) {
-        print(
-          '🔄 Ignorando mensaje de mi propio dispositivo (clientId: $_clientId)',
-        );
         return; // No procesamos mensajes de nuestro propio dispositivo
       }
 
@@ -234,7 +206,7 @@ class WebSocketService {
       // Emit the message to all listeners
       _profileUpdateController.add(message);
     } catch (e) {
-      print('❌ Error processing WebSocket message: $e');
+      // Ignorar errores de procesamiento
     }
   }
 
@@ -244,14 +216,10 @@ class WebSocketService {
       final String email = data['email'] ?? '';
       final String username = data['username'] ?? '';
 
-      print('⚠️ Cuenta eliminada detectada: $username ($email)');
-
       // Verificar si el mensaje es relevante para este usuario
       final currentUser = FirebaseAuth.instance.currentUser;
       if (currentUser != null &&
           (currentUser.email == email || currentUser.displayName == username)) {
-        print('🚨 Esta cuenta ha sido eliminada desde otro dispositivo');
-
         // Mostrar alerta al usuario y cerrar sesión
         _showAccountDeletedDialog();
 
@@ -261,7 +229,7 @@ class WebSocketService {
         });
       }
     } catch (e) {
-      print('❌ Error procesando mensaje de cuenta eliminada: $e');
+      // Ignorar errores
     }
   }
 
@@ -299,8 +267,6 @@ class WebSocketService {
   // Fuerza el cierre de sesión cuando la cuenta se elimina
   Future<void> _forceLogout() async {
     try {
-      print('🚪 Forzando cierre de sesión por eliminación de cuenta');
-
       // Desconectar WebSocket
       disconnect();
 
@@ -313,13 +279,12 @@ class WebSocketService {
         Navigator.pushNamedAndRemoveUntil(context, '/', (route) => false);
       }
     } catch (e) {
-      print('❌ Error durante el cierre de sesión forzado: $e');
+      // Ignorar errores durante el cierre forzado
     }
   }
 
   // Método público para forzar una reconexión
   void reconnect() {
-    print('🔄 Forzando reconexión del WebSocket');
     disconnect();
     connect();
   }
@@ -332,9 +297,8 @@ class WebSocketService {
     if (_channel != null) {
       try {
         _channel!.sink.close();
-        print('🔌 WebSocket disconnected');
       } catch (e) {
-        print('⚠️ Error closing WebSocket: $e');
+        // Ignorar errores al cerrar
       } finally {
         _isConnected = false;
         _channel = null;

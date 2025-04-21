@@ -1,12 +1,108 @@
 import 'package:flutter/material.dart';
 import 'package:firebase_auth/firebase_auth.dart';
 import 'package:airplan/user_services.dart';
-import 'package:airplan/services/websocket_service.dart'; // Import WebSocket service
-import 'dart:convert'; // For JSON processing
+import 'package:airplan/services/websocket_service.dart';
+import 'dart:convert';
 import 'login_page.dart';
 import 'edit_profile_page.dart';
-import 'dart:async'; // Añade esta importación para StreamSubscription
-import 'main.dart'; // Importar main.dart para acceder a navigatorKey
+import 'dart:async';
+import 'main.dart';
+
+/// Widget para mostrar la información del usuario
+class UserInfoCard extends StatelessWidget {
+  final String realName;
+  final String username;
+  final String email;
+  final bool isClient;
+  final int userLevel;
+  final bool isLoading;
+
+  const UserInfoCard({
+    super.key,
+    required this.realName,
+    required this.username,
+    required this.email,
+    required this.isClient,
+    required this.userLevel,
+    required this.isLoading,
+  });
+
+  @override
+  Widget build(BuildContext context) {
+    return Card(
+      elevation: 4,
+      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(15)),
+      child: Padding(
+        padding: const EdgeInsets.all(16.0),
+        child: Column(
+          children: [
+            _buildInfoListTile(
+              icon: Icons.person,
+              title: 'Nombre',
+              value: realName,
+              isLoading: isLoading,
+            ),
+            const Divider(),
+            _buildInfoListTile(
+              icon: Icons.alternate_email,
+              title: 'Username',
+              value: username,
+              isLoading: false,
+            ),
+            const Divider(),
+            _buildInfoListTile(
+              icon: Icons.email,
+              title: 'Correo',
+              value: email,
+              isLoading: false,
+            ),
+            if (isClient) ...[
+              const Divider(),
+              _buildInfoListTile(
+                icon: Icons.star,
+                title: 'Nivel',
+                value: '$userLevel',
+                isLoading: isLoading,
+                iconColor: Colors.amber,
+                isBold: true,
+              ),
+            ],
+          ],
+        ),
+      ),
+    );
+  }
+
+  Widget _buildInfoListTile({
+    required IconData icon,
+    required String title,
+    required String value,
+    bool isLoading = false,
+    Color iconColor = Colors.blue,
+    bool isBold = false,
+  }) {
+    return ListTile(
+      leading: Icon(icon, color: iconColor),
+      title: Text(title, style: const TextStyle(fontWeight: FontWeight.bold)),
+      subtitle:
+          isLoading
+              ? const Center(
+                child: SizedBox(
+                  height: 20,
+                  width: 20,
+                  child: CircularProgressIndicator(strokeWidth: 2),
+                ),
+              )
+              : Text(
+                value,
+                style: TextStyle(
+                  fontSize: 16,
+                  fontWeight: isBold ? FontWeight.bold : FontWeight.normal,
+                ),
+              ),
+    );
+  }
+}
 
 class UserPage extends StatefulWidget {
   final bool isEmbedded;
@@ -20,17 +116,11 @@ class UserPage extends StatefulWidget {
 class _UserPageState extends State<UserPage> {
   bool _isLoading = true;
   String _realName = 'Cargando...';
-  // Variables para tipo de usuario y nivel
-  String _userType = '';
+  // Variables para nivel de usuario
   int _userLevel = 0;
   bool _isClient = false;
   // WebSocket subscription for real-time updates
   StreamSubscription<String>? _profileUpdateSubscription;
-
-  // Para mostrar mensajes de depuración en pantalla
-  final List<String> _debugMessages = [];
-  bool _showDebugMessages =
-      false; // Cambiar a true para mostrar mensajes en la UI
 
   @override
   void initState() {
@@ -42,40 +132,20 @@ class _UserPageState extends State<UserPage> {
 
   // Asegurar que la conexión WebSocket está activa
   void _ensureWebSocketConnection() {
-    _addDebugMessage("🔌 Inicializando conexión WebSocket");
-
     // Obtener la instancia del WebSocketService
     final webSocketService = WebSocketService();
 
     // Verificar si ya está conectado
     if (!webSocketService.isConnected) {
-      _addDebugMessage("🔄 Estableciendo conexión WebSocket");
       webSocketService.connect();
-    } else {
-      _addDebugMessage("✅ WebSocket ya está conectado");
     }
 
     // Inicializar escucha de eventos WebSocket
     _initWebSocketListener();
   }
 
-  void _addDebugMessage(String message) {
-    print("DEBUG: $message");
-    setState(() {
-      _debugMessages.add(
-        "[${DateTime.now().toString().split('.').first}] $message",
-      );
-      // Mantener solo los últimos 20 mensajes
-      if (_debugMessages.length > 20) {
-        _debugMessages.removeAt(0);
-      }
-    });
-  }
-
   // Initialize WebSocket connection and listen for profile updates
   void _initWebSocketListener() {
-    _addDebugMessage("👂 Inicializando escucha de eventos WebSocket");
-
     // Cancelar suscripción anterior si existe
     _profileUpdateSubscription?.cancel();
 
@@ -83,8 +153,6 @@ class _UserPageState extends State<UserPage> {
     _profileUpdateSubscription = WebSocketService().profileUpdates.listen(
       (message) {
         try {
-          _addDebugMessage("📨 WebSocket mensaje recibido: $message");
-
           // Parse incoming message
           final data = json.decode(message);
 
@@ -105,38 +173,18 @@ class _UserPageState extends State<UserPage> {
               // Determinar si es un cambio crítico que requiere reinicio de sesión
               final isSessionResetRequired = isEmailUpdate || isPasswordUpdate;
 
-              _addDebugMessage(
-                "💫 NOTIFICACIÓN RECIBIDA: Actualización de perfil detectada",
-              );
-              _addDebugMessage("Campos actualizados: ${data['updatedFields']}");
-
               // Si la actualización incluye cambio de correo o contraseña, necesitamos una acción más drástica
               if (isSessionResetRequired) {
-                _addDebugMessage(
-                  "⚠️ CAMBIO CRÍTICO DETECTADO - Acción especial requerida",
-                );
-
-                // IMPORTANTE: Forzar una recarga del usuario de Firebase inmediatamente
-                // Esto provocará que Firebase detecte que el token ya no es válido
-                _addDebugMessage("🔄 Forzando reload() del usuario Firebase");
-
                 // Realizar reload() de Firebase Auth para invalidar la sesión
                 FirebaseAuth.instance.currentUser
                     ?.reload()
                     .then((_) {
-                      _addDebugMessage("✅ Reload de Firebase completado");
-
                       // Forzar comprobación del estado de autenticación
-                      FirebaseAuth.instance.authStateChanges().listen((
-                        User? user,
-                      ) {
-                        _addDebugMessage(
-                          "📊 Estado de autenticación actual: ${user != null ? 'Autenticado' : 'No autenticado'}",
-                        );
-                      });
+                      FirebaseAuth.instance.authStateChanges().listen(
+                        (User? user) {},
+                      );
                     })
                     .catchError((error) {
-                      _addDebugMessage("❌ Error en reload de Firebase: $error");
                       // Si el reload falla, probablemente la sesión ya es inválida, cerrarla manualmente
                       _handleAccountChangeOnAnotherDevice(
                         isPasswordChange: isPasswordUpdate,
@@ -170,17 +218,20 @@ class _UserPageState extends State<UserPage> {
                   );
 
                   // Forzar cierre de sesión y redirigir a la página de login después de un breve retraso
+                  // Movemos la verificación de mounted dentro del callback porque el widget podría
+                  // ser desmontado durante los 3 segundos de espera
                   Future.delayed(const Duration(seconds: 3), () {
-                    _handleAccountChangeOnAnotherDevice(
-                      isPasswordChange: isPasswordUpdate,
-                      isEmailChange: isEmailUpdate,
-                      isNameChange: isNameUpdate,
-                    );
+                    if (mounted) {
+                      _handleAccountChangeOnAnotherDevice(
+                        isPasswordChange: isPasswordUpdate,
+                        isEmailChange: isEmailUpdate,
+                        isNameChange: isNameUpdate,
+                      );
+                    }
                   });
                 }
               } else if (isNameUpdate) {
                 // Para cambios de nombre, recargamos los datos pero también mostramos un diálogo informativo
-                _addDebugMessage("👤 Cambio de nombre detectado");
 
                 if (mounted) {
                   ScaffoldMessenger.of(context).showSnackBar(
@@ -198,52 +249,31 @@ class _UserPageState extends State<UserPage> {
                 if (mounted) {
                   setState(() {
                     _isLoading = true;
-                    _addDebugMessage(
-                      "🔄 RECARGANDO DATOS del perfil desde Firebase y backend",
-                    );
                   });
                   _loadUserData();
                 }
               } else {
                 // Para otros cambios, solo recargamos los datos normalmente
-                _addDebugMessage(
-                  "🔄 Actualización de perfil estándar detectada",
-                );
 
                 // Reload user data
                 if (mounted) {
                   setState(() {
                     _isLoading = true;
-                    _addDebugMessage(
-                      "🔄 RECARGANDO DATOS del perfil desde Firebase y backend",
-                    );
                   });
                   _loadUserData();
                 }
               }
-            } else {
-              _addDebugMessage(
-                "⚠️ Notificación no relevante para este usuario",
-              );
-              _addDebugMessage(
-                "Username actual: ${currentUser?.displayName}, recibido: ${data['username']}",
-              );
-              _addDebugMessage(
-                "Email actual: ${currentUser?.email}, recibido: ${data['email']}",
-              );
             }
           }
         } catch (e) {
-          _addDebugMessage("❌ Error procesando mensaje WebSocket: $e");
+          debugPrint("Error procesando mensaje WebSocket: $e");
         }
       },
       onError: (error) {
-        _addDebugMessage("❌ Error en la conexión WebSocket: $error");
         // Intentar reconectar el WebSocket
         WebSocketService().reconnect();
       },
       onDone: () {
-        _addDebugMessage("⚠️ Conexión WebSocket cerrada");
         // Intentar reconectar el WebSocket
         Future.delayed(const Duration(seconds: 2), () {
           WebSocketService().reconnect();
@@ -252,180 +282,47 @@ class _UserPageState extends State<UserPage> {
     );
   }
 
-  // Método especial para manejar el cambio de correo en otro dispositivo
-  Future<void> _handleEmailChangeOnAnotherDevice() async {
-    _addDebugMessage(
-      "🚨 Ejecutando cierre de sesión por cambio de correo en otro dispositivo",
-    );
-
-    try {
-      // Obtener el nombre de usuario actual para mostrar un mensaje personalizado
-      final currentUser = FirebaseAuth.instance.currentUser;
-      final username = currentUser?.displayName ?? "usuario";
-      final email = currentUser?.email;
-
-      _addDebugMessage(
-        "📝 Datos antes de cerrar sesión - Username: $username, Email: $email",
-      );
-
-      // Cerrar sesión en el backend
-      if (email != null) {
-        try {
-          await UserService.logoutUser(email);
-          _addDebugMessage("✅ Sesión cerrada correctamente en el backend");
-        } catch (e) {
-          _addDebugMessage("⚠️ Error al cerrar sesión en el backend: $e");
-        }
-      }
-
-      // IMPORTANTE: Intentar hacer signOut en Firebase para forzar la redirección
-      try {
-        await FirebaseAuth.instance.signOut();
-        _addDebugMessage("✅ Sesión cerrada correctamente en Firebase");
-      } catch (e) {
-        _addDebugMessage("⚠️ Error al cerrar sesión en Firebase: $e");
-      }
-
-      // Desconectar WebSocket
-      WebSocketService().disconnect();
-
-      // Mostrar diálogo informativo antes de redireccionar
-      if (mounted) {
-        showDialog(
-          context: context,
-          barrierDismissible: false,
-          builder: (BuildContext context) {
-            return AlertDialog(
-              title: const Text('Cambio de correo detectado'),
-              content: Text(
-                'Hola $username, tu correo electrónico ha sido modificado en otro dispositivo. '
-                'Por razones de seguridad, necesitas volver a iniciar sesión con tu nuevo correo.',
-              ),
-              actions: <Widget>[
-                TextButton(
-                  child: const Text('Entendido'),
-                  onPressed: () {
-                    // Redireccionar a la página de login
-                    Navigator.of(context).pushAndRemoveUntil(
-                      MaterialPageRoute(
-                        builder: (context) => const LoginPage(),
-                      ),
-                      (route) => false,
-                    );
-                  },
-                ),
-              ],
-            );
-          },
-        );
-      }
-    } catch (e) {
-      _addDebugMessage("❌ Error manejando cambio de correo: $e");
-      // En caso de error, intentar redireccionar de todos modos
-      if (mounted) {
-        Navigator.of(context).pushAndRemoveUntil(
-          MaterialPageRoute(builder: (context) => const LoginPage()),
-          (route) => false,
-        );
-      }
-    }
-  }
-
   // Método para manejar cambio de cuenta en otro dispositivo
   Future<void> _handleAccountChangeOnAnotherDevice({
     required bool isPasswordChange,
     required bool isEmailChange,
     required bool isNameChange,
   }) async {
-    _addDebugMessage(
-      "🚨 Ejecutando cierre de sesión por cambio de cuenta en otro dispositivo",
-    );
-
     try {
       // Obtener el nombre de usuario actual para mostrar un mensaje personalizado
       final currentUser = FirebaseAuth.instance.currentUser;
-      final username = currentUser?.displayName ?? "usuario";
       final email = currentUser?.email;
-
-      _addDebugMessage(
-        "📝 Datos antes de cerrar sesión - Username: $username, Email: $email",
-      );
 
       // Cerrar sesión en el backend
       if (email != null) {
         try {
           await UserService.logoutUser(email);
-          _addDebugMessage("✅ Sesión cerrada correctamente en el backend");
         } catch (e) {
-          _addDebugMessage("⚠️ Error al cerrar sesión en el backend: $e");
+          // Log error pero continuar con el proceso de cierre
+          debugPrint('Error al cerrar sesión en el backend: $e');
         }
       }
 
       // IMPORTANTE: Intentar hacer signOut en Firebase para forzar la redirección
       try {
         await FirebaseAuth.instance.signOut();
-        _addDebugMessage("✅ Sesión cerrada correctamente en Firebase");
       } catch (e) {
-        _addDebugMessage("⚠️ Error al cerrar sesión en Firebase: $e");
+        // Log error pero continuar con el proceso
+        debugPrint('Error al cerrar sesión en Firebase: $e');
       }
 
       // Desconectar WebSocket
       WebSocketService().disconnect();
 
-      // Mostrar diálogo informativo antes de redireccionar
+      // Redireccionar a la página de login después de un breve retraso
+      // No mostramos diálogo adicional porque ya se mostró un SnackBar previamente
       if (mounted) {
-        String title = 'Cambio de cuenta detectado';
-        String message = '';
-
-        if (isEmailChange && isPasswordChange) {
-          title = 'Cambio de correo y contraseña';
-          message =
-              'Hola $username, tu correo electrónico y contraseña han sido modificados en otro dispositivo. '
-              'Por razones de seguridad, necesitas volver a iniciar sesión.';
-        } else if (isEmailChange) {
-          title = 'Cambio de correo detectado';
-          message =
-              'Hola $username, tu correo electrónico ha sido modificado en otro dispositivo. '
-              'Por razones de seguridad, necesitas volver a iniciar sesión con tu nuevo correo.';
-        } else if (isPasswordChange) {
-          title = 'Cambio de contraseña detectado';
-          message =
-              'Hola $username, tu contraseña ha sido modificada en otro dispositivo. '
-              'Por razones de seguridad, necesitas volver a iniciar sesión.';
-        } else if (isNameChange) {
-          title = 'Cambio de nombre detectado';
-          message =
-              'Hola $username, tu nombre ha sido modificado en otro dispositivo. '
-              'Por razones de seguridad, necesitas volver a iniciar sesión.';
-        }
-
-        showDialog(
-          context: context,
-          barrierDismissible: false,
-          builder: (BuildContext context) {
-            return AlertDialog(
-              title: Text(title),
-              content: Text(message),
-              actions: <Widget>[
-                TextButton(
-                  child: const Text('Entendido'),
-                  onPressed: () {
-                    // Redireccionar a la página de login
-                    Navigator.of(context).pushAndRemoveUntil(
-                      MaterialPageRoute(
-                        builder: (context) => const LoginPage(),
-                      ),
-                      (route) => false,
-                    );
-                  },
-                ),
-              ],
-            );
-          },
+        Navigator.of(context).pushAndRemoveUntil(
+          MaterialPageRoute(builder: (context) => const LoginPage()),
+          (route) => false,
         );
       }
     } catch (e) {
-      _addDebugMessage("❌ Error manejando cambio de cuenta: $e");
       // En caso de error, intentar redireccionar de todos modos
       if (mounted) {
         Navigator.of(context).pushAndRemoveUntil(
@@ -436,79 +333,38 @@ class _UserPageState extends State<UserPage> {
     }
   }
 
+  // Método para cargar los datos de usuario
   Future<void> _loadUserData() async {
     try {
-      _addDebugMessage("Iniciando carga de datos de usuario");
-      // Realizar un reload de la instancia de Firebase al entrar al perfil
       final user = FirebaseAuth.instance.currentUser;
-      if (user != null) {
-        try {
-          _addDebugMessage("Recargando usuario actual desde Firebase");
-          // Intentar recargar el usuario desde Firebase
-          await user.reload();
+      if (user != null && user.displayName != null) {
+        final username = user.displayName!;
 
-          // Verificar si el correo en Firebase coincide con el de la base de datos
-          await _checkAndSyncEmail();
+        // Cargar el nombre real del usuario
+        final realName = await UserService.getUserRealName(username);
 
-          // Verificar si el usuario sigue autenticado después del reload
-          final refreshedUser = FirebaseAuth.instance.currentUser;
-          if (refreshedUser == null) {
-            // La sesión ha caducado después del reload
-            _addDebugMessage("❌ Sesión caducada tras recargar");
-            if (mounted) {
-              await _showSessionExpiredDialog();
-              return;
-            }
-          }
+        // Obtener el tipo de usuario y nivel si es cliente
+        final tipoInfo = await UserService.getUserTypeAndLevel(username);
 
-          if (refreshedUser != null && refreshedUser.displayName != null) {
-            final username = refreshedUser.displayName!;
-            _addDebugMessage(
-              "Obteniendo nombre real para el usuario: $username",
-            );
+        final tipo = tipoInfo['tipo'] as String?;
+        final isClient = tipo == 'cliente';
+        final nivel = isClient ? (tipoInfo['nivell'] as int?) ?? 0 : 0;
 
-            // Cargar el nombre real del usuario
-            final realName = await UserService.getUserRealName(username);
-            _addDebugMessage("✅ Datos cargados correctamente: $realName");
-
-            // Obtener el tipo de usuario y nivel si es cliente
-            final tipoInfo = await UserService.getUserTypeAndLevel(username);
-            _addDebugMessage("🧩 Tipo de usuario: ${tipoInfo['tipo']}");
-
-            final tipo = tipoInfo['tipo'] as String?;
-            final isClient = tipo == 'cliente';
-            final nivel = isClient ? (tipoInfo['nivell'] as int?) ?? 0 : 0;
-
-            if (isClient) {
-              _addDebugMessage("⭐ Nivel de cliente: $nivel");
-            }
-
-            if (mounted) {
-              setState(() {
-                _realName = realName;
-                _userType = tipo ?? 'desconocido';
-                _isClient = isClient;
-                _userLevel = nivel;
-                _isLoading = false;
-              });
-            }
-          }
-        } catch (e) {
-          // Error al recargar el usuario, probablemente la sesión expiró
-          _addDebugMessage("❌ Error al recargar usuario de Firebase: $e");
-          if (mounted) {
-            await _showSessionExpiredDialog();
-          }
+        if (mounted) {
+          setState(() {
+            _realName = realName;
+            _isClient = isClient;
+            _userLevel = nivel;
+            _isLoading = false;
+          });
         }
       } else {
         // No hay usuario autenticado
-        _addDebugMessage("⚠️ No hay usuario autenticado");
         if (mounted) {
           await _showSessionExpiredDialog();
         }
       }
     } catch (e) {
-      _addDebugMessage("❌ Error general al cargar datos de usuario: $e");
       if (mounted) {
         setState(() {
           _realName = 'Error al cargar datos';
@@ -518,29 +374,9 @@ class _UserPageState extends State<UserPage> {
     }
   }
 
-  // Método para verificar y sincronizar el correo electrónico
-  Future<void> _checkAndSyncEmail() async {
-    _addDebugMessage("Verificando sincronización de correo electrónico");
-    try {
-      final wasUpdated = await UserService.syncEmailOnProfileLoad();
-      if (wasUpdated) {
-        _addDebugMessage(
-          "✅ Correo electrónico sincronizado entre Firebase y base de datos",
-        );
-      } else {
-        _addDebugMessage("ℹ️ No fue necesario sincronizar el correo");
-      }
-    } catch (e) {
-      _addDebugMessage("⚠️ Error al intentar sincronizar correo: $e");
-    }
-  }
-
   // Método para manejar la sesión caducada sin mostrar diálogo (ahora usa GlobalNotificationService)
   Future<void> _showSessionExpiredDialog() async {
     // Ya no mostramos el diálogo aquí porque el GlobalNotificationService lo manejará
-    _addDebugMessage(
-      "📤 Redireccionando a la página de login por sesión caducada",
-    );
 
     if (mounted) {
       Navigator.of(context).pushAndRemoveUntil(
@@ -551,19 +387,20 @@ class _UserPageState extends State<UserPage> {
   }
 
   // También necesitamos recargar cuando la página obtiene el foco nuevamente
+  bool _needsRefresh = false;
+
   @override
   void didChangeDependencies() {
     super.didChangeDependencies();
-    // Esto captura cuando la página vuelve a estar visible, por ejemplo cuando el usuario
-    // regresa a ella después de editar su perfil
-    final route = ModalRoute.of(context);
-    if (route != null) {
-      route.addScopedWillPopCallback(() async {
-        // Esta función se llamará cuando se regrese a esta página
-        _loadUserData();
-        return false; // Permitir que la navegación continúe
-      });
+    // Verificar si necesitamos recargar los datos (puede ser después de editar el perfil)
+    if (_needsRefresh) {
+      _loadUserData();
+      _needsRefresh = false;
     }
+  }
+
+  void markForRefresh() {
+    _needsRefresh = true;
   }
 
   @override
@@ -574,17 +411,26 @@ class _UserPageState extends State<UserPage> {
   }
 
   Future<void> _eliminarCuenta(BuildContext context) async {
+    // Guardar el contexto y verificar que el widget esté montado antes de continuar
+    final contextCaptured = context;
+
     final user = FirebaseAuth.instance.currentUser;
 
     if (user == null) {
-      ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(content: Text("No hay un usuario autenticado.")),
-      );
+      if (mounted) {
+        ScaffoldMessenger.of(contextCaptured).showSnackBar(
+          const SnackBar(content: Text("No hay un usuario autenticado.")),
+        );
+      }
       return;
     }
 
+    // Guardar una referencia al email para usarlo después del diálogo
+    final userEmail = user.email!;
+
+    // Mostrar el diálogo de confirmación
     final confirmacion = await showDialog<bool>(
-      context: context,
+      context: contextCaptured,
       builder:
           (context) => AlertDialog(
             title: const Text("Eliminar cuenta"),
@@ -607,6 +453,9 @@ class _UserPageState extends State<UserPage> {
           ),
     );
 
+    // Verificar que el widget aún esté montado después del await
+    if (!mounted) return;
+
     if (confirmacion == true) {
       // Desconecta el WebSocket antes de eliminar la cuenta
       WebSocketService().disconnect();
@@ -614,31 +463,111 @@ class _UserPageState extends State<UserPage> {
       // Obtener una instancia de AuthWrapper para establecer la bandera de logout manual
       try {
         final authWrapperState =
-            context.findAncestorStateOfType<AuthWrapperState>();
+            contextCaptured.findAncestorStateOfType<AuthWrapperState>();
         if (authWrapperState != null) {
           // Establecer bandera de logout manual para evitar la notificación
           authWrapperState.setManualLogout(true);
         }
       } catch (e) {
-        _addDebugMessage(
-          "⚠️ No se pudo establecer bandera de logout manual: $e",
-        );
+        debugPrint('Error al establecer bandera de logout manual: $e');
+        // Continuamos con el flujo normal
       }
 
-      final success = await UserService.deleteUser(user.email!);
-      final actualContext = context;
-      if (actualContext.mounted) {
-        if (success) {
-          ScaffoldMessenger.of(actualContext).showSnackBar(
-            const SnackBar(content: Text("Cuenta eliminada correctamente.")),
+      // Eliminar la cuenta
+      final success = await UserService.deleteUser(userEmail);
+
+      // Verificar nuevamente que el widget esté montado después de otra llamada asincrónica
+      if (!mounted) return;
+
+      if (success) {
+        ScaffoldMessenger.of(contextCaptured).showSnackBar(
+          const SnackBar(content: Text("Cuenta eliminada correctamente.")),
+        );
+        Navigator.pushReplacement(
+          contextCaptured,
+          MaterialPageRoute(builder: (context) => const LoginPage()),
+        );
+      } else {
+        ScaffoldMessenger.of(contextCaptured).showSnackBar(
+          const SnackBar(content: Text("Error al eliminar la cuenta")),
+        );
+      }
+    }
+  }
+
+  // Método unificado para manejar cierre de sesión
+  Future<void> _handleSessionClose({
+    String title = 'Sesión cerrada',
+    String message = 'Tu sesión ha sido cerrada',
+    bool redirectToLogin = true,
+  }) async {
+    try {
+      // Obtener el email del usuario actual
+      final user = FirebaseAuth.instance.currentUser;
+      final email = user?.email;
+
+      // Cerrar sesión en el backend
+      if (email != null) {
+        try {
+          await UserService.logoutUser(email);
+        } catch (e) {
+          debugPrint('Error al cerrar sesión en el backend: $e');
+          // Continuar con el proceso de cierre
+        }
+      }
+
+      // Desconectar WebSocket
+      WebSocketService().disconnect();
+
+      // Cerrar sesión en Firebase
+      try {
+        await FirebaseAuth.instance.signOut();
+      } catch (e) {
+        debugPrint('Error al cerrar sesión en Firebase: $e');
+        // Continuar con el proceso
+      }
+
+      // Redireccionar si es necesario
+      if (redirectToLogin && mounted) {
+        if (title.isNotEmpty && message.isNotEmpty) {
+          // Mostrar diálogo informativo
+          await showDialog(
+            context: context,
+            barrierDismissible: false,
+            builder: (BuildContext context) {
+              return AlertDialog(
+                title: Text(title),
+                content: Text(message),
+                actions: <Widget>[
+                  TextButton(
+                    child: const Text('Entendido'),
+                    onPressed: () {
+                      Navigator.of(context).pop();
+                    },
+                  ),
+                ],
+              );
+            },
           );
-          Navigator.pushReplacement(
-            context,
+        }
+
+        // Redireccionar a página de login - Ya no necesitamos verificar mounted de nuevo
+        Navigator.of(context).pushAndRemoveUntil(
+          MaterialPageRoute(builder: (context) => const LoginPage()),
+          (route) => false,
+        );
+      }
+    } catch (e) {
+      if (mounted) {
+        ScaffoldMessenger.of(
+          context,
+        ).showSnackBar(SnackBar(content: Text("Error al cerrar sesión: $e")));
+
+        // En caso de error, intentar redireccionar de todos modos
+        if (redirectToLogin) {
+          Navigator.of(context).pushAndRemoveUntil(
             MaterialPageRoute(builder: (context) => const LoginPage()),
-          );
-        } else {
-          ScaffoldMessenger.of(actualContext).showSnackBar(
-            const SnackBar(content: Text("Error al eliminar la cuenta")),
+            (route) => false,
           );
         }
       }
@@ -646,9 +575,12 @@ class _UserPageState extends State<UserPage> {
   }
 
   Future<void> _logout(BuildContext context) async {
+    // Capturar el contexto para usarlo después de operaciones asíncronas
+    final contextCaptured = context;
+
     // Mostrar diálogo de confirmación antes de cerrar sesión
     final confirmacion = await showDialog<bool>(
-      context: context,
+      context: contextCaptured,
       builder:
           (context) => AlertDialog(
             title: const Text("Cerrar Sesión"),
@@ -669,48 +601,19 @@ class _UserPageState extends State<UserPage> {
           ),
     );
 
+    // Verificar que el widget aún esté montado después del await
+    if (!mounted) return;
+
     // Si el usuario no confirmó, salir del método
     if (confirmacion != true) {
       return;
     }
 
-    _addDebugMessage("🚪 Ejecutando logout");
-
-    try {
-      // Obtener el email del usuario actual
-      final user = FirebaseAuth.instance.currentUser;
-      final email = user?.email;
-
-      // Cerrar sesión en el backend
-      if (email != null) {
-        try {
-          await UserService.logoutUser(email);
-          _addDebugMessage("✅ Sesión cerrada correctamente en el backend");
-        } catch (e) {
-          _addDebugMessage("⚠️ Error al cerrar sesión en el backend: $e");
-        }
-      }
-
-      // Desconectar WebSocket antes de cerrar sesión en Firebase
-      WebSocketService().disconnect();
-
-      // Cerrar sesión en Firebase
-      await FirebaseAuth.instance.signOut();
-      _addDebugMessage("✅ Sesión cerrada correctamente en Firebase");
-
-      // Redirigir a la página de login
-      if (mounted) {
-        Navigator.of(context).pushAndRemoveUntil(
-          MaterialPageRoute(builder: (context) => const LoginPage()),
-          (route) => false,
-        );
-      }
-    } catch (e) {
-      _addDebugMessage("❌ Error durante el logout: $e");
-      ScaffoldMessenger.of(
-        context,
-      ).showSnackBar(const SnackBar(content: Text("Error al cerrar sesión")));
-    }
+    await _handleSessionClose(
+      title: 'Sesión cerrada',
+      message: 'Has cerrado sesión correctamente.',
+      redirectToLogin: true,
+    );
   }
 
   @override
@@ -748,99 +651,13 @@ class _UserPageState extends State<UserPage> {
                 ),
                 const SizedBox(height: 30),
                 // Información del usuario
-                Card(
-                  elevation: 4,
-                  shape: RoundedRectangleBorder(
-                    borderRadius: BorderRadius.circular(15),
-                  ),
-                  child: Padding(
-                    padding: const EdgeInsets.all(16.0),
-                    child: Column(
-                      children: [
-                        ListTile(
-                          leading: const Icon(Icons.person, color: Colors.blue),
-                          title: const Text(
-                            'Nombre',
-                            style: TextStyle(fontWeight: FontWeight.bold),
-                          ),
-                          subtitle:
-                              _isLoading
-                                  ? const Center(
-                                    child: SizedBox(
-                                      height: 20,
-                                      width: 20,
-                                      child: CircularProgressIndicator(
-                                        strokeWidth: 2,
-                                      ),
-                                    ),
-                                  )
-                                  : Text(
-                                    _realName,
-                                    style: const TextStyle(fontSize: 16),
-                                  ),
-                        ),
-                        const Divider(),
-                        ListTile(
-                          leading: const Icon(
-                            Icons.alternate_email,
-                            color: Colors.blue,
-                          ),
-                          title: const Text(
-                            'Username',
-                            style: TextStyle(fontWeight: FontWeight.bold),
-                          ),
-                          subtitle: Text(
-                            username,
-                            style: const TextStyle(fontSize: 16),
-                          ),
-                        ),
-                        const Divider(),
-                        ListTile(
-                          leading: const Icon(Icons.email, color: Colors.blue),
-                          title: const Text(
-                            'Correo',
-                            style: TextStyle(fontWeight: FontWeight.bold),
-                          ),
-                          subtitle: Text(
-                            email,
-                            style: const TextStyle(fontSize: 16),
-                          ),
-                        ),
-                        // Mostrar nivel del cliente solo si el usuario es cliente
-                        if (_isClient) ...[
-                          const Divider(),
-                          ListTile(
-                            leading: const Icon(
-                              Icons.star,
-                              color: Colors.amber,
-                            ),
-                            title: const Text(
-                              'Nivel',
-                              style: TextStyle(fontWeight: FontWeight.bold),
-                            ),
-                            subtitle:
-                                _isLoading
-                                    ? const Center(
-                                      child: SizedBox(
-                                        height: 20,
-                                        width: 20,
-                                        child: CircularProgressIndicator(
-                                          strokeWidth: 2,
-                                        ),
-                                      ),
-                                    )
-                                    : Text(
-                                      '$_userLevel',
-                                      style: const TextStyle(
-                                        fontSize: 16,
-                                        fontWeight: FontWeight.bold,
-                                      ),
-                                    ),
-                          ),
-                        ],
-                      ],
-                    ),
-                  ),
+                UserInfoCard(
+                  realName: _realName,
+                  username: username,
+                  email: email,
+                  isClient: _isClient,
+                  userLevel: _userLevel,
+                  isLoading: _isLoading,
                 ),
                 const SizedBox(height: 30),
                 // Botones de acción
@@ -853,17 +670,19 @@ class _UserPageState extends State<UserPage> {
                           // Navegar a la página de edición y esperar a que regrese
                           await Navigator.of(context).push(
                             MaterialPageRoute(
-                              builder: (context) => EditProfilePage(),
+                              builder: (context) => const EditProfilePage(),
                             ),
                           );
 
-                          // Cuando regresamos de la página de edición, recargamos los datos
-                          if (mounted) {
-                            setState(() {
-                              _isLoading = true;
-                            });
-                            await _loadUserData();
-                          }
+                          // Verificar que el widget aún esté montado después de la navegación
+                          if (!mounted) return;
+
+                          // Marcar para refrescar datos cuando regresamos de la página de edición
+                          setState(() {
+                            _isLoading = true;
+                          });
+                          // Cargar datos inmediatamente
+                          await _loadUserData();
                         },
                         icon: const Icon(Icons.edit),
                         label: const Text('Editar Perfil'),
@@ -910,61 +729,6 @@ class _UserPageState extends State<UserPage> {
             ),
           ),
         ),
-
-        // Panel de depuración
-        if (_showDebugMessages)
-          Positioned(
-            bottom: 0,
-            left: 0,
-            right: 0,
-            child: Container(
-              height: 200,
-              color: Colors.black.withOpacity(0.8),
-              padding: const EdgeInsets.all(8),
-              child: Column(
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: [
-                  Row(
-                    mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                    children: [
-                      const Text(
-                        'Panel de Depuración',
-                        style: TextStyle(
-                          color: Colors.white,
-                          fontWeight: FontWeight.bold,
-                        ),
-                      ),
-                      IconButton(
-                        icon: const Icon(Icons.refresh, color: Colors.white),
-                        onPressed: () {
-                          _addDebugMessage("Forzando recarga manual de datos");
-                          setState(() {
-                            _isLoading = true;
-                          });
-                          _loadUserData();
-                        },
-                        tooltip: 'Forzar recarga',
-                      ),
-                    ],
-                  ),
-                  Expanded(
-                    child: ListView.builder(
-                      itemCount: _debugMessages.length,
-                      itemBuilder: (context, index) {
-                        return Text(
-                          _debugMessages[index],
-                          style: const TextStyle(
-                            color: Colors.white,
-                            fontSize: 10,
-                          ),
-                        );
-                      },
-                    ),
-                  ),
-                ],
-              ),
-            ),
-          ),
       ],
     );
 
@@ -975,26 +739,7 @@ class _UserPageState extends State<UserPage> {
 
     // De lo contrario, envuelve el contenido en un Scaffold completo
     return Scaffold(
-      appBar: AppBar(
-        title: const Text("Perfil de Usuario"),
-        actions: [
-          // Botón para activar/desactivar mensajes de depuración
-          IconButton(
-            icon: Icon(
-              _showDebugMessages ? Icons.visibility_off : Icons.visibility,
-            ),
-            onPressed: () {
-              setState(() {
-                _showDebugMessages = !_showDebugMessages;
-              });
-            },
-            tooltip:
-                _showDebugMessages
-                    ? 'Ocultar depuración'
-                    : 'Mostrar depuración',
-          ),
-        ],
-      ),
+      appBar: AppBar(title: const Text("Perfil de Usuario")),
       body: content,
     );
   }

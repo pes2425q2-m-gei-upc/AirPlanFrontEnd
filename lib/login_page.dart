@@ -75,11 +75,6 @@ class LoginPageState extends State<LoginPage> {
       // Initialize WebSocket connection after successful login
       WebSocketService().connect();
 
-      // La sincronización del email ya se está manejando en el backend
-      print('✅ Login exitoso');
-      print('🔌 WebSocket connection initialized');
-      print('🆔 ClientId: $clientId enviado en la solicitud de login');
-
       // Forzar la navegación a la página principal usando AuthWrapper
       if (mounted) {
         // Usando Navigator.pushAndRemoveUntil para limpiar la pila de navegación
