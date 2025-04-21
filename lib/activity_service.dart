@@ -88,4 +88,32 @@ class ActivityService {
       throw Exception('Error al actualizar la actividad: ${response.body}');
     }
   }
+  Future<bool> isActivityFavorite(int activityId, String username) async {
+    final url = Uri.parse('http://nattech.fib.upc.edu:40350/api/activitats/favorita/$activityId/$username');
+    final response = await http.get(url);
+
+    if (response.statusCode == 200) {
+      return jsonDecode(response.body)['isFavorite'] as bool;
+    } else {
+      throw Exception('Error checking if activity is favorite: ${response.body}');
+    }
+  }
+
+  Future<void> addActivityToFavorites(int activityId, String username) async {
+    final url = Uri.parse('http://nattech.fib.upc.edu:40350/api/activitats/favorita/añadir/$activityId/$username');
+    final response = await http.post(url);
+
+    if (response.statusCode != 200) {
+      throw Exception('Error adding activity to favorites: ${response.body}');
+    }
+  }
+
+  Future<void> removeActivityFromFavorites(int activityId, String username) async {
+    final url = Uri.parse('http://nattech.fib.upc.edu:40350/api/activitats/favorita/eliminar/$activityId/$username');
+    final response = await http.delete(url);
+
+    if (response.statusCode != 200) {
+      throw Exception('Error removing activity from favorites: ${response.body}');
+    }
+  }
 }
