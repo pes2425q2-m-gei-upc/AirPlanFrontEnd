@@ -3,6 +3,7 @@ import 'package:firebase_auth/firebase_auth.dart';
 import 'package:airplan/user_services.dart';
 import 'login_page.dart'; // Para redirigir al usuario después de eliminar la cuenta
 import 'invitations_page.dart';
+import 'user_activities_page.dart';
 
 class UserPage extends StatelessWidget {
   const UserPage({super.key});
@@ -88,6 +89,16 @@ class UserPage extends StatelessWidget {
                 );
               },
               child: const Text("Ver Invitaciones"),
+            ),
+            const SizedBox(height: 20), // Espaciado entre botones
+            ElevatedButton(
+              onPressed: () {
+                Navigator.push(
+                  context,
+                  MaterialPageRoute(builder: (context) => const UserActivitiesPage()),
+                );
+              },
+              child: const Text("Mis Actividades"),
             ),
           ],
         ),
