@@ -2,10 +2,11 @@
 import 'dart:convert';
 import 'package:http/http.dart' as http;
 import 'package:intl/intl.dart';
+import 'services/api_config.dart'; // Importar la configuración de API
 
 class ActivityService {
   Future<List<Map<String, dynamic>>> fetchActivities() async {
-    final url = Uri.parse('http://localhost:8080/api/activitats');
+    final url = Uri.parse(ApiConfig().buildUrl('api/activitats'));
     final response = await http.get(url);
 
     if (response.statusCode == 200) {
@@ -17,8 +18,8 @@ class ActivityService {
   }
 
   Future<void> sendActivityToBackend(Map<String, String> activityData) async {
-    final url = Uri.parse('http://localhost:8080/api/activitats/crear');
-    final dateFormat = DateFormat("yyyy-MM-dd'T'HH:mm:ss");
+    final url = Uri.parse(ApiConfig().buildUrl('api/activitats/crear'));
+    final dateFormat = DateFormat("yyyy-MM-dd\'T\'HH:mm:ss");
     final ubicacioParts = activityData['location']!.split(',');
     final ubicacio = <String, double>{
       'latitud': double.parse(ubicacioParts[0]),
@@ -30,7 +31,9 @@ class ActivityService {
       'nom': activityData['title']!,
       'descripcio': activityData['description']!,
       'ubicacio': ubicacio,
-      'dataInici': dateFormat.format(DateTime.parse(activityData['startDate']!)),
+      'dataInici': dateFormat.format(
+        DateTime.parse(activityData['startDate']!),
+      ),
       'dataFi': dateFormat.format(DateTime.parse(activityData['endDate']!)),
       'creador': activityData['user']!,
     };
@@ -49,7 +52,7 @@ class ActivityService {
   }
 
   Future<void> deleteActivityFromBackend(String activityId) async {
-    final url = Uri.parse('http://localhost:8080/api/activitats/$activityId');
+    final url = Uri.parse(ApiConfig().buildUrl('api/activitats/$activityId'));
     final response = await http.delete(url);
 
     if (response.statusCode != 200) {
@@ -57,9 +60,14 @@ class ActivityService {
     }
   }
 
-  Future<void> updateActivityInBackend(String activityId, Map<String, String> activityData) async {
-    final url = Uri.parse('http://localhost:8080/api/activitats/editar/$activityId');
-    final dateFormat = DateFormat("yyyy-MM-dd'T'HH:mm:ss");
+  Future<void> updateActivityInBackend(
+    String activityId,
+    Map<String, String> activityData,
+  ) async {
+    final url = Uri.parse(
+      ApiConfig().buildUrl('api/activitats/editar/$activityId'),
+    );
+    final dateFormat = DateFormat("yyyy-MM-dd\'T\'HH:mm:ss");
     final ubicacioParts = activityData['location']!.split(',');
     final ubicacio = <String, double>{
       'latitud': double.parse(ubicacioParts[0]),
@@ -71,7 +79,9 @@ class ActivityService {
       'nom': activityData['title']!,
       'descripcio': activityData['description']!,
       'ubicacio': ubicacio,
-      'dataInici': dateFormat.format(DateTime.parse(activityData['startDate']!)),
+      'dataInici': dateFormat.format(
+        DateTime.parse(activityData['startDate']!),
+      ),
       'dataFi': dateFormat.format(DateTime.parse(activityData['endDate']!)),
       'creador': activityData['user']!,
     };

@@ -6,6 +6,7 @@ import 'register.dart'; // Importem la pantalla de registre
 import 'reset_password.dart'; // Importem la pantalla de restabliment de contrasenya
 import 'main.dart'; // Importamos main.dart para acceder a AuthWrapper
 import 'services/websocket_service.dart'; // Import WebSocket service
+import 'services/api_config.dart'; // Importar la configuración de API
 
 class LoginPage extends StatefulWidget {
   const LoginPage({super.key});
@@ -52,7 +53,7 @@ class LoginPageState extends State<LoginPage> {
 
       // Enviar un POST al backend para el login, incluyendo ahora username y clientId
       final response = await http.post(
-        Uri.parse('http://localhost:8080/api/usuaris/login'),
+        Uri.parse(ApiConfig().buildUrl('api/usuaris/login')),
         headers: <String, String>{
           'Content-Type': 'application/json; charset=UTF-8',
         },

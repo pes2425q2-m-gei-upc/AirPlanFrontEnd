@@ -6,6 +6,7 @@ import 'package:uuid/uuid.dart';
 import 'dart:convert';
 import 'package:flutter/material.dart';
 import 'package:airplan/main.dart'; // Importar para acceder a navigatorKey
+import 'api_config.dart'; // Importar configuración de API
 
 /// WebSocketService manages real-time communication for profile updates across devices
 class WebSocketService {
@@ -101,24 +102,38 @@ class WebSocketService {
 
   // Connect to WebSocket server with current user credentials
   void connect() {
-    if (_isConnected) {
+    // Si ya estamos conectados, no hacemos nada
+    if (_isConnected && _channel != null) {
       return;
     }
+
+    // Limpiar cualquier conexión anterior que pudiera estar en mal estado
+    disconnect();
 
     // Actualizar las credenciales del usuario antes de conectar
     final user = FirebaseAuth.instance.currentUser;
     if (user == null) {
+      // No hay usuario autenticado, no podemos conectar
       return;
     }
 
     _currentUsername = user.displayName ?? '';
     _currentEmail = user.email ?? '';
 
+    // Si no hay credenciales válidas, no conectar
+    if (_currentUsername.isEmpty || _currentEmail.isEmpty) {
+      return;
+    }
+
     try {
+      // Usar ApiConfig para construir la URL del WebSocket
+      // Convertir http:// a ws:// para WebSockets
+      final baseUrl = ApiConfig().baseUrl.replaceFirst('http://', 'ws://');
+
       // Connect to WebSocket server with user credentials as query parameters
       _channel = WebSocketChannel.connect(
         Uri.parse(
-          'ws://localhost:8080/ws?username=$_currentUsername&email=$_currentEmail&clientId=$_clientId',
+          '$baseUrl/ws?username=$_currentUsername&email=$_currentEmail&clientId=$_clientId',
         ),
       );
 
@@ -146,6 +161,7 @@ class WebSocketService {
       _startPingTimer();
     } catch (e) {
       _isConnected = false;
+      print('Error al conectar WebSocket: $e');
       // Attempt to reconnect after a delay
       _scheduleReconnect();
     }
@@ -286,7 +302,12 @@ class WebSocketService {
   // Método público para forzar una reconexión
   void reconnect() {
     disconnect();
-    connect();
+
+    // Esperar un momento antes de reconectar para asegurar que los recursos
+    // se liberaron correctamente
+    Future.delayed(const Duration(milliseconds: 500), () {
+      connect();
+    });
   }
 
   // Disconnect from WebSocket server
@@ -299,11 +320,28 @@ class WebSocketService {
         _channel!.sink.close();
       } catch (e) {
         // Ignorar errores al cerrar
+        print('Error al cerrar WebSocket: $e');
       } finally {
         _isConnected = false;
         _channel = null;
       }
     }
+  }
+
+  // Reinicia la conexión al WebSocket con las credenciales actuales
+  Future<void> refreshConnection() async {
+    // Desconectar primero
+    disconnect();
+
+    // Actualizar credenciales desde Firebase Auth
+    final user = FirebaseAuth.instance.currentUser;
+    if (user != null) {
+      await user.reload();
+      _updateUserCredentials(user);
+    }
+
+    // Reconectar con las credenciales actualizadas
+    connect();
   }
 
   // Dispose resources

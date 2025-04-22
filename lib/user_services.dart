@@ -3,6 +3,7 @@ import 'package:firebase_auth/firebase_auth.dart';
 import 'package:http/http.dart' as http;
 import 'dart:convert';
 import 'services/websocket_service.dart';
+import 'services/api_config.dart'; // Importar la configuración de API
 
 class UserService {
   static Future<bool> deleteUser(String email) async {
@@ -19,7 +20,9 @@ class UserService {
       // 1. Eliminar del backend - Incluir clientId como parámetro de consulta
       final backendResponse = await http.delete(
         Uri.parse(
-          'http://localhost:8080/api/usuaris/eliminar/$email?clientId=$clientId',
+          ApiConfig().buildUrl(
+            'api/usuaris/eliminar/$email?clientId=$clientId',
+          ),
         ),
       );
 
@@ -47,7 +50,7 @@ class UserService {
     try {
       // Enviar notificación al backend para que notifique a otros dispositivos
       await http.post(
-        Uri.parse('http://localhost:8080/api/notifications/account-deleted'),
+        Uri.parse(ApiConfig().buildUrl('api/notifications/account-deleted')),
         headers: {'Content-Type': 'application/json'},
         body: json.encode({
           'email': email,
@@ -65,7 +68,7 @@ class UserService {
   static Future<bool> rollbackUserCreation(String email) async {
     try {
       final response = await http.delete(
-        Uri.parse('http://localhost:8080/api/usuaris/eliminar/$email'),
+        Uri.parse(ApiConfig().buildUrl('api/usuaris/eliminar/$email')),
       );
       return response.statusCode == 200;
     } catch (e) {
@@ -104,7 +107,7 @@ class UserService {
 
       // Intentar realizar la actualización sin verificación previa
       final response = await http.put(
-        Uri.parse('http://localhost:8080/api/usuaris/editar/$currentEmail'),
+        Uri.parse(ApiConfig().buildUrl('api/usuaris/editar/$currentEmail')),
         headers: {'Content-Type': 'application/json; charset=UTF-8'},
         body: jsonEncode(filteredData),
       );
@@ -123,7 +126,9 @@ class UserService {
             // Intentar obtener el usuario por username
             final usernameResponse = await http.get(
               Uri.parse(
-                'http://localhost:8080/api/usuaris/usuario-por-username/$usernameToUse',
+                ApiConfig().buildUrl(
+                  'api/usuaris/usuario-por-username/$usernameToUse',
+                ),
               ),
             );
 
@@ -135,7 +140,7 @@ class UserService {
                 // Intentar actualizar con el email que tenemos en la base de datos
                 final secondResponse = await http.put(
                   Uri.parse(
-                    'http://localhost:8080/api/usuaris/editar/$databaseEmail',
+                    ApiConfig().buildUrl('api/usuaris/editar/$databaseEmail'),
                   ),
                   headers: {'Content-Type': 'application/json; charset=UTF-8'},
                   body: jsonEncode(filteredData),
@@ -166,7 +171,7 @@ class UserService {
       // Obtener el nombre completo del usuario desde el backend usando el nuevo endpoint
       final response = await http.get(
         Uri.parse(
-          'http://localhost:8080/api/usuaris/usuario-por-username/$username',
+          ApiConfig().buildUrl('api/usuaris/usuario-por-username/$username'),
         ),
       );
 
@@ -187,7 +192,7 @@ class UserService {
   ) async {
     try {
       final response = await http.get(
-        Uri.parse('http://localhost:8080/api/usuaris/tipo-usuario/$username'),
+        Uri.parse(ApiConfig().buildUrl('api/usuaris/tipo-usuario/$username')),
       );
 
       if (response.statusCode == 200) {
@@ -204,7 +209,7 @@ class UserService {
   static Future<bool> logoutUser(String email) async {
     try {
       final response = await http.post(
-        Uri.parse('http://localhost:8080/api/usuaris/logout'),
+        Uri.parse(ApiConfig().buildUrl('api/usuaris/logout')),
         headers: {'Content-Type': 'application/json'},
         body: jsonEncode({'email': email}),
       );

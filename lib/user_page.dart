@@ -121,6 +121,8 @@ class _UserPageState extends State<UserPage> {
   bool _isClient = false;
   // WebSocket subscription for real-time updates
   StreamSubscription<String>? _profileUpdateSubscription;
+  // Suscripción para eventos de actualización global
+  StreamSubscription<Map<String, dynamic>>? _globalUpdateSubscription;
 
   @override
   void initState() {
@@ -128,6 +130,27 @@ class _UserPageState extends State<UserPage> {
     // Inicializar la conexión WebSocket antes de cargar datos
     _ensureWebSocketConnection();
     _loadUserData();
+    // Suscribirse a eventos globales de actualización
+    _subscribeToGlobalUpdates();
+  }
+
+  // Método para suscribirse a eventos globales
+  void _subscribeToGlobalUpdates() {
+    _globalUpdateSubscription = profileUpdateStreamController.stream.listen((
+      data,
+    ) {
+      // Verificar si es un evento de reanudación de la app O inicio de la app
+      if (data['type'] == 'app_resumed' || data['type'] == 'app_launched') {
+        // Recargar datos cuando la app se reanuda desde segundo plano o cuando se inicia desde cero
+        if (mounted) {
+          print('UserPage: Recargando datos por evento ${data['type']}');
+          setState(() {
+            _isLoading = true;
+          });
+          _loadUserData();
+        }
+      }
+    });
   }
 
   // Asegurar que la conexión WebSocket está activa
@@ -407,6 +430,7 @@ class _UserPageState extends State<UserPage> {
   void dispose() {
     // Cancel profile update subscription when the page is disposed
     _profileUpdateSubscription?.cancel();
+    _globalUpdateSubscription?.cancel();
     super.dispose();
   }
 

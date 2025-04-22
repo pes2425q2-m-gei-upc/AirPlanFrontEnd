@@ -12,6 +12,7 @@ import 'login_page.dart';
 import 'map_page.dart';
 import 'admin_page.dart';
 import 'services/websocket_service.dart'; // Import WebSocket service
+import 'services/api_config.dart'; // Importar la configuración de API
 import 'dart:async'; // Para StreamSubscription
 
 // Stream controller para comunicar actualizaciones de perfil a toda la aplicación
@@ -177,6 +178,9 @@ void main() async {
     ),
   );
 
+  // Inicializar la configuración de API
+  ApiConfig().initialize();
+
   runApp(const MiApp());
 }
 
@@ -191,6 +195,10 @@ class _MiAppState extends State<MiApp> with WidgetsBindingObserver {
   bool _isWindowClosing = false;
   // Suscripción a eventos de WebSocket para escucha global
   StreamSubscription<String>? _globalWebSocketSubscription;
+  // Flag para rastrear si la app estuvo en segundo plano
+  bool _wasInBackground = false;
+  // Tiempo de la última vez que la app estuvo activa
+  int _lastActiveTimestamp = 0;
 
   @override
   void initState() {
@@ -204,10 +212,18 @@ class _MiAppState extends State<MiApp> with WidgetsBindingObserver {
       });
     }
 
+    // Guardar timestamp de inicio
+    _lastActiveTimestamp = DateTime.now().millisecondsSinceEpoch;
+
     // Initialize WebSocket if user is already logged in
     final currentUser = FirebaseAuth.instance.currentUser;
     if (currentUser != null) {
       _initializeGlobalWebSocketListener();
+
+      // Si el usuario ya está autenticado al iniciar la app,
+      // forzar una recarga para sincronizar cambios que pudieron
+      // haber ocurrido mientras la app estaba cerrada
+      _checkForUpdatesOnLaunch(currentUser);
     }
 
     // Escuchar cambios de autenticación para inicializar/destruir el WebSocket según corresponda
@@ -219,6 +235,32 @@ class _MiAppState extends State<MiApp> with WidgetsBindingObserver {
         WebSocketService().disconnect();
       }
     });
+  }
+
+  // Verificar actualizaciones al iniciar la app
+  Future<void> _checkForUpdatesOnLaunch(User user) async {
+    try {
+      // Registrar en log que estamos verificando actualizaciones
+      print('Verificando actualizaciones al iniciar la app...');
+
+      // Recargar el usuario para obtener los datos más recientes
+      await user.reload();
+
+      // Notificar a toda la app que debe actualizar sus datos
+      // después de un pequeño retraso para asegurar que todos los widgets están montados
+      Future.delayed(const Duration(milliseconds: 500), () {
+        profileUpdateStreamController.add({
+          'type': 'app_launched',
+          'updatedFields': ['all'],
+          'data': {'timestamp': DateTime.now().millisecondsSinceEpoch},
+        });
+      });
+
+      // Asegurarnos que la conexión WebSocket está activa
+      WebSocketService().refreshConnection();
+    } catch (e) {
+      print('Error al verificar actualizaciones: $e');
+    }
   }
 
   // Inicializa la escucha global de WebSocket
@@ -389,7 +431,7 @@ class _MiAppState extends State<MiApp> with WidgetsBindingObserver {
     if (email != null) {
       try {
         await http.post(
-          Uri.parse('http://localhost:8080/api/usuaris/logout'),
+          Uri.parse(ApiConfig().buildUrl('api/usuaris/logout')),
           headers: {'Content-Type': 'application/json; charset=UTF-8'},
           body: jsonEncode({'email': email}),
         );
@@ -436,15 +478,44 @@ class _MiAppState extends State<MiApp> with WidgetsBindingObserver {
   @override
   void didChangeAppLifecycleState(AppLifecycleState state) {
     if (state == AppLifecycleState.paused && !kIsWeb) {
+      // La app está entrando en segundo plano
+      _wasInBackground = true;
+      _lastActiveTimestamp = DateTime.now().millisecondsSinceEpoch;
       // Disconnect WebSocket when app is paused
       WebSocketService().disconnect();
-      _logoutUser();
     } else if (state == AppLifecycleState.resumed) {
-      // Reconnect WebSocket when app is resumed, if user is logged in
+      // La app está volviendo al primer plano
       final currentUser = FirebaseAuth.instance.currentUser;
       if (currentUser != null) {
+        // Reconectar WebSocket
         WebSocketService().connect();
         _initializeGlobalWebSocketListener();
+
+        // Calcular cuánto tiempo ha pasado desde la última vez activa
+        final now = DateTime.now().millisecondsSinceEpoch;
+        final timeDiff = now - _lastActiveTimestamp;
+
+        // Si han pasado más de 5 segundos en segundo plano o fue cerrada completamente (_wasInBackground)
+        if (_wasInBackground || timeDiff > 5000) {
+          _wasInBackground = false;
+          _lastActiveTimestamp = now;
+
+          // Forzar recarga de datos de Firebase para sincronizar cambios
+          currentUser
+              .reload()
+              .then((_) {
+                // Notificar a toda la app que los datos pueden haber cambiado
+                profileUpdateStreamController.add({
+                  'type': 'app_resumed',
+                  'updatedFields': ['all'],
+                  'data': {'timestamp': now},
+                });
+              })
+              .catchError((error) {
+                // Manejar error de recarga silenciosamente
+                print('Error al recargar datos de Firebase: $error');
+              });
+        }
       }
     }
   }
@@ -461,7 +532,7 @@ class _MiAppState extends State<MiApp> with WidgetsBindingObserver {
           // Realizar logout en el backend
           try {
             await http.post(
-              Uri.parse('http://localhost:8080/api/usuaris/logout'),
+              Uri.parse(ApiConfig().buildUrl('api/usuaris/logout')),
               headers: {'Content-Type': 'application/json; charset=UTF-8'},
               body: jsonEncode({'email': email}),
             );
@@ -525,7 +596,7 @@ class AuthWrapperState extends State<AuthWrapper> {
   Future<bool> checkIfAdmin(String email) async {
     try {
       final response = await http.get(
-        Uri.parse('http://localhost:8080/isAdmin/$email'),
+        Uri.parse(ApiConfig().buildUrl('isAdmin/$email')),
       );
       if (response.statusCode == 200) {
         final data = jsonDecode(response.body);

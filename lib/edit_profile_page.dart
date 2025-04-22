@@ -1,5 +1,4 @@
 import 'package:flutter/material.dart';
-import 'package:airplan/user_services.dart';
 import 'package:firebase_auth/firebase_auth.dart';
 import 'dart:io';
 import 'package:image_picker/image_picker.dart';
@@ -11,6 +10,8 @@ import 'login_page.dart';
 import 'dart:convert';
 import 'services/websocket_service.dart';
 import 'services/notification_service.dart';
+import 'services/api_config.dart'; // Importar la configuración de API
+import 'main.dart'; // Importamos main.dart para acceder a profileUpdateStreamController
 
 class EditProfilePage extends StatefulWidget {
   const EditProfilePage({super.key});
@@ -38,6 +39,8 @@ class EditProfilePageState extends State<EditProfilePage> {
   StreamSubscription<User?>? _authStateSubscription;
   StreamSubscription<String>?
   _profileUpdateSubscription; // For WebSocket updates
+  StreamSubscription<Map<String, dynamic>>?
+  _globalUpdateSubscription; // Para eventos globales
 
   final List<String> _languages = ['Castellano', 'Catalan', 'English'];
 
@@ -67,6 +70,24 @@ class EditProfilePageState extends State<EditProfilePage> {
 
     // Initialize and connect to WebSocket service
     _initWebSocketService();
+
+    // Suscribirse a eventos globales
+    _subscribeToGlobalEvents();
+  }
+
+  // Método para suscribirse a eventos globales
+  void _subscribeToGlobalEvents() {
+    _globalUpdateSubscription = profileUpdateStreamController.stream.listen((
+      data,
+    ) {
+      // Si la app acaba de iniciarse o volver de segundo plano, recargar datos
+      if (data['type'] == 'app_resumed' || data['type'] == 'app_launched') {
+        if (mounted) {
+          print('EditProfilePage: Recargando datos por evento ${data['type']}');
+          _loadUserData();
+        }
+      }
+    });
   }
 
   // Initialize WebSocket service and subscribe to updates
@@ -115,7 +136,7 @@ class EditProfilePageState extends State<EditProfilePage> {
         // Obtener datos completos del usuario desde el backend
         final response = await http.get(
           Uri.parse(
-            'http://localhost:8080/api/usuaris/usuario-por-username/$username',
+            ApiConfig().buildUrl('api/usuaris/usuario-por-username/$username'),
           ),
         );
 
@@ -154,16 +175,18 @@ class EditProfilePageState extends State<EditProfilePage> {
 
   @override
   void dispose() {
+    // Cancelar todas las suscripciones
+    _authStateSubscription?.cancel();
+    _profileUpdateSubscription?.cancel();
+    _globalUpdateSubscription?.cancel();
+
+    // Liberar los controladores de texto
     _nameController.dispose();
     _usernameController.dispose();
     _emailController.dispose();
     _currentPasswordController.dispose();
     _newPasswordController.dispose();
     _confirmPasswordController.dispose();
-    // Cancelar la suscripción al listener cuando se destruye la página
-    _authStateSubscription?.cancel();
-    // Cancel WebSocket subscription
-    _profileUpdateSubscription?.cancel();
     super.dispose();
   }
 
@@ -192,7 +215,7 @@ class EditProfilePageState extends State<EditProfilePage> {
       // Para web, enviamos los bytes de la imagen
       final request = http.MultipartRequest(
         'POST',
-        Uri.parse('http://localhost:8080/api/uploadImage'),
+        Uri.parse(ApiConfig().buildUrl('api/uploadImage')),
       );
 
       // Crear un archivo temporal desde los bytes
@@ -222,7 +245,7 @@ class EditProfilePageState extends State<EditProfilePage> {
       if (_selectedImage == null) return null;
       final request = http.MultipartRequest(
         'POST',
-        Uri.parse('http://localhost:8080/api/uploadImage'),
+        Uri.parse(ApiConfig().buildUrl('api/uploadImage')),
       );
       request.files.add(
         await http.MultipartFile.fromPath('image', _selectedImage!.path),
@@ -246,21 +269,6 @@ class EditProfilePageState extends State<EditProfilePage> {
   }
 
   // Método para verificar si un nombre de usuario ya existe
-  Future<bool> _checkUsernameExists(String username) async {
-    try {
-      final response = await http.get(
-        Uri.parse('http://localhost:8080/api/usuaris/check-username/$username'),
-      );
-
-      if (response.statusCode == 200) {
-        final data = json.decode(response.body);
-        return data['exists'] ?? false;
-      }
-      return false;
-    } catch (e) {
-      return false;
-    }
-  }
 
   void _saveProfile() async {
     if (!mounted) return;
@@ -378,7 +386,7 @@ class EditProfilePageState extends State<EditProfilePage> {
     try {
       // Realizar petición unificada al backend
       final response = await http.post(
-        Uri.parse('http://localhost:8080/api/usuaris/updateFullProfile'),
+        Uri.parse(ApiConfig().buildUrl('api/usuaris/updateFullProfile')),
         headers: {'Content-Type': 'application/json'},
         body: json.encode(updateData),
       );
@@ -468,7 +476,7 @@ class EditProfilePageState extends State<EditProfilePage> {
           try {
             await http.post(
               Uri.parse(
-                'http://localhost:8080/api/notifications/profile-updated',
+                ApiConfig().buildUrl('api/notifications/profile-updated'),
               ),
               headers: {'Content-Type': 'application/json'},
               body: json.encode({
@@ -647,236 +655,6 @@ class EditProfilePageState extends State<EditProfilePage> {
     );
   }
 
-  // Método para manejar el cambio de correo electrónico con actualización directa
-  Future<void> _handleEmailChange(
-    String currentEmail,
-    String newEmail,
-    Map<String, dynamic> updatedData,
-  ) async {
-    if (!mounted) return;
-
-    final currentUser = FirebaseAuth.instance.currentUser;
-    if (currentUser == null) return;
-
-    try {
-      // Verificamos si el correo electrónico ya está en uso
-      bool emailInUse = false;
-      try {
-        final authMethods = await FirebaseAuth.instance
-            .fetchSignInMethodsForEmail(newEmail);
-        if (authMethods.isNotEmpty) {
-          emailInUse = true;
-        }
-      } catch (e) {
-        // Si hay un error al verificar, continuamos con el proceso
-      }
-
-      if (emailInUse) {
-        // Si detectamos que el correo ya está en uso, mostramos el error directamente
-        if (mounted) {
-          NotificationService.showError(
-            context,
-            'El correo electrónico ya está siendo utilizado por otra cuenta.',
-          );
-        }
-        return;
-      }
-
-      // Re-autenticar al usuario antes de proceder con el cambio de correo
-      final password = await _showReauthDialog();
-      if (password == null || password.isEmpty) {
-        if (mounted) {
-          NotificationService.showInfo(context, 'Cambio de correo cancelado.');
-        }
-        return;
-      }
-
-      final reauthSuccess = await _reauthenticateUser(password);
-      if (!reauthSuccess) {
-        return; // El método _reauthenticateUser ya muestra el mensaje de error
-      }
-
-      // Mostrar indicador de carga
-      if (mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          const SnackBar(
-            content: Row(
-              children: [
-                CircularProgressIndicator(),
-                SizedBox(width: 20),
-                Text("Actualizando correo electrónico..."),
-              ],
-            ),
-          ),
-        );
-      }
-
-      // Obtenemos el clientId para evitar notificaciones duplicadas
-      final clientId = WebSocketService().clientId;
-
-      // Paso 1: Llamamos al backend para actualizar el correo en la base de datos
-      // y en Firebase y notificar a otros dispositivos
-      final response = await http.post(
-        Uri.parse('http://localhost:8080/api/usuaris/directUpdateEmail'),
-        headers: {'Content-Type': 'application/json'},
-        body: json.encode({
-          'oldEmail': currentEmail,
-          'newEmail': newEmail,
-          'clientId':
-              clientId, // Para que este dispositivo no reciba la notificación
-        }),
-      );
-
-      // Cerrar el indicador de carga
-      if (mounted) {
-        ScaffoldMessenger.of(context).hideCurrentSnackBar();
-      }
-
-      if (response.statusCode == 200) {
-        // Decodificar la respuesta del servidor
-        final responseData = json.decode(response.body);
-        final bool success = responseData['success'] ?? false;
-        final String message =
-            responseData['message'] ?? 'Correo actualizado correctamente';
-        final String? customToken = responseData['customToken'] as String?;
-
-        if (success) {
-          // Si tenemos un token personalizado, lo usamos para iniciar sesión
-          if (customToken != null && customToken.isNotEmpty) {
-            try {
-              // Iniciar sesión con el token personalizado para mantener la sesión activa
-              await FirebaseAuth.instance.signInWithCustomToken(customToken);
-
-              // Paso 2: Actualizamos el resto del perfil
-              final profileResult = await UserService.editUser(
-                newEmail, // Usamos el nuevo correo como identificador
-                updatedData,
-              );
-
-              if (mounted) {
-                if (profileResult['success']) {
-                  try {
-                    // Paso 3: Actualizamos otros campos locales en Firebase si es necesario
-                    final updatedUser = FirebaseAuth.instance.currentUser;
-                    if (updatedUser != null) {
-                      if (updatedData['photoURL'] != null) {
-                        await updatedUser.updatePhotoURL(
-                          updatedData['photoURL'],
-                        );
-                      }
-
-                      final String newUsername = updatedData['username'] ?? '';
-                      final String currentUsername =
-                          updatedUser.displayName ?? '';
-                      if (newUsername.isNotEmpty &&
-                          newUsername != currentUsername) {
-                        await updatedUser.updateDisplayName(newUsername);
-                      }
-                    }
-
-                    // Mostrar notificación de éxito
-                    NotificationService.showSuccess(context, message);
-
-                    // Recargar la página para reflejar los cambios
-                    _loadUserData();
-                  } catch (e) {
-                    NotificationService.showInfo(
-                      context,
-                      '$message\nAlgunos detalles del perfil pueden no haberse actualizado completamente.',
-                    );
-                    _loadUserData();
-                  }
-                } else {
-                  // Error al actualizar el perfil
-                  NotificationService.showError(
-                    context,
-                    'El correo se actualizó pero hubo un error al actualizar el perfil: ${profileResult['error']}',
-                  );
-                }
-              }
-            } catch (e) {
-              // Si falla la autenticación con token personalizado
-              if (mounted) {
-                NotificationService.showInfo(
-                  context,
-                  '$message\nPero tu sesión se ha desconectado. Inicia sesión nuevamente con el nuevo correo.',
-                );
-                // La sesión se cerró automáticamente y _authStateSubscription llevará al usuario a la pantalla de login
-              }
-            }
-          } else {
-            // No hay token personalizado, el proceso fue exitoso pero la sesión se cerrará
-            if (mounted) {
-              NotificationService.showInfo(
-                context,
-                '$message\nPor favor, inicia sesión nuevamente con tu nuevo correo.',
-              );
-              // La sesión se cerrará automáticamente y _authStateSubscription llevará al usuario a la pantalla de login
-            }
-          }
-        } else {
-          // Si success es false, mostrar el mensaje de error del servidor
-          if (mounted) {
-            NotificationService.showError(
-              context,
-              responseData['error'] ?? 'Error al actualizar el correo',
-            );
-          }
-        }
-      } else {
-        // Error al actualizar el correo
-        String errorMessage;
-        try {
-          final errorData = json.decode(response.body);
-          errorMessage = errorData['error'] ?? 'Error desconocido';
-        } catch (e) {
-          errorMessage = 'Error de comunicación con el servidor';
-        }
-
-        if (mounted) {
-          NotificationService.showError(
-            context,
-            'Error al actualizar el correo: $errorMessage',
-          );
-        }
-      }
-    } on FirebaseAuthException catch (e) {
-      if (!mounted) return;
-
-      // Manejar errores específicos de Firebase Auth
-      String errorMessage;
-
-      switch (e.code) {
-        case 'email-already-in-use':
-          errorMessage =
-              'El correo electrónico ya está siendo utilizado por otra cuenta.';
-          break;
-        case 'invalid-email':
-          errorMessage = 'El formato del correo electrónico no es válido.';
-          break;
-        case 'requires-recent-login':
-          errorMessage =
-              'Esta operación es sensible. Por favor, intenta iniciar sesión nuevamente antes de cambiar el correo.';
-          break;
-        default:
-          errorMessage = 'Error al cambiar el correo electrónico: ${e.message}';
-      }
-
-      // Mostrar mensaje de error
-      if (mounted) {
-        NotificationService.showError(context, errorMessage);
-      }
-    } catch (e) {
-      // Capturar cualquier otro tipo de error
-      if (mounted) {
-        NotificationService.showError(
-          context,
-          'Error al cambiar el correo electrónico: $e',
-        );
-      }
-    }
-  }
-
   // Método para cambiar la contraseña
   Future<void> _changePassword() async {
     if (!mounted) return;
@@ -953,7 +731,7 @@ class EditProfilePageState extends State<EditProfilePage> {
       final clientId = WebSocketService().clientId;
       try {
         await http.post(
-          Uri.parse('http://localhost:8080/api/notifications/profile-updated'),
+          Uri.parse(ApiConfig().buildUrl('api/notifications/profile-updated')),
           headers: {'Content-Type': 'application/json'},
           body: json.encode({
             'username': user.displayName ?? '',
