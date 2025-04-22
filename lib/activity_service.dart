@@ -89,27 +89,33 @@ class ActivityService {
     }
   }
   Future<bool> isActivityFavorite(int activityId, String username) async {
-    final url = Uri.parse('http://nattech.fib.upc.edu:40350/api/activitats/favorita/$activityId/$username');
+    //final url = Uri.parse('http://nattech.fib.upc.edu:40350/api/activitats/favorita/$activityId/$username');
+    final url = Uri.parse('http://127.0.0.1:8080/api/activitats/favorita/$activityId/$username');
     final response = await http.get(url);
 
+    print("Response status: ${response.statusCode}");
+    print("Response body: ${response.body}");
+
     if (response.statusCode == 200) {
-      return jsonDecode(response.body)['isFavorite'] as bool;
+      return jsonDecode(response.body)['esFavorita'] as bool;
     } else {
       throw Exception('Error checking if activity is favorite: ${response.body}');
     }
   }
 
   Future<void> addActivityToFavorites(int activityId, String username) async {
-    final url = Uri.parse('http://nattech.fib.upc.edu:40350/api/activitats/favorita/añadir/$activityId/$username');
+    //final url = Uri.parse('http://nattech.fib.upc.edu:40350/api/activitats/favorita/anadir/$activityId/$username');
+    final url = Uri.parse('http://127.0.0.1:8080/api/activitats/favorita/anadir/$activityId/$username');
     final response = await http.post(url);
 
-    if (response.statusCode != 200) {
+    if (response.statusCode != 201) {
       throw Exception('Error adding activity to favorites: ${response.body}');
     }
   }
 
   Future<void> removeActivityFromFavorites(int activityId, String username) async {
-    final url = Uri.parse('http://nattech.fib.upc.edu:40350/api/activitats/favorita/eliminar/$activityId/$username');
+    //final url = Uri.parse('http://nattech.fib.upc.edu:40350/api/activitats/favorita/eliminar/$activityId/$username');
+    final url = Uri.parse('http://127.0.0.1:8080/api/activitats/favorita/eliminar/$activityId/$username');
     final response = await http.delete(url);
 
     if (response.statusCode != 200) {

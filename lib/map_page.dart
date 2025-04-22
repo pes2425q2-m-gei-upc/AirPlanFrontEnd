@@ -237,37 +237,35 @@ class MapPageState extends State<MapPage> {
     }
   }
 
-  void _showActivityDetails(Map<String, dynamic> activity) {
+  void _showActivityDetails(Map<String, dynamic> activity) async {
     final String? currentUser = FirebaseAuth.instance.currentUser?.displayName;
     final bool isCurrentUserCreator = currentUser != null &&
         activity['creador'] == currentUser;
+
+    bool isFavorite = false;
+
+    try {
+      isFavorite = await isActivityFavorite(activity['id']);
+    } catch (error) {
+      if (context.mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(SnackBar(
+          content: Text('Error checking favorite status: $error'),
+        ));
+      }
+    }
+
+    if (!mounted) return;
 
     showModalBottomSheet(
       context: context,
       builder: (context) {
         return StatefulBuilder(
           builder: (context, setState) {
-            bool isFavorite = false;
-
-            // Fetch the initial favorite state
-            isActivityFavorite(activity['id']).then((value) {
-              setState(() {
-                isFavorite = value;
-              });
-            }).catchError((error) {
-              if (context.mounted) {
-                ScaffoldMessenger.of(context).showSnackBar(SnackBar(
-                  content: Text('Error checking favorite status: $error'),
-                ));
-              }
-            });
-
             return Container(
               padding: EdgeInsets.all(16.0),
               child: Row(
                 mainAxisAlignment: MainAxisAlignment.spaceBetween,
                 children: [
-                  // Left content (title and creator)
                   Expanded(
                     child: Column(
                       crossAxisAlignment: CrossAxisAlignment.start,
@@ -296,41 +294,30 @@ class MapPageState extends State<MapPage> {
                       ],
                     ),
                   ),
-                  // Favorite button
                   IconButton(
                     icon: Icon(
                       isFavorite ? Icons.favorite : Icons.favorite_border,
                       color: isFavorite ? Colors.red : Colors.grey,
                     ),
-                    onPressed: () {
-                      if (isFavorite) {
-                        removeActivityFromFavorites(activity['id']).then((_) {
-                          setState(() {
-                            isFavorite = false;
-                          });
-                        }).catchError((error) {
-                          if (context.mounted) {
-                            ScaffoldMessenger.of(context).showSnackBar(SnackBar(
-                              content: Text('Error removing favorite: $error'),
-                            ));
-                          }
+                    onPressed: () async {
+                      try {
+                        if (isFavorite) {
+                          await removeActivityFromFavorites(activity['id']);
+                        } else {
+                          await addActivityToFavorites(activity['id']);
+                        }
+                        setState(() {
+                          isFavorite = !isFavorite;
                         });
-                      } else {
-                        addActivityToFavorites(activity['id']).then((_) {
-                          setState(() {
-                            isFavorite = true;
-                          });
-                        }).catchError((error) {
-                          if (context.mounted) {
-                            ScaffoldMessenger.of(context).showSnackBar(SnackBar(
-                              content: Text('Error adding favorite: $error'),
-                            ));
-                          }
-                        });
+                      } catch (error) {
+                        if (context.mounted) {
+                          ScaffoldMessenger.of(context).showSnackBar(SnackBar(
+                            content: Text('Error updating favorite status: $error'),
+                          ));
+                        }
                       }
                     },
                   ),
-                  // Edit/Delete buttons (only if the user is the creator)
                   if (isCurrentUserCreator)
                     Row(
                       children: [
@@ -606,6 +593,8 @@ class MapPageState extends State<MapPage> {
     if (username == null) {
       throw Exception('User not logged in');
     }
+    bool isFavorite = await activityService.isActivityFavorite(activityId, username);
+    print("isFavorite: $isFavorite");
     return await activityService.isActivityFavorite(activityId, username);
   }
 
