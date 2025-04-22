@@ -5,9 +5,7 @@ import 'package:firebase_auth/firebase_auth.dart';
 import 'package:http/http.dart' as http;
 import 'dart:convert';
 import 'package:sign_button/sign_button.dart';
-import 'package:oauth2_client/oauth2_client.dart';
 import 'package:oauth2_client/github_oauth2_client.dart';
-import 'package:flutter_web_auth_2/flutter_web_auth_2.dart';
 import 'package:flutter/foundation.dart' show kIsWeb;
 
 class LoginPage extends StatefulWidget {
@@ -109,29 +107,20 @@ class LoginPageState extends State<LoginPage> {
         }
       } else {
         // 📱 FLUJO PARA MÓVIL
-        final client = GitHubOAuth2Client(
-          redirectUri: 'myapp://callback',
-          customUriScheme: 'myapp',
-        );
+        final githubProvider = GithubAuthProvider();
+        githubProvider.addScope('read:user,user:email');
 
-        final authParams = {
-          'response_type': 'code',
-          'state': _generateRandomString(32),
-        };
+        final UserCredential userCredential = await _auth.signInWithProvider(githubProvider);
 
-        final tokenResp = await client.getTokenWithAuthCodeFlow(
-          clientId: 'Ov23ctwZIlv1RaLobwtX',
-          clientSecret: '8136bf808d8880450ae7a600edcf217862d30422',
-          scopes: ['read:user', 'user:email'],
-          authCodeParams: authParams,
-        );
+// 1. Obtener el access_token de GitHub
+        final OAuthCredential? credential = userCredential.credential as OAuthCredential?;
+        final String? githubAccessToken = credential?.accessToken;
 
-        final githubAccessToken = tokenResp.accessToken;
         if (githubAccessToken == null) {
-          throw Exception("No se pudo obtener el token de acceso de GitHub");
+          throw Exception("No se pudo obtener el token de GitHub");
         }
 
-        // 👉 Obtener username y ID de GitHub
+// 2. Obtener datos del usuario de GitHub
         final response = await http.get(
           Uri.parse('https://api.github.com/user'),
           headers: {
@@ -141,40 +130,33 @@ class LoginPageState extends State<LoginPage> {
         );
 
         if (response.statusCode != 200) {
-          throw Exception(
-              "Error al obtener datos del usuario de GitHub: ${response.body}");
+          throw Exception("Error al obtener datos de GitHub: ${response.body}");
         }
-
+        print("mamahuevo");
         final userData = jsonDecode(response.body);
         String username = userData['login'];
         final int githubId = userData['id'];
 
-        // 🔐 Autenticación con Firebase
-        final credential = GithubAuthProvider.credential(githubAccessToken);
-        final userCredential = await _auth.signInWithCredential(credential);
-        print("Usuario autenticado con Firebase (móvil): ${userCredential.user?.uid}");
-        print("Usuario autenticado con Firebase (móvil): ${userCredential.user?.displayName}");
-
-        // Actualizar el displayName del usuario
-        final user = _auth.currentUser;
-        if (user != null && (user.displayName == null || user.displayName!.isEmpty)) {
-          await user.updateDisplayName(username + "_" + githubId.toString());
-          await user.reload();
-          print("DisplayName actualizado en móvil: ${user.displayName}");
-        }
-
-        print("Usuario autenticado con Firebase (móvil): ${userCredential.user?.uid}");
-        print("Usuario autenticado con Firebase (móvil): ${userCredential.user?.displayName}");
-
+// 3. Verificar/crear usuario en backend usando GITHUB_ID (no UID de Firebase)
         final email = userCredential.user?.email;
 
         if (email != null) {
           final userExists = await _checkUserExists(email);
           if (!userExists) {
-            // Crear el usuario con username único e ID de GitHub
-            await _createUserInBackend(email, username, githubId.toString());
+            await _createUserInBackend(
+              email,
+              username,
+              githubId.toString(), // Usar ID de GitHub, no UID de Firebase
+            );
           }
-          // Login en backend
+
+          // 4. Actualizar displayName en Firebase si es necesario
+          final user = _auth.currentUser;
+          if (user != null && (user.displayName == null || user.displayName!.isEmpty)) {
+            await user.updateDisplayName(username + "_" + githubId.toString());
+            await user.reload();
+          }
+          print("bien mas o menos, creo que bien");
           await _sendLoginToBackend(email);
         }
       }
