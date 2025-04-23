@@ -594,7 +594,6 @@ class MapPageState extends State<MapPage> {
       throw Exception('User not logged in');
     }
     bool isFavorite = await activityService.isActivityFavorite(activityId, username);
-    print("isFavorite: $isFavorite");
     return await activityService.isActivityFavorite(activityId, username);
   }
 
