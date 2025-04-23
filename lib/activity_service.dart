@@ -93,9 +93,6 @@ class ActivityService {
     final url = Uri.parse('http://127.0.0.1:8080/api/activitats/favorita/$activityId/$username');
     final response = await http.get(url);
 
-    print("Response status: ${response.statusCode}");
-    print("Response body: ${response.body}");
-
     if (response.statusCode == 200) {
       return jsonDecode(response.body)['esFavorita'] as bool;
     } else {
@@ -120,6 +117,19 @@ class ActivityService {
 
     if (response.statusCode != 200) {
       throw Exception('Error removing activity from favorites: ${response.body}');
+    }
+  }
+
+  Future<List<Map<String, dynamic>>> fetchFavoriteActivities(String username) async {
+    //final url = Uri.parse('http://nattech.fib.upc.edu:40350/api/activitats/favoritas/$username');
+    final url = Uri.parse('http://127.0.0.1:8080/api/activitats/favoritas/$username');
+    final response = await http.get(url);
+
+    if (response.statusCode == 200) {
+      final List<dynamic> data = jsonDecode(response.body);
+      return data.cast<Map<String, dynamic>>();
+    } else {
+      throw Exception('Error al obtener actividades favoritas: ${response.body}');
     }
   }
 }

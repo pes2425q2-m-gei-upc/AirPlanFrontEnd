@@ -614,6 +614,58 @@ class MapPageState extends State<MapPage> {
     await activityService.removeActivityFromFavorites(activityId, username);
   }
 
+  Future<void> _showFavoriteActivities() async {
+    try {
+      final String? username = FirebaseAuth.instance.currentUser?.displayName;
+      if (username == null) {
+        throw Exception('User not logged in');
+      }
+
+      final favoriteActivities = await activityService.fetchFavoriteActivities(username);
+
+      if (!mounted) return;
+
+      showModalBottomSheet(
+        context: context,
+        builder: (context) {
+          if (favoriteActivities.isEmpty) {
+            return Center(
+              child: Padding(
+                padding: const EdgeInsets.all(16.0),
+                child: Text(
+                  'No tienes actividades favoritas.',
+                  style: TextStyle(fontSize: 16, fontWeight: FontWeight.bold),
+                  textAlign: TextAlign.center,
+                ),
+              ),
+            );
+          }
+
+          return ListView.builder(
+            itemCount: favoriteActivities.length,
+            itemBuilder: (context, index) {
+              final activity = favoriteActivities[index];
+              return ListTile(
+                title: Text(activity['nom'] ?? 'Sin título'),
+                subtitle: Text(activity['descripcio'] ?? 'Sin descripción'),
+                onTap: () {
+                  Navigator.pop(context);
+                  _navigateToActivityDetails(activity);
+                },
+              );
+            },
+          );
+        },
+      );
+    } catch (e) {
+      if (context.mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(SnackBar(
+          content: Text('Error al obtener actividades favoritas: ${e.toString()}'),
+        ));
+      }
+    }
+  }
+
   @override
   Widget build(BuildContext context) {
     return Scaffold(
@@ -637,6 +689,14 @@ class MapPageState extends State<MapPage> {
             child: FloatingActionButton(
               onPressed: _toggleAirQualityCircles,
               child: Icon(showAirQualityCircles ? Icons.visibility : Icons.visibility_off),
+            ),
+          ),
+          Positioned(
+            top: 10,
+            left: 10,
+            child: FloatingActionButton(
+              onPressed: _showFavoriteActivities,
+              child: const Icon(Icons.favorite),
             ),
           ),
         ],
