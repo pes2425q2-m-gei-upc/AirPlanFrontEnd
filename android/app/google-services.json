@@ -1,0 +1,68 @@
+{
+  "project_info": {
+    "project_number": "952401482773",
+    "project_id": "airplan-f08be",
+    "storage_bucket": "airplan-f08be.firebasestorage.app"
+  },
+  "client": [
+    {
+      "client_info": {
+        "mobilesdk_app_id": "1:952401482773:android:f6cd64f306f2d22770ea1c",
+        "android_client_info": {
+          "package_name": "com.example.AirPlan"
+        }
+      },
+      "oauth_client": [
+        {
+          "client_id": "952401482773-7hevpa2fa1ru3jnggq3cbvucqnka06oh.apps.googleusercontent.com",
+          "client_type": 3
+        }
+      ],
+      "api_key": [
+        {
+          "current_key": "AIzaSyBPOC0iGtCzf5cw_x0hP8kyW4ZpxrTH2Ow"
+        }
+      ],
+      "services": {
+        "appinvite_service": {
+          "other_platform_oauth_client": [
+            {
+              "client_id": "952401482773-7hevpa2fa1ru3jnggq3cbvucqnka06oh.apps.googleusercontent.com",
+              "client_type": 3
+            }
+          ]
+        }
+      }
+    },
+    {
+      "client_info": {
+        "mobilesdk_app_id": "1:952401482773:android:e4c4cd6bf9d9347470ea1c",
+        "android_client_info": {
+          "package_name": "com.example.prueba_flutter"
+        }
+      },
+      "oauth_client": [
+        {
+          "client_id": "952401482773-7hevpa2fa1ru3jnggq3cbvucqnka06oh.apps.googleusercontent.com",
+          "client_type": 3
+        }
+      ],
+      "api_key": [
+        {
+          "current_key": "AIzaSyBPOC0iGtCzf5cw_x0hP8kyW4ZpxrTH2Ow"
+        }
+      ],
+      "services": {
+        "appinvite_service": {
+          "other_platform_oauth_client": [
+            {
+              "client_id": "952401482773-7hevpa2fa1ru3jnggq3cbvucqnka06oh.apps.googleusercontent.com",
+              "client_type": 3
+            }
+          ]
+        }
+      }
+    }
+  ],
+  "configuration_version": "1"
+}
