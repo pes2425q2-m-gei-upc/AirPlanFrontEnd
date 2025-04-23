@@ -179,7 +179,9 @@ class LoginPageState extends State<LoginPage> {
     });
 
     try {
-      final GoogleSignIn googleSignIn = GoogleSignIn();
+      final GoogleSignIn googleSignIn = GoogleSignIn(
+        clientId: '952401482773-7hevpa2fa1ru3jnggq3cbvucqnka06oh.apps.googleusercontent.com',
+      );
       final GoogleSignInAccount? googleUser = await googleSignIn.signIn();
 
       if (googleUser == null) {
@@ -199,16 +201,17 @@ class LoginPageState extends State<LoginPage> {
       final UserCredential userCredential =
       await FirebaseAuth.instance.signInWithCredential(credential);
 
-      final user = userCredential.user;
-      if (user != null) {
-        final email = user.email;
-        final displayName = user.displayName ?? "google_user";
-        final uid = user.uid;
+      final firebaseUser = userCredential.user;
+
+      if (firebaseUser != null) {
+        final email = firebaseUser.email;
+        final displayName = firebaseUser.displayName ?? "google_user";
+        final uid = firebaseUser.uid;
 
         if (email != null) {
           final userExists = await _checkUserExists(email);
           if (!userExists) {
-            await _createUserInBackend(email, displayName, uid); // uid de Firebase como ID único
+            await _createUserInBackend(email, displayName, uid);
           }
 
           await _sendLoginToBackend(email);
@@ -224,6 +227,7 @@ class LoginPageState extends State<LoginPage> {
       });
     }
   }
+
 
 // Función para verificar si el usuario existe en el backend
   Future<bool> _checkUserExists(String email) async {
