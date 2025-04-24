@@ -19,6 +19,7 @@ class _InvitationsPageState extends State<InvitationsPage> {
     _invitationsFuture = InvitationsService.fetchInvitations(widget.username);
   }
 
+  // Acceptar una invitació
   Future<void> _acceptInvitation(int activityId) async {
     try {
       await InvitationsService.acceptInvitation(activityId, widget.username);
@@ -35,6 +36,7 @@ class _InvitationsPageState extends State<InvitationsPage> {
     }
   }
 
+  // Rebutjar una invitació
   Future<void> _rejectInvitation(int activityId) async {
     try {
       await InvitationsService.rejectInvitation(activityId, widget.username);
