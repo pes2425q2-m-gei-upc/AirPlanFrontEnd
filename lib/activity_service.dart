@@ -19,7 +19,7 @@ class ActivityService {
 
   Future<void> sendActivityToBackend(Map<String, String> activityData) async {
     final url = Uri.parse(ApiConfig().buildUrl('api/activitats/crear'));
-    final dateFormat = DateFormat("yyyy-MM-dd\'T\'HH:mm:ss");
+    final dateFormat = DateFormat("yyyy-MM-dd'T'HH:mm:ss");
     final ubicacioParts = activityData['location']!.split(',');
     final ubicacio = <String, double>{
       'latitud': double.parse(ubicacioParts[0]),
@@ -67,7 +67,7 @@ class ActivityService {
     final url = Uri.parse(
       ApiConfig().buildUrl('api/activitats/editar/$activityId'),
     );
-    final dateFormat = DateFormat("yyyy-MM-dd\'T\'HH:mm:ss");
+    final dateFormat = DateFormat("yyyy-MM-dd'T'HH:mm:ss");
     final ubicacioParts = activityData['location']!.split(',');
     final ubicacio = <String, double>{
       'latitud': double.parse(ubicacioParts[0]),

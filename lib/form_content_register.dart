@@ -235,8 +235,9 @@ class _FormContentRegisterState extends State<FormContentRegister> {
                   controller: _usernameController,
                   validator: (value) {
                     if (_usernameError != null) return _usernameError;
-                    if (value == null || value.isEmpty)
+                    if (value == null || value.isEmpty) {
                       return 'Introdueix el teu nom d\'usuari';
+                    }
                     return null;
                   },
                   decoration: const InputDecoration(
@@ -254,8 +255,9 @@ class _FormContentRegisterState extends State<FormContentRegister> {
                   controller: _emailController,
                   validator: (value) {
                     if (_emailError != null) return _emailError;
-                    if (value == null || value.isEmpty)
+                    if (value == null || value.isEmpty) {
                       return 'Introdueix el teu correu electrònic';
+                    }
                     bool emailValid = RegExp(
                       r"^[a-zA-Z0-9._%+-]+@[a-zA-Z0-9.-]+\.[a-zA-Z]{2,}$",
                     ).hasMatch(value);

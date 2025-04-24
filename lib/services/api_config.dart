@@ -1,5 +1,4 @@
 // Clase para manejar la configuración de API
-import 'dart:io' show Platform;
 import 'package:flutter/foundation.dart' show kIsWeb;
 
 class ApiConfig {
