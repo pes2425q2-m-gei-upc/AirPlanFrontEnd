@@ -167,7 +167,7 @@ class _UserPageState extends State<UserPage> {
       if (data['type'] == 'app_resumed' || data['type'] == 'app_launched') {
         // Recargar datos cuando la app se reanuda desde segundo plano o cuando se inicia desde cero
         if (mounted) {
-          print('UserPage: Recargando datos por evento ${data['type']}');
+          debugPrint('UserPage: Recargando datos por evento ${data['type']}');
           setState(() {
             _isLoading = true;
           });
@@ -291,6 +291,8 @@ class _UserPageState extends State<UserPage> {
 
   // Handles non-critical updates (name, photo, etc.) from WebSocket
   void _handleNonCriticalUpdate(bool isNameUpdate, bool isPhotoUpdate) {
+    if (!mounted) return;
+
     String message = 'Tu perfil ha sido actualizado en otro dispositivo.';
     if (isNameUpdate && isPhotoUpdate) {
       message =
@@ -301,7 +303,8 @@ class _UserPageState extends State<UserPage> {
       message = 'Tu foto de perfil ha sido actualizada en otro dispositivo.';
     }
 
-    ScaffoldMessenger.of(context).showSnackBar(
+    final currentContext = context;
+    ScaffoldMessenger.of(currentContext).showSnackBar(
       SnackBar(
         content: Text(message),
         backgroundColor: Colors.blue,
@@ -326,7 +329,10 @@ class _UserPageState extends State<UserPage> {
 
   // Shows an informational SnackBar and then initiates the logout process
   void _showInfoAndLogout(String message, {String title = 'Cambio Detectado'}) {
-    ScaffoldMessenger.of(context).showSnackBar(
+    if (!mounted) return;
+
+    final currentContext = context;
+    ScaffoldMessenger.of(currentContext).showSnackBar(
       SnackBar(
         content: Text(message),
         backgroundColor: Colors.orange,
@@ -439,8 +445,8 @@ class _UserPageState extends State<UserPage> {
 
   Future<void> _eliminarCuenta(BuildContext context) async {
     // Capture context and check mounted status early
+    if (!context.mounted) return;
     final contextCaptured = context;
-    if (!mounted) return;
 
     // Use local _currentUser
     if (_currentUser == null || _email.isEmpty || _email == 'UsuarioSinEmail') {
@@ -479,7 +485,7 @@ class _UserPageState extends State<UserPage> {
     );
 
     // Re-check mounted status after await
-    if (!mounted || confirmacion != true) return;
+    if (!contextCaptured.mounted || confirmacion != true) return;
 
     // Show loading indicator
     ScaffoldMessenger.of(contextCaptured).showSnackBar(
@@ -498,24 +504,11 @@ class _UserPageState extends State<UserPage> {
     // Desconecta el WebSocket antes de eliminar la cuenta
     WebSocketService().disconnect();
 
-    // --- Removed AuthWrapperState interaction - handle redirection directly ---
-    /*
-    try {
-      final authWrapperState =
-          contextCaptured.findAncestorStateOfType<AuthWrapperState>();
-      if (authWrapperState != null) {
-        authWrapperState.setManualLogout(true);
-      }
-    } catch (e) {
-      debugPrint('Error al establecer bandera de logout manual: $e');
-    }
-    */
-
     // Eliminar la cuenta using UserService
     final success = await UserService.deleteUser(userEmail);
 
     // Re-check mounted status after await
-    if (!mounted) return;
+    if (!contextCaptured.mounted) return;
 
     // Hide loading indicator
     ScaffoldMessenger.of(contextCaptured).hideCurrentSnackBar();
@@ -558,7 +551,7 @@ class _UserPageState extends State<UserPage> {
   }) async {
     // Capture context early
     final contextCaptured = context;
-    if (!mounted) return;
+    if (!contextCaptured.mounted) return;
 
     try {
       // Use local email
@@ -599,7 +592,7 @@ class _UserPageState extends State<UserPage> {
       }
 
       // 5. Redireccionar si es necesario (check mounted again before navigation)
-      if (redirectToLogin && mounted) {
+      if (redirectToLogin && contextCaptured.mounted) {
         // Show dialog only if it wasn't triggered by a remote action (which already showed a SnackBar)
         if (!isRemoteAction && title.isNotEmpty && message.isNotEmpty) {
           await showDialog(
@@ -623,7 +616,7 @@ class _UserPageState extends State<UserPage> {
         }
 
         // Re-check mounted before final navigation
-        if (mounted) {
+        if (contextCaptured.mounted) {
           Navigator.of(contextCaptured).pushAndRemoveUntil(
             MaterialPageRoute(builder: (context) => const LoginPage()),
             (route) => false,
@@ -633,7 +626,7 @@ class _UserPageState extends State<UserPage> {
     } catch (e) {
       debugPrint("Error in _handleSessionClose: $e");
       // Attempt to redirect anyway as a fallback
-      if (redirectToLogin && mounted) {
+      if (redirectToLogin && contextCaptured.mounted) {
         ScaffoldMessenger.of(contextCaptured).showSnackBar(
           SnackBar(content: Text("Error crítico al cerrar sesión: $e")),
         );

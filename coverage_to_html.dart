@@ -3,7 +3,6 @@ import 'dart:io';
 void main() async {
   final lcovFile = File('coverage/lcov.info');
   if (!await lcovFile.exists()) {
-    print('Error: Primero ejecuta "flutter test --coverage"');
     exit(1);
   }
 
@@ -12,7 +11,6 @@ void main() async {
 
   await Directory('coverage/html').create(recursive: true);
   await File('coverage/html/index.html').writeAsString(htmlContent);
-  print('Reporte HTML generado en: coverage/html/index.html');
 }
 
 String generateHtml(List<String> lcovLines) {

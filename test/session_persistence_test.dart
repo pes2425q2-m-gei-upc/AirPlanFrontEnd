@@ -4,7 +4,6 @@ import 'package:flutter_test/flutter_test.dart';
 import 'package:firebase_auth_mocks/firebase_auth_mocks.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 import 'package:firebase_auth/firebase_auth.dart';
-import 'package:flutter/rendering.dart'; // Import for debugDumpApp
 
 void main() {
   late MockFirebaseAuth auth;
@@ -244,7 +243,7 @@ void main() {
         await tester.pumpAndSettle();
 
         // Debug: Print widget tree to diagnose the issue
-        debugDumpApp();
+        // debugDumpApp();  // Comentado para evitar volcado extenso en la consola
 
         // Verify welcome message on home screen
         expect(find.text('Bienvenido, Test User'), findsOneWidget);

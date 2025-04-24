@@ -1,16 +1,12 @@
 // login_page_test.dart
 import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
-import 'package:firebase_auth_mocks/firebase_auth_mocks.dart';
 import 'test_helpers.dart';
 
 void main() {
-  late MockFirebaseAuth auth;
-
   setUp(() {
     // Initialize Firebase mocks before each test
     FirebaseTestSetup.setupFirebaseMocks();
-    auth = FirebaseTestSetup.getFirebaseAuth();
   });
 
   // Create a more robust wrapper for login page tests

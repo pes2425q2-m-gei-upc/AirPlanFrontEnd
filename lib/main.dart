@@ -241,7 +241,6 @@ class _MiAppState extends State<MiApp> with WidgetsBindingObserver {
   Future<void> _checkForUpdatesOnLaunch(User user) async {
     try {
       // Registrar en log que estamos verificando actualizaciones
-      print('Verificando actualizaciones al iniciar la app...');
 
       // Recargar el usuario para obtener los datos más recientes
       await user.reload();
@@ -259,7 +258,8 @@ class _MiAppState extends State<MiApp> with WidgetsBindingObserver {
       // Asegurarnos que la conexión WebSocket está activa
       WebSocketService().refreshConnection();
     } catch (e) {
-      print('Error al verificar actualizaciones: $e');
+      // Log error instead of having an empty catch block
+      debugPrint('Error checking for updates on launch: $e');
     }
   }
 
@@ -513,7 +513,7 @@ class _MiAppState extends State<MiApp> with WidgetsBindingObserver {
               })
               .catchError((error) {
                 // Manejar error de recarga silenciosamente
-                print('Error al recargar datos de Firebase: $error');
+                debugPrint('Error al recargar datos de Firebase: $error');
               });
         }
       }

@@ -10,13 +10,11 @@ import 'package:firebase_auth/firebase_auth.dart'; // Import User if needed by M
 
 void main() {
   late MockFirebaseAuth auth;
-  late MockClient httpClient;
   late MockFirebaseAuth mockAuth;
 
   setUp(() {
     FirebaseTestSetup.setupFirebaseMocks();
     auth = FirebaseTestSetup.getFirebaseAuth();
-    httpClient = FirebaseTestSetup.getHttpClient();
     mockAuth = MockFirebaseAuth();
   });
 

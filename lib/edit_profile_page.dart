@@ -84,7 +84,6 @@ class EditProfilePageState extends State<EditProfilePage> {
       // Si la app acaba de iniciarse o volver de segundo plano, recargar datos
       if (data['type'] == 'app_resumed' || data['type'] == 'app_launched') {
         if (mounted) {
-          print('EditProfilePage: Recargando datos por evento ${data['type']}');
           _loadUserData();
         }
       }
@@ -123,7 +122,6 @@ class EditProfilePageState extends State<EditProfilePage> {
         }
       } catch (e) {
         // Ignoramos errores de procesamiento
-        print('Error processing WebSocket message in EditProfile: $e');
       }
     });
   }
@@ -175,7 +173,6 @@ class EditProfilePageState extends State<EditProfilePage> {
         setState(() {
           _usernameController.text = username;
         });
-        print("Error loading user data: $e");
         // Optionally show an error message
         // NotificationService.showError(context, 'Error al cargar datos del perfil.');
       }
@@ -221,6 +218,9 @@ class EditProfilePageState extends State<EditProfilePage> {
     String? imageUrl;
     http.MultipartRequest request;
 
+    // Store current BuildContext before async operations
+    final currentContext = context;
+
     if (kIsWeb) {
       if (_webImage == null) return null;
       request = http.MultipartRequest(
@@ -247,12 +247,15 @@ class EditProfilePageState extends State<EditProfilePage> {
 
     try {
       final response = await request.send();
-      // Added mounted check
-      if (!mounted) return null;
+      // Verify that context is still valid after await
+      if (!currentContext.mounted) return null;
 
       if (response.statusCode == 200) {
         // Parse the JSON response to extract the actual URL
         final responseString = await response.stream.bytesToString();
+        // Verify that context is still valid after await
+        if (!currentContext.mounted) return null;
+
         try {
           final jsonResponse = json.decode(responseString);
           if (jsonResponse.containsKey('imageUrl')) {
@@ -261,28 +264,34 @@ class EditProfilePageState extends State<EditProfilePage> {
             // Combine base URL with the relative path
             imageUrl = baseUrl + jsonResponse['imageUrl'];
           } else {
+            // Verify context is mounted before using it
+            if (!currentContext.mounted) return null;
             NotificationService.showError(
-              context,
+              currentContext,
               'Error: La respuesta del servidor no contiene una URL de imagen',
             );
           }
         } catch (e) {
+          // Verify context is mounted before using it
+          if (!currentContext.mounted) return null;
           NotificationService.showError(
-            context,
+            currentContext,
             'Error al procesar la respuesta del servidor: ${e.toString()}',
           );
         }
       } else {
+        // Verify context is mounted before using it
+        if (!currentContext.mounted) return null;
         NotificationService.showError(
-          context,
+          currentContext,
           'Error al subir la imagen: ${response.statusCode}',
         );
       }
     } catch (e) {
-      // Added mounted check
-      if (!mounted) return null;
+      // Verify context is mounted before using it
+      if (!currentContext.mounted) return null;
       NotificationService.showError(
-        context,
+        currentContext,
         'Error de red al subir la imagen: ${_getFriendlyErrorMessage(e.toString())}',
       );
     }
@@ -673,7 +682,6 @@ class EditProfilePageState extends State<EditProfilePage> {
         }),
       );
     } catch (e) {
-      print("Error sending profile update notification: $e");
       // Ignore errors here, main update was successful
     }
   }
@@ -949,7 +957,6 @@ class EditProfilePageState extends State<EditProfilePage> {
         }),
       );
     } catch (e) {
-      print("Error sending password change notification: $e");
       // Ignore notification errors
     }
   }

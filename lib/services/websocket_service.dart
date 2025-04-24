@@ -161,7 +161,7 @@ class WebSocketService {
       _startPingTimer();
     } catch (e) {
       _isConnected = false;
-      print('Error al conectar WebSocket: $e');
+      debugPrint('Error al conectar WebSocket: $e');
       // Attempt to reconnect after a delay
       _scheduleReconnect();
     }
@@ -253,8 +253,14 @@ class WebSocketService {
   void _showAccountDeletedDialog() {
     final context = navigatorKey.currentContext;
     if (context != null) {
+      // Verificar si el widget está montado antes de mostrar el diálogo
+      if (!context.mounted) return;
+
+      // Capture the context in a local variable to avoid closing over it
+      final safeContext = context;
+
       showDialog(
-        context: context,
+        context: safeContext,
         barrierDismissible: false,
         builder: (BuildContext dialogContext) {
           return AlertDialog(
@@ -291,7 +297,7 @@ class WebSocketService {
 
       // Redirigir a la página de login
       final context = navigatorKey.currentContext;
-      if (context != null) {
+      if (context != null && context.mounted) {
         Navigator.pushNamedAndRemoveUntil(context, '/', (route) => false);
       }
     } catch (e) {
@@ -320,7 +326,7 @@ class WebSocketService {
         _channel!.sink.close();
       } catch (e) {
         // Ignorar errores al cerrar
-        print('Error al cerrar WebSocket: $e');
+        debugPrint('Error al cerrar WebSocket: $e');
       } finally {
         _isConnected = false;
         _channel = null;

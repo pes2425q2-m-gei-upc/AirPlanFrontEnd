@@ -27,12 +27,9 @@ class MockRiveHelper extends Mock implements RiveAnimationControllerHelper {
 }
 
 void main() {
-  late MockRiveHelper mockRiveHelper;
-
   setUp(() {
     // Initialize Firebase mocks before each test
     FirebaseTestSetup.setupFirebaseMocks();
-    mockRiveHelper = MockRiveHelper();
   });
 
   // Create a simplified registration form for testing

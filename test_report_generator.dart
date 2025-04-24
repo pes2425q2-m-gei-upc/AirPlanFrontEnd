@@ -1,6 +1,7 @@
 import 'dart:convert';
 import 'dart:io';
 import 'dart:typed_data';
+import 'package:flutter/foundation.dart'; // Import for debugPrint
 
 void main() {
   // Leer archivo JSON como bytes
@@ -39,7 +40,7 @@ void main() {
       }
     } catch (e) {
       // Ignorar líneas que no se puedan decodificar
-      print('Línea no válida ignorada: $line');
+      debugPrint('Línea no válida ignorada: $line');
     }
   }
 
@@ -90,7 +91,7 @@ void main() {
 
   // Guardar el reporte en un archivo HTML
   File('test-report.html').writeAsStringSync(htmlContent);
-  print('Reporte generado en: test-report.html');
+  debugPrint('Reporte generado en: test-report.html');
 }
 
 // Decodificar bytes de UTF-16 LE a String
