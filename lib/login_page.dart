@@ -180,7 +180,7 @@ class LoginPageState extends State<LoginPage> {
 
     try {
       final GoogleSignIn googleSignIn = GoogleSignIn(
-        clientId: '952401482773-7hevpa2fa1ru3jnggq3cbvucqnka06oh.apps.googleusercontent.com',
+        clientId: '751649023508-rji7074men2mm1198oq93pvqc1nklip1.apps.googleusercontent.com',
       );
       final GoogleSignInAccount? googleUser = await googleSignIn.signIn();
 
@@ -212,7 +212,12 @@ class LoginPageState extends State<LoginPage> {
           final userExists = await _checkUserExists(email);
           if (!userExists) {
             await _createUserInBackend(email, displayName, uid);
+            final user = _auth.currentUser;
+            await user?.updateDisplayName(displayName + "_" + uid.toString());
+            await user?.reload();
           }
+
+
 
           await _sendLoginToBackend(email);
         }
