@@ -2,11 +2,9 @@ import 'package:flutter/material.dart';
 import 'package:firebase_auth/firebase_auth.dart';
 import 'package:http/http.dart' as http;
 import 'dart:convert'; // Para usar jsonEncode
-import 'register.dart'; // Importem la pantalla de registre
+import 'register.dart';  // Importem la pantalla de registre
+// La pantalla que indica "Sessió correcta"
 import 'reset_password.dart'; // Importem la pantalla de restabliment de contrasenya
-import 'main.dart'; // Importamos main.dart para acceder a AuthWrapper
-import 'services/websocket_service.dart'; // Import WebSocket service
-import 'services/api_config.dart'; // Importar la configuración de API
 
 class LoginPage extends StatefulWidget {
   const LoginPage({super.key});
@@ -24,71 +22,33 @@ class LoginPageState extends State<LoginPage> {
   Future<void> _signIn() async {
     try {
       // Iniciar sesión en Firebase
-      final userCredential = await _auth.signInWithEmailAndPassword(
+      await _auth.signInWithEmailAndPassword(
         email: _emailController.text.trim(),
         password: _passwordController.text.trim(),
       );
 
-      final user = userCredential.user;
-      if (user == null) {
-        setState(() {
-          _errorMessage =
-              "Error: No se pudo obtener la información del usuario";
-        });
-        return;
-      }
-
-      final firebaseEmail = user.email;
-      final username = user.displayName;
-
-      if (username == null || firebaseEmail == null) {
-        setState(() {
-          _errorMessage = "Error: Falta información del usuario";
-        });
-        return;
-      }
-
-      // Obtener el clientId del WebSocketService
-      final clientId = WebSocketService().clientId;
-
-      // Enviar un POST al backend para el login, incluyendo ahora username y clientId
+      // Si el login en Firebase es correcto, enviar un POST al backend
       final response = await http.post(
-        Uri.parse(ApiConfig().buildUrl('api/usuaris/login')),
+        Uri.parse('http://nattech.fib.upc.edu:40350/api/usuaris/login'), // Cambia la URL por la de tu backend
         headers: <String, String>{
           'Content-Type': 'application/json; charset=UTF-8',
         },
         body: jsonEncode({
-          "email": firebaseEmail,
-          "username": username,
-          "clientId":
-              clientId, // Incluir el clientId para filtrar notificaciones WebSocket
+          "email": _emailController.text.trim(),
         }),
       );
 
       // Verificar la respuesta del backend
       if (response.statusCode != 200) {
+        // Si el backend responde con un error, mostrar el mensaje de error
         setState(() {
           _errorMessage = "Error en el backend: ${response.body}";
         });
-        return;
       }
-
-      // Initialize WebSocket connection after successful login
-      WebSocketService().connect();
-
-      // Forzar la navegación a la página principal usando AuthWrapper
-      if (mounted) {
-        // Usando Navigator.pushAndRemoveUntil para limpiar la pila de navegación
-        Navigator.pushAndRemoveUntil(
-          context,
-          MaterialPageRoute(builder: (context) => AuthWrapper()),
-          (route) => false, // Esto elimina todas las rutas anteriores
-        );
-      }
-    } on FirebaseAuthException {
+    } on FirebaseAuthException catch (e) {
       // Manejar errores de Firebase
       setState(() {
-        _errorMessage = "Error: Credencials incorrectes";
+        _errorMessage = "Error: Credencials incorrectes: ${e.message}";
       });
     } catch (e) {
       // Manejar otros errores
@@ -142,9 +102,7 @@ class LoginPageState extends State<LoginPage> {
               onPressed: () {
                 Navigator.push(
                   context,
-                  MaterialPageRoute(
-                    builder: (context) => const ResetPasswordPage(),
-                  ),
+                  MaterialPageRoute(builder: (context) => const ResetPasswordPage()),
                 );
               },
               child: const Text("Has oblidat la contrasenya?"),
