@@ -179,9 +179,14 @@ class LoginPageState extends State<LoginPage> {
     });
 
     try {
-      final GoogleSignIn googleSignIn = GoogleSignIn(
-        clientId: '751649023508-rji7074men2mm1198oq93pvqc1nklip1.apps.googleusercontent.com',
+      final GoogleSignIn googleSignIn;
+      if (kIsWeb) {
+        googleSignIn = GoogleSignIn(
+          clientId: '751649023508-rji7074men2mm1198oq93pvqc1nklip1.apps.googleusercontent.com',
       );
+      } else {
+        googleSignIn = GoogleSignIn();
+      }
       final GoogleSignInAccount? googleUser = await googleSignIn.signIn();
 
       if (googleUser == null) {
