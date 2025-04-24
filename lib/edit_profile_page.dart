@@ -251,7 +251,27 @@ class EditProfilePageState extends State<EditProfilePage> {
       if (!mounted) return null;
 
       if (response.statusCode == 200) {
-        imageUrl = await response.stream.bytesToString();
+        // Parse the JSON response to extract the actual URL
+        final responseString = await response.stream.bytesToString();
+        try {
+          final jsonResponse = json.decode(responseString);
+          if (jsonResponse.containsKey('imageUrl')) {
+            // Get the base URL from ApiConfig
+            final baseUrl = ApiConfig().buildUrl('').replaceAll('/api/', '');
+            // Combine base URL with the relative path
+            imageUrl = baseUrl + jsonResponse['imageUrl'];
+          } else {
+            NotificationService.showError(
+              context,
+              'Error: La respuesta del servidor no contiene una URL de imagen',
+            );
+          }
+        } catch (e) {
+          NotificationService.showError(
+            context,
+            'Error al procesar la respuesta del servidor: ${e.toString()}',
+          );
+        }
       } else {
         NotificationService.showError(
           context,
