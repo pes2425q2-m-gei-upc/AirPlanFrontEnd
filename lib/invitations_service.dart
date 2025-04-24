@@ -18,7 +18,7 @@ class InvitationsService {
     }
   }
 
-  // Accept an invitation
+  // Acceptar una invitació
   static Future<void> acceptInvitation(int activityId, String username) async {
 
       final response = await http.post(
@@ -31,7 +31,7 @@ class InvitationsService {
     }
   }
 
-  // Reject an invitation
+  // Rebutjar una invitació
   static Future<void> rejectInvitation(int activityId, String username) async {
     final response = await http.post(
       Uri.parse('$baseUrl/rebutjar'),
