@@ -1,4 +1,5 @@
 // map_page.dart
+import 'package:airplan/solicituds_service.dart';
 import 'package:firebase_auth/firebase_auth.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_map/flutter_map.dart';
@@ -21,6 +22,7 @@ class MapPageState extends State<MapPage> {
   final MapController mapController = MapController();
   final MapService mapService = MapService();
   final ActivityService activityService = ActivityService();
+  final SolicitudsService solicitudsService = SolicitudsService();
   LatLng selectedLocation = LatLng(0, 0);
   Map<LatLng, String> savedLocations = {};
   String placeDetails = "";
@@ -237,17 +239,28 @@ class MapPageState extends State<MapPage> {
     }
   }
 
-  void _showActivityDetails(Map<String, dynamic> activity) {
-    // Obtener el usuario actual
+  // Modificación en _showActivityDetails
+  void _showActivityDetails(Map<String, dynamic> activity) async {
     final String? currentUser = FirebaseAuth.instance.currentUser?.displayName;
     final bool isCurrentUserCreator = currentUser != null &&
         activity['creador'] == currentUser;
+
+    bool solicitudExistente = false;
+
+    // Verificar si ya existe una solicitud para esta actividad
+    if (!isCurrentUserCreator) {
+      solicitudExistente = await solicitudsService.jaExisteixSolicitud(
+        activity['id'],
+        currentUser!,
+        activity['creador'],
+      );
+    }
 
     showModalBottomSheet(
       context: context,
       builder: (context) {
         return Container(
-          padding: EdgeInsets.all(16.0),
+          padding: const EdgeInsets.all(16.0),
           child: Row(
             mainAxisAlignment: MainAxisAlignment.spaceBetween,
             children: [
@@ -264,7 +277,7 @@ class MapPageState extends State<MapPage> {
                       },
                       child: Text(
                         activity['nom'] ?? '',
-                        style: TextStyle(
+                        style: const TextStyle(
                           fontSize: 20,
                           fontWeight: FontWeight.bold,
                           color: Colors.blue,
@@ -272,33 +285,91 @@ class MapPageState extends State<MapPage> {
                         ),
                       ),
                     ),
-                    SizedBox(height: 8),
+                    const SizedBox(height: 8),
                     Text(
                       'Creador: ${activity['creador'] ?? ''}',
-                      style: TextStyle(fontSize: 16),
+                      style: const TextStyle(fontSize: 16),
                     ),
                   ],
                 ),
               ),
-              // Botones a la derecha (solo si el usuario es el creador)
-              if (isCurrentUserCreator) // <-- Condición para mostrar los botones
+              // Botones a la derecha
+              if (isCurrentUserCreator) // Botones de edición y eliminación
                 Row(
                   children: [
                     IconButton(
-                      icon: Icon(Icons.edit, color: Colors.blue),
+                      icon: const Icon(Icons.edit, color: Colors.blue),
                       onPressed: () {
                         Navigator.pop(context);
                         _showEditActivityForm(activity);
                       },
                     ),
                     IconButton(
-                      icon: Icon(Icons.delete, color: Colors.red),
+                      icon: const Icon(Icons.delete, color: Colors.red),
                       onPressed: () {
                         Navigator.pop(context);
                         _showDeleteConfirmation(activity);
                       },
                     ),
                   ],
+                )
+              else // Botón "+" o tick azul para otros usuarios
+                IconButton(
+                  icon: Icon(
+                    solicitudExistente ? Icons.check_circle : Icons.add,
+                    color: solicitudExistente ? Colors.blue : Colors.blue,
+                  ),
+                  onPressed: () {
+                    if (solicitudExistente) {
+                      // Mostrar botón para cancelar solicitud
+                      showDialog(
+                        context: context,
+                        builder: (context) {
+                          return AlertDialog(
+                            title: const Text('Cancelar solicitud'),
+                            content: const Text(
+                                '¿Estás seguro de que quieres cancelar tu solicitud?'),
+                            actions: [
+                              TextButton(
+                                onPressed: () => Navigator.pop(context),
+                                child: const Text('Cancelar'),
+                              ),
+                              TextButton(
+                                onPressed: () async {
+                                  Navigator.pop(context);
+                                  Navigator.pop(context);
+                                  await solicitudsService.cancelarSolicitud(
+                                    activity['id'],
+                                    currentUser,
+                                  );
+                                  if (context.mounted) {
+                                    ScaffoldMessenger.of(context).showSnackBar(
+                                      const SnackBar(
+                                        content: Text(
+                                            'Solicitud cancelada correctamente.'),
+                                      ),
+                                    );
+                                  }
+                                },
+                                child: const Text(
+                                  'Confirmar',
+                                  style: TextStyle(color: Colors.red),
+                                ),
+                              ),
+                            ],
+                          );
+                        },
+                      );
+                    } else {
+                      // Enviar solicitud
+                      Navigator.pop(context);
+                      _sendSolicitud(
+                        activity['id'],
+                        currentUser,
+                        activity['creador'],
+                      );
+                    }
+                  },
                 ),
             ],
           ),
@@ -306,6 +377,7 @@ class MapPageState extends State<MapPage> {
       },
     );
   }
+
 
 // Función para mostrar el formulario de edición
   void _showEditActivityForm(Map<String, dynamic> activity) {
@@ -547,6 +619,23 @@ class MapPageState extends State<MapPage> {
     setState(() {
       showAirQualityCircles = !showAirQualityCircles;
     });
+  }
+
+  Future<void> _sendSolicitud(int activityId, String requester, String host) async {
+    try {
+      await solicitudsService.sendSolicitud(activityId, requester, host);
+      if (context.mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(content: Text('Solicitud enviada correctamente.')),
+        );
+      }
+    } catch (e) {
+      if (context.mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(content: Text('Error al enviar la solicitud: ${e.toString()}')),
+        );
+      }
+    }
   }
 
   @override

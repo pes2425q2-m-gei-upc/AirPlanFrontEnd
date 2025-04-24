@@ -1,7 +1,9 @@
 import 'package:firebase_auth/firebase_auth.dart';
 import 'package:flutter/material.dart';
 import 'package:airplan/air_quality.dart';
-class ActivityDetailsPage extends StatelessWidget {
+import 'package:airplan/solicituds_service.dart';
+
+class ActivityDetailsPage extends StatefulWidget {
   final String id;
   final String title;
   final String creator;
@@ -10,9 +12,8 @@ class ActivityDetailsPage extends StatelessWidget {
   final String startDate;
   final String endDate;
   final bool isEditable;
-  final VoidCallback onEdit; // Función para editar
-  final VoidCallback onDelete; // Función para eliminar
-
+  final VoidCallback onEdit;
+  final VoidCallback onDelete;
 
   const ActivityDetailsPage({
     super.key,
@@ -24,15 +25,66 @@ class ActivityDetailsPage extends StatelessWidget {
     required this.startDate,
     required this.endDate,
     required this.isEditable,
-    required this.onEdit, // Añadimos el parámetro onEdit
-    required this.onDelete, // Añadimos el parámetro onDelete
+    required this.onEdit,
+    required this.onDelete,
   });
+
+  @override
+  _ActivityDetailsPageState createState() => _ActivityDetailsPageState();
+}
+
+class _ActivityDetailsPageState extends State<ActivityDetailsPage> {
+  late Future<bool> _solicitudExistente;
+
+  @override
+  void initState() {
+    super.initState();
+    _solicitudExistente = _checkSolicitudExistente();
+  }
+
+  Future<bool> _checkSolicitudExistente() async {
+    final String? currentUser = FirebaseAuth.instance.currentUser?.displayName;
+    if (currentUser == null) return false;
+    return await SolicitudsService().jaExisteixSolicitud(
+      int.parse(widget.id),
+      currentUser,
+      widget.creator,
+    );
+  }
+
+  Future<void> _handleSolicitudAction(bool solicitudExistente) async {
+    final String? currentUser = FirebaseAuth.instance.currentUser?.displayName;
+    if (currentUser == null) return;
+
+    if (solicitudExistente) {
+      // Cancelar solicitud
+      await SolicitudsService().cancelarSolicitud(int.parse(widget.id), currentUser);
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(content: Text('Solicitud cancelada correctamente.')),
+      );
+    } else {
+      // Enviar solicitud
+      await SolicitudsService().sendSolicitud(
+        int.parse(widget.id),
+        currentUser,
+        widget.creator,
+      );
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(content: Text('Solicitud enviada correctamente.')),
+      );
+    }
+
+    // Refresh the button state
+    setState(() {
+      _solicitudExistente = _checkSolicitudExistente();
+    });
+  }
 
   @override
   Widget build(BuildContext context) {
     final String? currentUser = FirebaseAuth.instance.currentUser?.displayName;
-    final bool isCurrentUserCreator = currentUser != null &&
-        creator == currentUser;
+    final bool isCurrentUserCreator = currentUser != null && widget.creator == currentUser;
+
     return Scaffold(
       appBar: AppBar(
         title: Text('Activity Details'),
@@ -43,34 +95,34 @@ class ActivityDetailsPage extends StatelessWidget {
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
             Text(
-              'ID: $id',
-              style: TextStyle(
+              'ID: ${widget.id}',
+              style: const TextStyle(
                 fontWeight: FontWeight.bold,
                 fontSize: 18,
               ),
             ),
-            SizedBox(height: 16),
+            const SizedBox(height: 16),
             Text(
-              title,
-              style: TextStyle(
+              widget.title,
+              style: const TextStyle(
                 fontWeight: FontWeight.bold,
                 fontSize: 24,
               ),
             ),
-            SizedBox(height: 16),
+            const SizedBox(height: 16),
             Image.network('https://via.placeholder.com/150'),
-            SizedBox(height: 16),
+            const SizedBox(height: 16),
             Text(
-              description,
-              style: TextStyle(fontSize: 16),
+              widget.description,
+              style: const TextStyle(fontSize: 16),
             ),
-            SizedBox(height: 16),
+            const SizedBox(height: 16),
             Column(
-              children: airQualityData.map((data) {
+              children: widget.airQualityData.map((data) {
                 return Row(
                   children: [
-                    Icon(Icons.air),
-                    SizedBox(width: 8),
+                    const Icon(Icons.air),
+                    const SizedBox(width: 8),
                     Text(
                       '${traduirContaminant(data.contaminant)}: ${traduirAQI(data.aqi)} (${data.value} ${data.units})',
                       style: TextStyle(
@@ -83,69 +135,70 @@ class ActivityDetailsPage extends StatelessWidget {
                 );
               }).toList(),
             ),
-            SizedBox(height: 16),
+            const SizedBox(height: 16),
             Row(
               children: [
-                Icon(Icons.calendar_today),
-                SizedBox(width: 8),
+                const Icon(Icons.calendar_today),
+                const SizedBox(width: 8),
                 Text(
-                  'Start: $startDate',
-                  style: TextStyle(fontSize: 16),
+                  'Start: ${widget.startDate}',
+                  style: const TextStyle(fontSize: 16),
                 ),
               ],
             ),
-            SizedBox(height: 8),
+            const SizedBox(height: 8),
             Row(
               children: [
-                Icon(Icons.calendar_today),
-                SizedBox(width: 8),
+                const Icon(Icons.calendar_today),
+                const SizedBox(width: 8),
                 Text(
-                  'End: $endDate',
-                  style: TextStyle(fontSize: 16),
+                  'End: ${widget.endDate}',
+                  style: const TextStyle(fontSize: 16),
                 ),
               ],
             ),
-            SizedBox(height: 16),
-            ElevatedButton(
-              onPressed: () {
-                // Handle registration request
-              },
-              child: Text('Request Registration'),
-            ),
-            SizedBox(height: 16),
+            const SizedBox(height: 16),
             Row(
               children: [
-                Icon(Icons.person),
-                SizedBox(width: 8),
+                const Icon(Icons.person),
+                const SizedBox(width: 8),
                 Text(
-                  creator,
-                  style: TextStyle(
+                  widget.creator,
+                  style: const TextStyle(
                     color: Colors.purple,
                     fontSize: 16,
                   ),
                 ),
               ],
             ),
-            SizedBox(height: 16),
-            Row(
-              children: [
-                Icon(Icons.share),
-                SizedBox(width: 8),
-                Text(
-                  'Share',
-                  style: TextStyle(fontSize: 16),
-                ),
-              ],
-            ),
-            if (isCurrentUserCreator ) ...[
-              SizedBox(height: 16),
-              ElevatedButton(
-                onPressed: onEdit, // Usamos la función onEdit
-                child: Text('Edit Activity'),
+            const SizedBox(height: 16),
+            if (!isCurrentUserCreator)
+              FutureBuilder<bool>(
+                future: _solicitudExistente,
+                builder: (context, snapshot) {
+                  if (snapshot.connectionState == ConnectionState.waiting) {
+                    return const CircularProgressIndicator();
+                  } else if (snapshot.hasError) {
+                    return const Text('Error al cargar el estado de la solicitud.');
+                  }
+
+                  final solicitudExistente = snapshot.data ?? false;
+                  return ElevatedButton(
+                    onPressed: () => _handleSolicitudAction(solicitudExistente),
+                    child: Text(solicitudExistente ? 'Cancelar solicitud' : 'Solicitar unirse'),
+                  );
+                },
               ),
+            if (isCurrentUserCreator) ...[
+              const SizedBox(height: 16),
               ElevatedButton(
-                onPressed: onDelete, // Usamos la función onDelete
-                child: Text('Delete Activity'),
+                onPressed: widget.onEdit,
+                child: const Text('Edit Activity'),
+              ),
+              const SizedBox(height: 8),
+              ElevatedButton(
+                onPressed: widget.onDelete,
+                child: const Text('Delete Activity'),
               ),
             ],
           ],
