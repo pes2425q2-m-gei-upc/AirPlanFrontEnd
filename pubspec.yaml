@@ -44,6 +44,8 @@ dependencies:
   rive_common: ^0.4.15
   sign_button: ^2.0.0
   oauth2_client: ^4.0.0  # Paquete alternativo para OAuth2 con GitHub
+  url_launcher: ^6.1.10
+
 
 dev_dependencies:
   flutter_test:

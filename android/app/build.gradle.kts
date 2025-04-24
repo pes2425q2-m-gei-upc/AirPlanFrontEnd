@@ -45,6 +45,8 @@ android {
 dependencies {
     // Import the Firebase BoM
     implementation(platform("com.google.firebase:firebase-bom:33.12.0"))
+    implementation ("com.google.firebase:firebase-auth:19.3.2")
+
 
 
     // TODO: Add the dependencies for Firebase products you want to use

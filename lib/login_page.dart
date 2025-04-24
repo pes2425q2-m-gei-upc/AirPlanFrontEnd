@@ -105,7 +105,7 @@ class LoginPageState extends State<LoginPage> {
             await _sendLoginToBackend(email);
           }
         }
-      } else {
+      } else { // no funciona ni para atras, 15 horas en esto y sigue sin redirigir si no se ha conectado a githú o eso creo :(
         // 📱 FLUJO PARA MÓVIL
         final githubProvider = GithubAuthProvider();
         githubProvider.addScope('read:user,user:email');
@@ -298,13 +298,14 @@ String _generateRandomString(int length) {
                     ? const CircularProgressIndicator()
                     : const Text("Iniciar Sesión"),
               ),
-              const SizedBox(height: 12),
-              // Botón de GitHub con sign_button
-              SignInButton(
-                buttonType: ButtonType.github,
-                buttonSize: ButtonSize.large,
-                onPressed: _isLoading ? null : _signInWithGitHub,
-              ),
+              if (kIsWeb) ...[
+                SizedBox(height: 12),
+                SignInButton(
+                  buttonType: ButtonType.github,
+                  buttonSize: ButtonSize.large,
+                  onPressed: _isLoading ? null : _signInWithGitHub,
+                ),
+              ],
               const SizedBox(height: 12),
               if (_errorMessage.isNotEmpty) ...[
                 const SizedBox(height: 12),
