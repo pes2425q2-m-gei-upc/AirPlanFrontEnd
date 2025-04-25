@@ -222,8 +222,6 @@ class LoginPageState extends State<LoginPage> {
             await user?.reload();
           }
 
-
-
           await _sendLoginToBackend(email);
         }
       }
@@ -271,7 +269,7 @@ class LoginPageState extends State<LoginPage> {
       print ("Creando usuario en el backend con displayName: $displayName");
       print ("Creando usuario en el backend con githubId: $githubId");
       final response = await http.post(
-        Uri.parse('http://localhost:8080/api/usuaris/crear'),
+        Uri.parse('http://nattech.fib.upc.edu:40350/api/usuaris/crear'),
         headers: <String, String>{
           'Content-Type': 'application/json; charset=UTF-8',
         },
