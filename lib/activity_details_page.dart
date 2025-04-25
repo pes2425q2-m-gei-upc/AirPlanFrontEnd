@@ -77,6 +77,18 @@ class ActivityDetailsPage extends StatelessWidget {
     }
   }
 
+  // New method to check if a user has already rated an activity
+  Future<bool> checkUserHasRated(String activityId, String userId) async {
+    final String backendUrl = 'http://127.0.0.1:8080/valoracions/usuario/$userId/activitat/$activityId';
+
+    try {
+      final response = await http.get(Uri.parse(backendUrl));
+      return response.statusCode == 200 && jsonDecode(response.body) != null;
+    } catch (e) {
+      return false;
+    }
+  }
+
   Widget buildRatingAverage(List<Valoracio> valoracions) {
     if (valoracions.isEmpty) {
       return Text(
@@ -192,12 +204,12 @@ class ActivityDetailsPage extends StatelessWidget {
       );
 
       if (response.statusCode == 200) {
-        print('Rating saved successfully: ${response.body}');
+        //print('Rating saved successfully: ${response.body}');
       } else {
-        print('Failed to save rating: ${response.statusCode} - ${response.body}');
+        //print('Failed to save rating: ${response.statusCode} - ${response.body}');
       }
     } catch (e) {
-      print('Error connecting to backend: $e');
+      //print('Error connecting to backend: $e');
     }
   }
 
@@ -363,66 +375,90 @@ class ActivityDetailsPage extends StatelessWidget {
               ],
               if (isActivityFinished)
                 ElevatedButton(
-                  onPressed: () {
-                    showDialog(
-                      context: context,
-                      builder: (BuildContext context) {
-                        double rating = 0;
-                        TextEditingController commentController = TextEditingController();
+                  onPressed: () async {
+                    if (currentUser == null) {
+                      if (context.mounted) {
+                        ScaffoldMessenger.of(context).showSnackBar(
+                          SnackBar(content: Text('Usuario no autenticado')),
+                        );
+                      }
+                      return;
+                    }
+                    bool hasRated = await checkUserHasRated(id, currentUser);
+                    if (hasRated) {
+                      if (context.mounted) {
+                        ScaffoldMessenger.of(context).showSnackBar(
+                          SnackBar(
+                              content: Text('Ya has valorado esta actividad')),
+                        );
+                      }
+                      return;
+                    }
+                    if (context.mounted) {
+                      showDialog(
+                        context: context,
+                        builder: (BuildContext context) {
+                          double rating = 0;
+                          TextEditingController commentController = TextEditingController();
 
-                        return AlertDialog(
-                          title: Text('Rate Activity'),
-                          content: Column(
-                            mainAxisSize: MainAxisSize.min,
-                            children: [
-                              RatingBar.builder(
-                                initialRating: 0,
-                                minRating: 1,
-                                direction: Axis.horizontal,
-                                allowHalfRating: false,
-                                itemCount: 5,
-                                itemBuilder: (context, _) => Icon(
-                                  Icons.star,
-                                  color: Colors.amber,
+                          return AlertDialog(
+                            title: Text('Rate Activity'),
+                            content: Column(
+                              mainAxisSize: MainAxisSize.min,
+                              children: [
+                                RatingBar.builder(
+                                  initialRating: 0,
+                                  minRating: 1,
+                                  direction: Axis.horizontal,
+                                  allowHalfRating: false,
+                                  itemCount: 5,
+                                  itemBuilder: (context, _) =>
+                                      Icon(
+                                        Icons.star,
+                                        color: Colors.amber,
+                                      ),
+                                  onRatingUpdate: (value) {
+                                    rating = value;
+                                  },
                                 ),
-                                onRatingUpdate: (value) {
-                                  rating = value;
+                                SizedBox(height: 16),
+                                TextField(
+                                  controller: commentController,
+                                  decoration: InputDecoration(
+                                    labelText: 'Optional Comment',
+                                    border: OutlineInputBorder(),
+                                  ),
+                                  maxLines: 3,
+                                ),
+                              ],
+                            ),
+                            actions: [
+                              TextButton(
+                                onPressed: () {
+                                  Navigator.of(context).pop();
                                 },
+                                child: Text('Cancel'),
                               ),
-                              SizedBox(height: 16),
-                              TextField(
-                                controller: commentController,
-                                decoration: InputDecoration(
-                                  labelText: 'Optional Comment',
-                                  border: OutlineInputBorder(),
-                                ),
-                                maxLines: 3,
+                              ElevatedButton(
+                                onPressed: () {
+                                  saveRating(
+                                    activityId: id,
+                                    userId: currentUser,
+                                    rating: rating,
+                                    comment: commentController.text,
+                                  );
+                                  Navigator.of(context).pop();
+                                  Navigator.popUntil(context, (route) =>
+                                  route
+                                      .isFirst); // Vuelve a la pantalla principal
+                                },
+                                child: Text('Submit'),
                               ),
                             ],
-                          ),
-                          actions: [
-                            TextButton(
-                              onPressed: () {
-                                Navigator.of(context).pop();
-                              },
-                              child: Text('Cancel'),
-                            ),
-                            ElevatedButton(
-                              onPressed: () {
-                                saveRating(
-                                  activityId: id,
-                                  userId: currentUser!,
-                                  rating: rating,
-                                  comment: commentController.text,
-                                );
-                                Navigator.of(context).pop();
-                              },
-                              child: Text('Submit'),
-                            ),
-                          ],
-                        );
-                      },
-                    );
+                          );
+                        },
+                      );
+                    }
                   },
                   child: Text('Rate Activity'),
                 ),

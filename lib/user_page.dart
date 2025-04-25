@@ -40,7 +40,7 @@ class UserPage extends StatefulWidget {
   const UserPage({super.key});
 
   @override
-  _UserPageState createState() => _UserPageState();
+  State<UserPage> createState() => _UserPageState();
 }
 
 class _UserPageState extends State<UserPage> {
@@ -60,13 +60,11 @@ class _UserPageState extends State<UserPage> {
     if (_currentUser == null) return;
 
     setState(() {
-      _userRatingsFuture = _fetchUserRatings(_currentUser!.displayName ?? _currentUser!.email!.split('@')[0]);
+      _userRatingsFuture = _fetchUserRatings(_currentUser.displayName ?? _currentUser.email!.split('@')[0]);
     });
   }
   Future<void> fetchActivities() async {
     activities = await activityService.fetchActivities();
-    print("Actividades: $activities");
-
   }
 
   String? findActivityTitleById(List<Map<String, dynamic>> activities, int id) {
@@ -182,7 +180,7 @@ class _UserPageState extends State<UserPage> {
                   crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
                     Text(
-                      '${findActivityTitleById(activities, valoracio.idActivitat) ?? "Actividad no encontrada"}',
+                      findActivityTitleById(activities, valoracio.idActivitat) ?? "Actividad no encontrada",
                       style: TextStyle(fontWeight: FontWeight.bold),
                     ),
                     SizedBox(height: 8),
@@ -223,8 +221,8 @@ class _UserPageState extends State<UserPage> {
       );
     }
 
-    final username = _currentUser!.displayName ?? _currentUser!.email!.split('@')[0];
-    final email = _currentUser!.email ?? "UsuarioSinEmail";
+    final username = _currentUser.displayName ?? _currentUser.email!.split('@')[0];
+    final email = _currentUser.email ?? "UsuarioSinEmail";
 
     return Scaffold(
       appBar: AppBar(
