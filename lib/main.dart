@@ -11,6 +11,7 @@ import 'calendar_page.dart';
 import 'login_page.dart';
 import 'map_page.dart';
 import 'admin_page.dart';
+import 'chat_list_page.dart'; // Import the new ChatListPage
 import 'services/websocket_service.dart'; // Import WebSocket service
 import 'services/api_config.dart'; // Importar la configuración de API
 import 'dart:async'; // Para StreamSubscription
@@ -687,6 +688,7 @@ class MyHomePageState extends State<MyHomePage> {
   static final List<Widget> _widgetOptions = <Widget>[
     MapPage(),
     CalendarPage(),
+    const ChatListPage(), // Add the Chat tab
     UserPage(),
   ];
 
@@ -707,11 +709,18 @@ class MyHomePageState extends State<MyHomePage> {
             icon: Icon(Icons.calendar_today),
             label: 'Calendar',
           ),
+          BottomNavigationBarItem(
+            icon: Icon(Icons.chat),
+            label: 'Chat',
+          ), // New chat tab
           BottomNavigationBarItem(icon: Icon(Icons.person), label: 'User'),
         ],
         currentIndex: _selectedIndex,
         selectedItemColor: Colors.blue,
         onTap: _onItemTapped,
+        type:
+            BottomNavigationBarType
+                .fixed, // Add this to support more than 3 items
       ),
       bottomSheet: Container(height: 1, color: Colors.grey),
     );
