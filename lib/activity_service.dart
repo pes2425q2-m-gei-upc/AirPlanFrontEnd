@@ -1,5 +1,7 @@
 // activity_service.dart
 import 'dart:convert';
+import 'package:airplan/services/notification_service.dart';
+import 'package:flutter/cupertino.dart';
 import 'package:http/http.dart' as http;
 import 'package:intl/intl.dart';
 import 'services/api_config.dart'; // Importar la configuración de API
@@ -18,6 +20,9 @@ class ActivityService {
   }
 
   Future<void> sendActivityToBackend(Map<String, String> activityData) async {
+    // Validate dates first
+    validateActivityDates(activityData);
+
     final url = Uri.parse(ApiConfig().buildUrl('api/activitats/crear'));
     final dateFormat = DateFormat("yyyy-MM-dd'T'HH:mm:ss");
     final ubicacioParts = activityData['location']!.split(',');
@@ -47,7 +52,85 @@ class ActivityService {
     );
 
     if (response.statusCode != 201) {
+
+      final BuildContext context = activityData['context'] as BuildContext;
+      final message = 'Error al crear la actividad: ${response.body}';
+      if (!context.mounted) return;
+      NotificationService.showError(context, message);
+
       throw Exception('Error al crear la actividad: ${response.body}');
+    }
+  }
+
+  void validateActivityDates(Map<String, String> activityData) {
+
+    final BuildContext currentContext = activityData['context'] as BuildContext;
+
+    final String? startDateString = activityData['startDate'];
+    final String? endDateString = activityData['endDate'];
+
+    if (startDateString == null || startDateString.isEmpty) {
+      if (!currentContext.mounted) return;
+      NotificationService.showError(
+        currentContext,
+        'La fecha de inicio es obligatoria',
+      );
+      throw Exception('La fecha de inicio es obligatoria');
+    }
+
+    if (endDateString == null || endDateString.isEmpty) {
+      if (!currentContext.mounted) return;
+      NotificationService.showError(
+        currentContext,
+        'La fecha de fin es obligatoria',
+      );
+      throw Exception('La fecha de fin es obligatoria');
+    }
+
+    DateTime startDate;
+    DateTime endDate;
+
+    try {
+      startDate = DateTime.parse(startDateString);
+    } catch (e) {
+      if (!currentContext.mounted) return;
+      NotificationService.showError(
+        currentContext,
+        'El formato de la fecha de inicio no es válido',
+      );
+      throw Exception('El formato de la fecha de inicio no es válido');
+    }
+
+    try {
+      endDate = DateTime.parse(endDateString);
+    } catch (e) {
+      if (!currentContext.mounted) return;
+      NotificationService.showError(
+        currentContext,
+        'El formato de la fecha de fin no es válido',
+      );
+      throw Exception('El formato de la fecha de fin no es válido');
+    }
+
+    // Check if start date is after end date
+    if (startDate.isAfter(endDate)) {
+      if (!currentContext.mounted) return;
+      NotificationService.showError(
+        currentContext,
+        'La fecha de inicio no puede ser posterior a la fecha de fin',
+      );
+      throw Exception('La fecha de inicio no puede ser posterior a la fecha de fin');
+    }
+
+    // Optional: Check if dates are in the past
+    final now = DateTime.now();
+    if (startDate.isBefore(now)) {
+      if (!currentContext.mounted) return;
+      NotificationService.showError(
+        currentContext,
+        'La fecha de inicio no puede ser en el pasado',
+      );
+      throw Exception('La fecha de inicio no puede ser en el pasado');
     }
   }
 
@@ -56,14 +139,23 @@ class ActivityService {
     final response = await http.delete(url);
 
     if (response.statusCode != 200) {
+
+      final BuildContext context = activityId as BuildContext;
+      final message = 'Error al eliminar la actividad: ${response.body}';
+      if (!context.mounted) return;
+      NotificationService.showError(context, message);
+
       throw Exception('Error al eliminar la actividad: ${response.body}');
     }
   }
 
   Future<void> updateActivityInBackend(
-    String activityId,
-    Map<String, String> activityData,
-  ) async {
+      String activityId,
+      Map<String, String> activityData,
+      ) async {
+    // Validate dates first
+    validateActivityDates(activityData);
+
     final url = Uri.parse(
       ApiConfig().buildUrl('api/activitats/editar/$activityId'),
     );
@@ -95,6 +187,12 @@ class ActivityService {
     );
 
     if (response.statusCode != 200) {
+      // Fixed the context retrieval
+      final BuildContext context = activityData['context'] as BuildContext;
+      final message = 'Error al actualizar la actividad: ${response.body}';
+      if (!context.mounted) return;
+      NotificationService.showError(context, message);
+
       throw Exception('Error al actualizar la actividad: ${response.body}');
     }
   }
