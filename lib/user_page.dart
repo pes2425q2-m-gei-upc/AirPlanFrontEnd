@@ -1,305 +1,809 @@
-import 'dart:convert';
-
 import 'package:flutter/material.dart';
 import 'package:firebase_auth/firebase_auth.dart';
 import 'package:airplan/user_services.dart';
-import 'package:flutter_rating_bar/flutter_rating_bar.dart';
-import 'package:http/http.dart' as http;
-import 'package:intl/intl.dart';
-import 'activity_service.dart';
-import 'login_page.dart'; // Para redirigir al usuario después de eliminar la cuenta
+import 'package:airplan/services/websocket_service.dart';
+import 'dart:convert';
+import 'login_page.dart';
+import 'edit_profile_page.dart';
+import 'dart:async';
+import 'main.dart';
 
-
-class Valoracio {
+/// Widget para mostrar la información del usuario
+class UserInfoCard extends StatelessWidget {
+  final String realName;
   final String username;
-  final int idActivitat;
-  final double valoracion;
-  final String? comentario;
-  final DateTime fecha;
+  final String email;
+  final bool isClient;
+  final int userLevel;
+  final bool isLoading;
 
-  Valoracio({
+  // Added const constructor
+  const UserInfoCard({
+    super.key,
+    required this.realName,
     required this.username,
-    required this.idActivitat,
-    required this.valoracion,
-    this.comentario,
-    required this.fecha,
+    required this.email,
+    required this.isClient,
+    required this.userLevel,
+    required this.isLoading,
   });
 
-  factory Valoracio.fromJson(Map<String, dynamic> json) {
-    return Valoracio(
-      username: json['username'],
-      idActivitat: json['idActivitat'],
-      valoracion: json['valoracion'].toDouble(),
-      comentario: json['comentario'],
-      fecha: DateTime.parse(json['fechaValoracion']),
+  @override
+  Widget build(BuildContext context) {
+    return Card(
+      elevation: 4,
+      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(15)),
+      child: Padding(
+        padding: const EdgeInsets.all(16.0),
+        child: Column(
+          children: [
+            _buildInfoListTile(
+              icon: Icons.person,
+              title: 'Nombre',
+              value: realName,
+              isLoading: isLoading,
+            ),
+            const Divider(),
+            _buildInfoListTile(
+              icon: Icons.alternate_email,
+              title: 'Username',
+              value: username,
+              isLoading:
+                  false, // Username comes directly from Firebase Auth, not loaded async here
+            ),
+            const Divider(),
+            _buildInfoListTile(
+              icon: Icons.email,
+              title: 'Correo',
+              value: email,
+              isLoading: false, // Email comes directly from Firebase Auth
+            ),
+            if (isClient) ...[
+              const Divider(),
+              _buildInfoListTile(
+                icon: Icons.star,
+                title: 'Nivel',
+                value: '$userLevel',
+                isLoading: isLoading,
+                iconColor: Colors.amber,
+                isBold: true,
+              ),
+            ],
+          ],
+        ),
+      ),
+    );
+  }
+
+  Widget _buildInfoListTile({
+    required IconData icon,
+    required String title,
+    required String value,
+    bool isLoading = false,
+    Color iconColor = Colors.blue,
+    bool isBold = false,
+  }) {
+    return ListTile(
+      leading: Icon(icon, color: iconColor),
+      title: Text(title, style: const TextStyle(fontWeight: FontWeight.bold)),
+      subtitle:
+          isLoading
+              ? const Center(
+                child: SizedBox(
+                  height: 20,
+                  width: 20,
+                  child: CircularProgressIndicator(strokeWidth: 2),
+                ),
+              )
+              : Text(
+                value,
+                style: TextStyle(
+                  fontSize: 16,
+                  fontWeight: isBold ? FontWeight.bold : FontWeight.normal,
+                ),
+              ),
     );
   }
 }
 
 class UserPage extends StatefulWidget {
-  const UserPage({super.key});
+  final bool isEmbedded;
+
+  const UserPage({super.key, this.isEmbedded = false});
 
   @override
   State<UserPage> createState() => _UserPageState();
 }
 
 class _UserPageState extends State<UserPage> {
-  late Future<List<Valoracio>> _userRatingsFuture;
-  final User? _currentUser = FirebaseAuth.instance.currentUser;
-  final ActivityService activityService = ActivityService();
-  List<Map<String, dynamic>> activities = [];
+  bool _isLoading = true;
+  String _realName = 'Cargando...';
+  // Variables para nivel de usuario
+  int _userLevel = 0;
+  bool _isClient = false;
+  // WebSocket subscription for real-time updates
+  StreamSubscription<String>? _profileUpdateSubscription;
+  // Suscripción para eventos de actualización global
+  StreamSubscription<Map<String, dynamic>>? _globalUpdateSubscription;
+
+  // Store user data locally to avoid relying solely on FirebaseAuth.instance.currentUser
+  User? _currentUser;
+  String _username = '';
+  String _email = '';
+  String? _photoURL;
 
   @override
   void initState() {
     super.initState();
-    _loadUserRatings();
-    fetchActivities();
+    _currentUser = FirebaseAuth.instance.currentUser;
+    _updateLocalUserInfo(); // Initialize local user info
+
+    // Inicializar la conexión WebSocket antes de cargar datos
+    _ensureWebSocketConnection();
+    _loadUserData();
+    // Suscribirse a eventos globales de actualización
+    _subscribeToGlobalUpdates();
   }
 
-  Future<void> _loadUserRatings() async {
-    if (_currentUser == null) return;
-
-    setState(() {
-      _userRatingsFuture = _fetchUserRatings(_currentUser.displayName ?? _currentUser.email!.split('@')[0]);
-    });
-  }
-  Future<void> fetchActivities() async {
-    activities = await activityService.fetchActivities();
-  }
-
-  String? findActivityTitleById(List<Map<String, dynamic>> activities, int id) {
-    final activity = activities.firstWhere(
-        (activity) => activity['id'] == id,
-        orElse: () => {},
-    );
-    return activity.isNotEmpty ? activity['nom'] as String? : null;
-  }
-
-  Future<List<Valoracio>> _fetchUserRatings(String username) async {
-    try {
-      final response = await http.get(
-        Uri.parse('http://127.0.0.1:8080/valoracions/usuari/$username'),
-        headers: {'Accept': 'application/json'},
-      ).timeout(Duration(seconds: 10));
-
-      if (response.statusCode == 200) {
-        final List<dynamic> data = json.decode(utf8.decode(response.bodyBytes));
-        return data.map((json) => Valoracio.fromJson(json)).toList()
-          ..sort((a, b) => b.fecha.compareTo(a.fecha));
-      }
-      throw Exception('Error ${response.statusCode}: ${response.body}');
-    } catch (e) {
-      throw Exception('Error al cargar valoraciones: $e');
+  // Helper to update local user info from _currentUser
+  void _updateLocalUserInfo() {
+    if (_currentUser != null) {
+      _username = _currentUser!.displayName ?? 'Username no disponible';
+      _email = _currentUser!.email ?? 'UsuarioSinEmail';
+      _photoURL = _currentUser!.photoURL;
+    } else {
+      _username = 'Username no disponible';
+      _email = 'UsuarioSinEmail';
+      _photoURL = null;
     }
   }
 
-  Future<void> _eliminarCuenta(BuildContext context) async {
-    final user = FirebaseAuth.instance.currentUser;
+  // Método para suscribirse a eventos globales
+  void _subscribeToGlobalUpdates() {
+    _globalUpdateSubscription = profileUpdateStreamController.stream.listen((
+      data,
+    ) {
+      // Verificar si es un evento de reanudación de la app O inicio de la app
+      if (data['type'] == 'app_resumed' || data['type'] == 'app_launched') {
+        // Recargar datos cuando la app se reanuda desde segundo plano o cuando se inicia desde cero
+        if (mounted) {
+          debugPrint('UserPage: Recargando datos por evento ${data['type']}');
+          setState(() {
+            _isLoading = true;
+          });
+          _loadUserData();
+        }
+      }
+    });
+  }
 
-    if (user == null) {
-      ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(content: Text("No hay un usuario autenticado.")),
+  // Asegurar que la conexión WebSocket está activa
+  void _ensureWebSocketConnection() {
+    // Obtener la instancia del WebSocketService
+    final webSocketService = WebSocketService();
+
+    // Verificar si ya está conectado
+    if (!webSocketService.isConnected) {
+      webSocketService.connect();
+    }
+
+    // Inicializar escucha de eventos WebSocket
+    _initWebSocketListener();
+  }
+
+  // Initialize WebSocket connection and listen for profile updates
+  void _initWebSocketListener() {
+    // Cancelar suscripción anterior si existe
+    _profileUpdateSubscription?.cancel();
+
+    // Listen for profile update events
+    _profileUpdateSubscription = WebSocketService().profileUpdates.listen(
+      (message) {
+        // Added mounted check at the beginning of the callback
+        if (!mounted) return;
+
+        try {
+          // Parse incoming message
+          final data = json.decode(message);
+
+          // Check if this is a profile update notification
+          if (data['type'] == 'PROFILE_UPDATE') {
+            // Check if the update is relevant for the current user
+            // Use local _currentUser for consistency
+            if (_currentUser != null &&
+                (data['username'] == _username || data['email'] == _email)) {
+              final updatedFields =
+                  data['updatedFields'] as List<dynamic>? ?? [];
+              final isEmailUpdate = updatedFields.contains('email');
+              final isPasswordUpdate = updatedFields.contains('password');
+              final isNameUpdate =
+                  updatedFields.contains('nom') ||
+                  updatedFields.contains('username') ||
+                  updatedFields.contains('displayName');
+              final isPhotoUpdate = updatedFields.contains('photoURL');
+
+              // Determine if it's a critical change requiring re-login
+              final isSessionResetRequired = isEmailUpdate || isPasswordUpdate;
+
+              if (isSessionResetRequired) {
+                _handleCriticalUpdate(isEmailUpdate, isPasswordUpdate);
+              } else if (isNameUpdate || isPhotoUpdate) {
+                _handleNonCriticalUpdate(isNameUpdate, isPhotoUpdate);
+              } else {
+                // Other non-critical updates (e.g., language)
+                _handleNonCriticalUpdate(false, false); // Still reload data
+              }
+            }
+          } else if (data['type'] == 'ACCOUNT_DELETED') {
+            // Handle account deletion initiated from another device
+            if (_currentUser != null &&
+                (data['username'] == _username || data['email'] == _email)) {
+              _handleAccountDeletedRemotely();
+            }
+          }
+        } catch (e) {
+          debugPrint("Error procesando mensaje WebSocket en UserPage: $e");
+        }
+      },
+      onError: (error) {
+        debugPrint("WebSocket error en UserPage: $error");
+        // Attempt to reconnect after a delay if mounted
+        if (mounted) {
+          Future.delayed(const Duration(seconds: 5), () {
+            if (mounted) {
+              _ensureWebSocketConnection(); // Re-establish connection and listener
+            }
+          });
+        }
+      },
+      onDone: () {
+        debugPrint("WebSocket connection closed en UserPage");
+        // Attempt to reconnect after a delay if mounted
+        if (mounted) {
+          Future.delayed(const Duration(seconds: 5), () {
+            if (mounted) {
+              _ensureWebSocketConnection(); // Re-establish connection and listener
+            }
+          });
+        }
+      },
+    );
+  }
+
+  // Handles critical updates (email/password change) from WebSocket
+  void _handleCriticalUpdate(bool isEmailUpdate, bool isPasswordUpdate) {
+    String message = '';
+    if (isEmailUpdate && isPasswordUpdate) {
+      message =
+          'Se han detectado cambios en tu correo y contraseña en otro dispositivo. Es necesario volver a iniciar sesión.';
+    } else if (isEmailUpdate) {
+      message =
+          'Se ha detectado un cambio de correo electrónico en otro dispositivo. Es necesario volver a iniciar sesión.';
+    } else {
+      // isPasswordUpdate
+      message =
+          'Se ha detectado un cambio de contraseña en otro dispositivo. Es necesario volver a iniciar sesión.';
+    }
+
+    // Show info message and trigger logout/redirect
+    _showInfoAndLogout(message);
+  }
+
+  // Handles non-critical updates (name, photo, etc.) from WebSocket
+  void _handleNonCriticalUpdate(bool isNameUpdate, bool isPhotoUpdate) {
+    if (!mounted) return;
+
+    String message = 'Tu perfil ha sido actualizado en otro dispositivo.';
+    if (isNameUpdate && isPhotoUpdate) {
+      message =
+          'Tu nombre y foto de perfil han sido actualizados en otro dispositivo.';
+    } else if (isNameUpdate) {
+      message = 'Tu nombre ha sido actualizado en otro dispositivo.';
+    } else if (isPhotoUpdate) {
+      message = 'Tu foto de perfil ha sido actualizada en otro dispositivo.';
+    }
+
+    final currentContext = context;
+    ScaffoldMessenger.of(currentContext).showSnackBar(
+      SnackBar(
+        content: Text(message),
+        backgroundColor: Colors.blue,
+        duration: const Duration(seconds: 3),
+      ),
+    );
+
+    // Reload user data to reflect changes
+    setState(() {
+      _isLoading = true;
+    });
+    _loadUserData();
+  }
+
+  // Handles account deletion initiated remotely via WebSocket
+  void _handleAccountDeletedRemotely() {
+    _showInfoAndLogout(
+      'Tu cuenta ha sido eliminada desde otro dispositivo. Serás redirigido a la pantalla de inicio de sesión.',
+      title: 'Cuenta Eliminada',
+    );
+  }
+
+  // Shows an informational SnackBar and then initiates the logout process
+  void _showInfoAndLogout(String message, {String title = 'Cambio Detectado'}) {
+    if (!mounted) return;
+
+    final currentContext = context;
+    ScaffoldMessenger.of(currentContext).showSnackBar(
+      SnackBar(
+        content: Text(message),
+        backgroundColor: Colors.orange,
+        duration: const Duration(seconds: 4), // Slightly longer duration
+      ),
+    );
+
+    // Initiate logout after a delay
+    Future.delayed(const Duration(seconds: 4), () {
+      if (mounted) {
+        // Use _handleSessionClose for unified logout logic
+        _handleSessionClose(
+          title: title,
+          message: message, // Reuse message for dialog
+          redirectToLogin: true,
+          isRemoteAction: true, // Indicate this is due to a remote action
+        );
+      }
+    });
+  }
+
+  // --- Deprecated: _handleAccountChangeOnAnotherDevice --- (Replaced by WebSocket handlers and _showInfoAndLogout)
+  /*
+  Future<void> _handleAccountChangeOnAnotherDevice({
+    required bool isPasswordChange,
+    required bool isEmailChange,
+    required bool isNameChange,
+  }) async {
+     // ... (Previous complex logic involving reload, signout, etc.)
+     // This logic is now simplified and handled within the WebSocket listener
+     // and the _showInfoAndLogout -> _handleSessionClose flow.
+  }
+  */
+
+  // Método para cargar los datos de usuario
+  Future<void> _loadUserData() async {
+    // Refresh _currentUser instance
+    _currentUser = FirebaseAuth.instance.currentUser;
+    _updateLocalUserInfo(); // Update local vars like _username, _email, _photoURL
+
+    if (_currentUser != null &&
+        _username.isNotEmpty &&
+        _username != 'Username no disponible') {
+      try {
+        // Cargar el nombre real del usuario
+        final realName = await UserService.getUserRealName(_username);
+
+        // Obtener el tipo de usuario y nivel si es cliente
+        final tipoInfo = await UserService.getUserTypeAndLevel(_username);
+
+        // Added mounted check after awaits
+        if (!mounted) return;
+
+        final tipo = tipoInfo['tipo'] as String?;
+        final isClient = tipo == 'cliente';
+        final nivel = isClient ? (tipoInfo['nivell'] as int?) ?? 0 : 0;
+
+        setState(() {
+          _realName = realName;
+          _isClient = isClient;
+          _userLevel = nivel;
+          _isLoading = false;
+        });
+      } catch (e) {
+        // Added mounted check in catch block
+        if (!mounted) return;
+        setState(() {
+          _realName = 'Error al cargar datos';
+          _isLoading = false;
+        });
+        debugPrint("Error loading user data details: $e");
+        // Optionally show a snackbar error
+        // ScaffoldMessenger.of(context).showSnackBar(
+        //   const SnackBar(content: Text("Error al cargar detalles del perfil.")),
+        // );
+      }
+    } else {
+      // No hay usuario autenticado o falta el username
+      if (mounted) {
+        // Handle scenario where user becomes null unexpectedly
+        _handleSessionClose(
+          title: 'Sesión Expirada',
+          message:
+              'Tu sesión ha expirado o no se pudo verificar. Por favor, inicia sesión nuevamente.',
+          redirectToLogin: true,
+          isRemoteAction: false,
+        );
+      }
+    }
+  }
+
+  // --- Deprecated: _showSessionExpiredDialog --- (Replaced by _handleSessionClose)
+  /*
+  Future<void> _showSessionExpiredDialog() async {
+    // ... (Previous logic)
+  }
+  */
+
+  // --- Removed redundant refresh logic (_needsRefresh, didChangeDependencies, markForRefresh) ---
+  // Refreshing is handled by calling _loadUserData directly after returning from EditProfilePage
+  // and via WebSocket updates.
+
+  @override
+  void dispose() {
+    // Cancel profile update subscription when the page is disposed
+    _profileUpdateSubscription?.cancel();
+    _globalUpdateSubscription?.cancel();
+    super.dispose();
+  }
+
+  Future<void> _eliminarCuenta(BuildContext context) async {
+    // Capture context and check mounted status early
+    if (!context.mounted) return;
+    final contextCaptured = context;
+
+    // Use local _currentUser
+    if (_currentUser == null || _email.isEmpty || _email == 'UsuarioSinEmail') {
+      ScaffoldMessenger.of(contextCaptured).showSnackBar(
+        const SnackBar(content: Text("No hay un usuario autenticado válido.")),
       );
       return;
     }
 
+    // Guardar una referencia al email para usarlo después del diálogo
+    final userEmail = _email;
+
+    // Mostrar el diálogo de confirmación
     final confirmacion = await showDialog<bool>(
-      context: context,
-      builder: (context) => AlertDialog(
-        title: const Text("Eliminar cuenta"),
-        content: const Text("¿Estás seguro de que quieres eliminar tu cuenta? Esta acción no se puede deshacer."),
-        actions: [
-          TextButton(
-            onPressed: () => Navigator.of(context).pop(false),
-            child: const Text("Cancelar"),
+      context: contextCaptured,
+      builder:
+          (dialogContext) => AlertDialog(
+            title: const Text("Eliminar cuenta"),
+            content: const Text(
+              "¿Estás seguro de que quieres eliminar tu cuenta? Esta acción no se puede deshacer.",
+            ),
+            actions: [
+              TextButton(
+                onPressed: () => Navigator.of(dialogContext).pop(false),
+                child: const Text("Cancelar"),
+              ),
+              TextButton(
+                onPressed: () => Navigator.of(dialogContext).pop(true),
+                child: const Text(
+                  "Eliminar",
+                  style: TextStyle(color: Colors.red),
+                ),
+              ),
+            ],
           ),
-          TextButton(
-            onPressed: () => Navigator.of(context).pop(true),
-            child: const Text("Eliminar", style: TextStyle(color: Colors.red)),
-          ),
-        ],
+    );
+
+    // Re-check mounted status after await
+    if (!contextCaptured.mounted || confirmacion != true) return;
+
+    // Show loading indicator
+    ScaffoldMessenger.of(contextCaptured).showSnackBar(
+      const SnackBar(
+        content: Row(
+          children: [
+            CircularProgressIndicator(),
+            SizedBox(width: 20),
+            Text("Eliminando cuenta..."),
+          ],
+        ),
+        duration: Duration(seconds: 10), // Longer duration for deletion
       ),
     );
 
-    if (confirmacion == true) {
-      final success = await UserService.deleteUser(user.email!);
-      final actualContext = context;
-      if (actualContext.mounted) {
-        if (success) {
-          ScaffoldMessenger.of(actualContext).showSnackBar(
-            const SnackBar(content: Text("Cuenta eliminada correctamente.")),
+    // Desconecta el WebSocket antes de eliminar la cuenta
+    WebSocketService().disconnect();
+
+    // Eliminar la cuenta using UserService
+    final success = await UserService.deleteUser(userEmail);
+
+    // Re-check mounted status after await
+    if (!contextCaptured.mounted) return;
+
+    // Hide loading indicator
+    ScaffoldMessenger.of(contextCaptured).hideCurrentSnackBar();
+
+    if (success) {
+      ScaffoldMessenger.of(contextCaptured).showSnackBar(
+        const SnackBar(content: Text("Cuenta eliminada correctamente.")),
+      );
+      // Redirect to login page
+      Navigator.of(contextCaptured).pushAndRemoveUntil(
+        MaterialPageRoute(builder: (context) => const LoginPage()),
+        (route) => false,
+      );
+    } else {
+      ScaffoldMessenger.of(contextCaptured).showSnackBar(
+        const SnackBar(
+          content: Text(
+            "Error al eliminar la cuenta. Es posible que necesites iniciar sesión de nuevo para completar la eliminación.",
+          ),
+        ),
+      );
+      // Attempt to sign out locally anyway, as the backend might have succeeded partially
+      // or the Firebase user needs deletion.
+      await _handleSessionClose(
+        title: 'Error al Eliminar',
+        message: 'Hubo un error al eliminar la cuenta. Se cerrará tu sesión.',
+        redirectToLogin: true,
+        isRemoteAction: false,
+      );
+    }
+  }
+
+  // Método unificado para manejar cierre de sesión
+  Future<void> _handleSessionClose({
+    String title = 'Sesión cerrada',
+    String message = 'Tu sesión ha sido cerrada',
+    bool redirectToLogin = true,
+    bool isRemoteAction =
+        false, // Flag to indicate if triggered by remote event
+  }) async {
+    // Capture context early
+    final contextCaptured = context;
+    if (!contextCaptured.mounted) return;
+
+    try {
+      // Use local email
+      final email = _email;
+
+      // 1. Cerrar sesión en el backend (best effort)
+      if (email.isNotEmpty && email != 'UsuarioSinEmail') {
+        try {
+          await UserService.logoutUser(email);
+        } catch (e) {
+          debugPrint('Error during backend logout in _handleSessionClose: $e');
+          // Continue with the process
+        }
+      }
+
+      // 2. Desconectar WebSocket
+      WebSocketService().disconnect();
+
+      // 3. Cerrar sesión en Firebase (important!)
+      try {
+        await FirebaseAuth.instance.signOut();
+      } catch (e) {
+        debugPrint('Error during Firebase signOut in _handleSessionClose: $e');
+        // Continue with the process
+      }
+
+      // 4. Clear local user state
+      _currentUser = null;
+      _updateLocalUserInfo();
+      if (mounted) {
+        setState(() {
+          // Trigger UI update if still mounted briefly
+          _isLoading = false;
+          _realName = '';
+          _isClient = false;
+          _userLevel = 0;
+        });
+      }
+
+      // 5. Redireccionar si es necesario (check mounted again before navigation)
+      if (redirectToLogin && contextCaptured.mounted) {
+        // Show dialog only if it wasn't triggered by a remote action (which already showed a SnackBar)
+        if (!isRemoteAction && title.isNotEmpty && message.isNotEmpty) {
+          await showDialog(
+            context: contextCaptured, // Use captured context
+            barrierDismissible: false,
+            builder: (BuildContext dialogContext) {
+              return AlertDialog(
+                title: Text(title),
+                content: Text(message),
+                actions: <Widget>[
+                  TextButton(
+                    child: const Text('Entendido'),
+                    onPressed: () {
+                      Navigator.of(dialogContext).pop();
+                    },
+                  ),
+                ],
+              );
+            },
           );
-          Navigator.pushReplacement(
-            context,
+        }
+
+        // Re-check mounted before final navigation
+        if (contextCaptured.mounted) {
+          Navigator.of(contextCaptured).pushAndRemoveUntil(
             MaterialPageRoute(builder: (context) => const LoginPage()),
-          );
-        } else {
-          ScaffoldMessenger.of(actualContext).showSnackBar(
-            const SnackBar(content: Text("Error al eliminar la cuenta")),
+            (route) => false,
           );
         }
       }
+    } catch (e) {
+      debugPrint("Error in _handleSessionClose: $e");
+      // Attempt to redirect anyway as a fallback
+      if (redirectToLogin && contextCaptured.mounted) {
+        ScaffoldMessenger.of(contextCaptured).showSnackBar(
+          SnackBar(content: Text("Error crítico al cerrar sesión: $e")),
+        );
+        Navigator.of(contextCaptured).pushAndRemoveUntil(
+          MaterialPageRoute(builder: (context) => const LoginPage()),
+          (route) => false,
+        );
+      }
     }
   }
-  Widget _buildUserRatings(List<Valoracio> valoracions) {
-    if (valoracions.isEmpty) {
-      return Padding(
-        padding: EdgeInsets.all(16),
-        child: Text(
-          'No has realizado ninguna valoración aún',
-          style: TextStyle(color: Colors.grey),
-          textAlign: TextAlign.center,
-        ),
-      );
-    }
 
-    return Column(
-      crossAxisAlignment: CrossAxisAlignment.start,
-      children: [
-        Padding(
-          padding: EdgeInsets.symmetric(horizontal: 16, vertical: 8),
-          child: Text(
-            'Tus valoraciones (${valoracions.length})',
-            style: TextStyle(
-              fontSize: 18,
-              fontWeight: FontWeight.bold,
-            ),
-          ),
-        ),
-        ListView.builder(
-          shrinkWrap: true,
-          physics: NeverScrollableScrollPhysics(),
-          itemCount: valoracions.length,
-          itemBuilder: (context, index) {
-            final valoracio = valoracions[index];
-            return Card(
-              margin: EdgeInsets.symmetric(horizontal: 16, vertical: 8),
-              child: Padding(
-                padding: EdgeInsets.all(12),
-                child: Column(
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  children: [
-                    Text(
-                      findActivityTitleById(activities, valoracio.idActivitat) ?? "Actividad no encontrada",
-                      style: TextStyle(fontWeight: FontWeight.bold),
-                    ),
-                    SizedBox(height: 8),
-                    RatingBarIndicator(
-                      rating: valoracio.valoracion,
-                      itemBuilder: (context, _) => Icon(Icons.star, color: Colors.amber),
-                      itemCount: 5,
-                      itemSize: 20,
-                    ),
-                    if (valoracio.comentario?.isNotEmpty ?? false) ...[
-                      SizedBox(height: 8),
-                      Text(
-                        '"${valoracio.comentario!}"',
-                        style: TextStyle(fontStyle: FontStyle.italic),
-                      ),
-                    ],
-                    SizedBox(height: 4),
-                    Text(
-                      'Fecha: ${DateFormat('dd/MM/yyyy').format(valoracio.fecha)}',
-                      style: TextStyle(color: Colors.grey, fontSize: 12),
-                    ),
-                  ],
+  Future<void> _logout(BuildContext context) async {
+    // Capturar el contexto para usarlo después de operaciones asíncronas
+    final contextCaptured = context;
+    if (!mounted) return;
+
+    // Mostrar diálogo de confirmación antes de cerrar sesión
+    final confirmacion = await showDialog<bool>(
+      context: contextCaptured,
+      builder:
+          (dialogContext) => AlertDialog(
+            title: const Text("Cerrar Sesión"),
+            content: const Text("¿Estás seguro de que quieres cerrar sesión?"),
+            actions: [
+              TextButton(
+                onPressed: () => Navigator.of(dialogContext).pop(false),
+                child: const Text("Cancelar"),
+              ),
+              TextButton(
+                onPressed: () => Navigator.of(dialogContext).pop(true),
+                child: const Text(
+                  "Cerrar Sesión",
+                  style: TextStyle(color: Colors.red),
                 ),
               ),
-            );
-          },
-        ),
-      ],
+            ],
+          ),
+    );
+
+    // Re-check mounted status and confirmation
+    if (!mounted || confirmacion != true) {
+      return;
+    }
+
+    // Use the unified session close handler
+    await _handleSessionClose(
+      title: 'Sesión cerrada',
+      message: 'Has cerrado sesión correctamente.',
+      redirectToLogin: true,
+      isRemoteAction: false, // Manual logout
     );
   }
 
   @override
   Widget build(BuildContext context) {
-    if (_currentUser == null) {
-      return Scaffold(
-        appBar: AppBar(title: Text("Perfil")),
-        body: Center(child: Text("No hay usuario autenticado")),
-      );
-    }
+    // Use local variables _username, _email, _photoURL for consistency
 
-    final username = _currentUser.displayName ?? _currentUser.email!.split('@')[0];
-    final email = _currentUser.email ?? "UsuarioSinEmail";
-
-    return Scaffold(
-      appBar: AppBar(
-        title: Text("Perfil de $username"),
-      ),
-      body: RefreshIndicator(
-        onRefresh: _loadUserRatings,
-        child: SingleChildScrollView(
-          child: Column(
-            children: [
-              SizedBox(height: 20),
-              CircleAvatar(
-                radius: 50,
-                backgroundColor: Colors.blue,
-                child: Text(
-                  username[0].toUpperCase(),
-                  style: TextStyle(fontSize: 40, color: Colors.white),
+    // Contenido principal de la página de usuario
+    Widget content = Stack(
+      children: [
+        // Envolver todo el contenido en SingleChildScrollView para permitir desplazamiento
+        SingleChildScrollView(
+          child: Padding(
+            padding: const EdgeInsets.all(16.0),
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.center,
+              children: [
+                const SizedBox(height: 20),
+                // Foto de perfil
+                CircleAvatar(
+                  radius: 60,
+                  backgroundColor: Colors.grey[300],
+                  // Use local _photoURL
+                  backgroundImage:
+                      _photoURL != null ? NetworkImage(_photoURL!) : null,
+                  child:
+                      _photoURL == null
+                          ? const Icon(
+                            Icons.person,
+                            size: 60,
+                            color: Colors.grey,
+                          )
+                          : null,
                 ),
-              ),
-              SizedBox(height: 16),
-              Text(
-                username,
-                style: TextStyle(fontSize: 24, fontWeight: FontWeight.bold),
-              ),
-              Text(
-                email,
-                style: TextStyle(color: Colors.grey),
-              ),
-              SizedBox(height: 24),
+                const SizedBox(height: 30),
+                // Información del usuario
+                UserInfoCard(
+                  realName: _realName,
+                  username: _username, // Use local _username
+                  email: _email, // Use local _email
+                  isClient: _isClient,
+                  userLevel: _userLevel,
+                  isLoading: _isLoading,
+                ),
+                const SizedBox(height: 30),
+                // Botones de acción
+                Row(
+                  mainAxisAlignment: MainAxisAlignment.spaceEvenly,
+                  children: [
+                    Expanded(
+                      child: ElevatedButton.icon(
+                        onPressed: () async {
+                          // Capture context before await
+                          final navContext = context;
+                          // Navegar a la página de edición y esperar a que regrese
+                          await Navigator.of(navContext).push(
+                            MaterialPageRoute(
+                              builder: (context) => const EditProfilePage(),
+                            ),
+                          );
 
-              // Sección de valoraciones
-              FutureBuilder<List<Valoracio>>(
-                future: _userRatingsFuture,
-                builder: (context, snapshot) {
-                  if (snapshot.connectionState == ConnectionState.waiting) {
-                    return Center(child: CircularProgressIndicator());
-                  }
-                  if (snapshot.hasError) {
-                    return Padding(
-                      padding: EdgeInsets.all(16),
-                      child: Column(
-                        children: [
-                          Text(
-                            'Error al cargar valoraciones',
-                            style: TextStyle(color: Colors.red),
-                          ),
-                          SizedBox(height: 8),
-                          ElevatedButton(
-                            onPressed: _loadUserRatings,
-                            child: Text('Reintentar'),
-                          ),
-                        ],
+                          // Re-check mounted status after navigation returns
+                          if (!mounted) return;
+
+                          // Reload data after returning from edit page
+                          setState(() {
+                            _isLoading = true;
+                          });
+                          await _loadUserData();
+                        },
+                        icon: const Icon(Icons.edit),
+                        label: const Text('Editar Perfil'),
+                        style: ElevatedButton.styleFrom(
+                          backgroundColor: Colors.blue,
+                          foregroundColor: Colors.white,
+                          padding: const EdgeInsets.symmetric(vertical: 12),
+                        ),
                       ),
-                    );
-                  }
-                  return _buildUserRatings(snapshot.data ?? []);
-                },
-              ),
-
-              SizedBox(height: 20),
-              Padding(
-                padding: EdgeInsets.symmetric(horizontal: 16),
-                child: ElevatedButton.icon(
-                  icon: Icon(Icons.delete, color: Colors.white),
-                  label: Text("Eliminar Cuenta", style: TextStyle(color: Colors.white)),
-                  style: ElevatedButton.styleFrom(
-                    backgroundColor: Colors.red,
-                    minimumSize: Size(double.infinity, 50),
-                  ),
-                  onPressed: () => _eliminarCuenta(context),
+                    ),
+                    const SizedBox(width: 10),
+                    Expanded(
+                      child: ElevatedButton.icon(
+                        onPressed: () => _eliminarCuenta(context),
+                        icon: const Icon(Icons.delete_forever),
+                        label: const Text("Eliminar Cuenta"),
+                        style: ElevatedButton.styleFrom(
+                          backgroundColor: Colors.red,
+                          foregroundColor: Colors.white,
+                          padding: const EdgeInsets.symmetric(vertical: 12),
+                        ),
+                      ),
+                    ),
+                  ],
                 ),
-              ),
-              SizedBox(height: 20),
-            ],
+                const SizedBox(height: 20),
+                // Botón de logout
+                SizedBox(
+                  width: double.infinity,
+                  child: ElevatedButton.icon(
+                    onPressed: () => _logout(context),
+                    icon: const Icon(Icons.logout),
+                    label: const Text("Cerrar Sesión"),
+                    style: ElevatedButton.styleFrom(
+                      backgroundColor: Colors.grey.shade800,
+                      foregroundColor: Colors.white,
+                      padding: const EdgeInsets.symmetric(vertical: 12),
+                    ),
+                  ),
+                ),
+                // Añadimos un espacio extra al final para pantallas pequeñas
+                const SizedBox(height: 20),
+              ],
+            ),
           ),
         ),
-      ),
+      ],
+    );
+
+    // Si la página está embebida dentro de otra (como en AdminPage), devuelve solo el contenido
+    if (widget.isEmbedded) {
+      return content;
+    }
+
+    // De lo contrario, envuelve el contenido en un Scaffold completo
+    return Scaffold(
+      appBar: AppBar(title: const Text("Perfil de Usuario")),
+      body: content,
     );
   }
 }
