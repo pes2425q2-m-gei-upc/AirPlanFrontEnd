@@ -3,6 +3,7 @@ import 'package:airplan/services/chat_service.dart';
 import 'package:airplan/services/notification_service.dart';
 import 'package:firebase_auth/firebase_auth.dart';
 import 'package:intl/intl.dart';
+import 'dart:async';
 
 class ChatDetailPage extends StatefulWidget {
   final String username;
@@ -21,18 +22,55 @@ class ChatDetailPageState extends State<ChatDetailPage> {
   bool _isLoading = true;
   bool _isSending = false;
   String? _currentUsername;
+  StreamSubscription<Message>? _messageSubscription;
 
   @override
   void initState() {
     super.initState();
     _getCurrentUsername();
     _loadMessages();
+
+    // Inicializar el servicio de chat para WebSockets
+    _chatService.initialize();
+
+    // Suscribirse al stream de mensajes
+    _messageSubscription = _chatService.messageStream.listen(_handleNewMessage);
   }
 
   void _getCurrentUsername() {
     final user = FirebaseAuth.instance.currentUser;
     if (user != null) {
       _currentUsername = user.displayName;
+    }
+  }
+
+  // Manejar los mensajes nuevos recibidos por WebSocket
+  void _handleNewMessage(Message message) {
+    // Solo procesamos mensajes relevantes para esta conversación
+    if ((message.senderUsername == _currentUsername &&
+            message.receiverUsername == widget.username) ||
+        (message.receiverUsername == _currentUsername &&
+            message.senderUsername == widget.username)) {
+      setState(() {
+        // Añadir el mensaje y ordenar por tiempo
+        _messages.add(message);
+        _messages.sort((a, b) => a.timestamp.compareTo(b.timestamp));
+      });
+
+      // Desplazar al último mensaje
+      _scrollToBottom();
+    }
+  }
+
+  void _scrollToBottom() {
+    if (_scrollController.hasClients) {
+      Future.delayed(const Duration(milliseconds: 100), () {
+        _scrollController.animateTo(
+          _scrollController.position.maxScrollExtent,
+          duration: const Duration(milliseconds: 300),
+          curve: Curves.easeOut,
+        );
+      });
     }
   }
 
@@ -49,15 +87,7 @@ class ChatDetailPageState extends State<ChatDetailPage> {
       });
 
       // Scroll to bottom after messages load
-      WidgetsBinding.instance.addPostFrameCallback((_) {
-        if (_scrollController.hasClients) {
-          _scrollController.animateTo(
-            _scrollController.position.maxScrollExtent,
-            duration: const Duration(milliseconds: 300),
-            curve: Curves.easeOut,
-          );
-        }
-      });
+      _scrollToBottom();
     } catch (e) {
       setState(() {
         _isLoading = false;
@@ -84,7 +114,8 @@ class ChatDetailPageState extends State<ChatDetailPage> {
 
       if (success) {
         _messageController.clear();
-        await _loadMessages(); // Reload messages to show the sent message
+        // No necesitamos recargar todos los mensajes ya que el WebSocket nos enviará el mensaje
+        // El backend ya retornará el mensaje a través de WebSocket
       } else {
         if (mounted) {
           NotificationService.showError(
@@ -121,9 +152,12 @@ class ChatDetailPageState extends State<ChatDetailPage> {
       return DateFormat.Hm().format(timestamp);
     } else if (messageDate == today.subtract(const Duration(days: 1))) {
       // Yesterday
-      return 'Ayer, ${DateFormat.Hm().format(timestamp)}';
+      return 'Ayer ${DateFormat.Hm().format(timestamp)}';
+    } else if (now.difference(messageDate).inDays < 7) {
+      // Within a week, show day name and time
+      return '${DateFormat.E('es').format(timestamp)} ${DateFormat.Hm().format(timestamp)}';
     } else {
-      // Other dates, show full date and time
+      // Older, show date and time
       return DateFormat.yMMMd('es').add_Hm().format(timestamp);
     }
   }
@@ -132,6 +166,7 @@ class ChatDetailPageState extends State<ChatDetailPage> {
   void dispose() {
     _messageController.dispose();
     _scrollController.dispose();
+    _messageSubscription?.cancel();
     super.dispose();
   }
 
@@ -148,14 +183,15 @@ class ChatDetailPageState extends State<ChatDetailPage> {
                     : _messages.isEmpty
                     ? const Center(
                       child: Text(
-                        'No hay mensajes. ¡Envía el primero!',
+                        'No hay mensajes. Envía uno para comenzar a chatear.',
                         style: TextStyle(color: Colors.grey),
+                        textAlign: TextAlign.center,
                       ),
                     )
                     : ListView.builder(
                       controller: _scrollController,
-                      padding: const EdgeInsets.all(8),
                       itemCount: _messages.length,
+                      padding: const EdgeInsets.all(12),
                       itemBuilder: (context, index) {
                         final message = _messages[index];
                         final isMe = message.senderUsername == _currentUsername;
@@ -237,7 +273,8 @@ class ChatDetailPageState extends State<ChatDetailPage> {
           maxWidth: MediaQuery.of(context).size.width * 0.7,
         ),
         child: Column(
-          crossAxisAlignment: CrossAxisAlignment.start,
+          crossAxisAlignment:
+              isMe ? CrossAxisAlignment.end : CrossAxisAlignment.start,
           children: [
             Text(
               message.content,
@@ -246,14 +283,13 @@ class ChatDetailPageState extends State<ChatDetailPage> {
                 fontSize: 16,
               ),
             ),
-            const SizedBox(height: 4),
+            const SizedBox(height: 2),
             Text(
               _formatTimestamp(message.timestamp),
               style: TextStyle(
-                color: isMe ? Colors.white.withOpacity(0.8) : Colors.black54,
+                color: isMe ? Colors.white70 : Colors.black54,
                 fontSize: 12,
               ),
-              textAlign: TextAlign.right,
             ),
           ],
         ),

@@ -2,6 +2,8 @@ import 'dart:convert';
 import 'package:http/http.dart' as http;
 import 'package:firebase_auth/firebase_auth.dart';
 import 'package:airplan/services/api_config.dart';
+import 'dart:async';
+import 'package:airplan/services/websocket_service.dart';
 
 class Message {
   final String senderUsername;
@@ -55,7 +57,67 @@ class ChatService {
   // Singleton instance
   static final ChatService _instance = ChatService._internal();
   factory ChatService() => _instance;
-  ChatService._internal();
+
+  // Controller para transmitir mensajes en tiempo real
+  final StreamController<Message> _messageStreamController =
+      StreamController<Message>.broadcast();
+  StreamSubscription<Map<String, dynamic>>? _chatMessageSubscription;
+
+  // Obtener el stream de mensajes
+  Stream<Message> get messageStream => _messageStreamController.stream;
+
+  ChatService._internal() {
+    // Inicializar la suscripción en el constructor interno
+    _initializeSubscription();
+  }
+
+  // Inicializar o reiniciar la suscripción a mensajes de chat
+  void _initializeSubscription() {
+    // Cancelar suscripción existente si hay alguna
+    _chatMessageSubscription?.cancel();
+
+    // Asegurar que WebSocket está conectado
+    if (!WebSocketService().isConnected) {
+      WebSocketService().connect();
+    }
+
+    // Suscribirse al stream específico de mensajes de chat
+    _chatMessageSubscription = WebSocketService().chatMessages.listen((data) {
+      try {
+        final currentUser = FirebaseAuth.instance.currentUser;
+        if (currentUser != null && currentUser.displayName != null) {
+          // Comprobar si el mensaje es para este usuario
+          if (data['usernameReceiver'] == currentUser.displayName ||
+              data['usernameSender'] == currentUser.displayName) {
+            // Convertir a objeto Message y añadirlo al stream
+            final newMessage = Message.fromJson(data);
+            _messageStreamController.add(newMessage);
+          }
+        }
+      } catch (e) {
+        print('Error procesando mensaje de chat: $e');
+      }
+    });
+  }
+
+  // Método público para compatibilidad con código existente
+  void initialize() {
+    // Asegurar que la conexión WebSocket está establecida
+    if (!WebSocketService().isConnected) {
+      WebSocketService().connect();
+    }
+
+    // Solo reiniciar la suscripción si es necesario
+    if (_chatMessageSubscription == null) {
+      _initializeSubscription();
+    }
+  }
+
+  // Liberar recursos cuando ya no se necesitan
+  void dispose() {
+    _chatMessageSubscription?.cancel();
+    _messageStreamController.close();
+  }
 
   // Send a message to another user
   Future<bool> sendMessage(String receiverUsername, String content) async {
@@ -72,13 +134,30 @@ class ChatService {
         content: content,
       );
 
-      final response = await http.post(
-        Uri.parse(ApiConfig().buildUrl('chat/send')),
-        headers: {'Content-Type': 'application/json'},
-        body: jsonEncode(message.toJson()),
-      );
+      // Enviamos un mensaje de tipo CHAT_MESSAGE al servidor WebSocket
+      final chatMessage = {
+        ...message.toJson(),
+        'type': 'CHAT_MESSAGE',
+        'clientId': WebSocketService().clientId,
+      };
 
-      return response.statusCode == 201;
+      // IMPORTANTE: Añadir el mensaje al stream local inmediatamente
+      // para que aparezca en la interfaz del remitente sin esperar al WebSocket
+      _messageStreamController.add(message);
+
+      // Si el WebSocket está conectado, enviamos el mensaje a través de él
+      if (WebSocketService().isConnected) {
+        WebSocketService().sendMessage(jsonEncode(chatMessage));
+        return true;
+      } else {
+        // Si WebSocket no está disponible, realizamos una petición HTTP como fallback
+        final response = await http.post(
+          Uri.parse(ApiConfig().buildUrl('chat/send')),
+          headers: {'Content-Type': 'application/json'},
+          body: jsonEncode(message.toJson()),
+        );
+        return response.statusCode == 201;
+      }
     } catch (e) {
       print('Error sending message: $e');
       return false;

@@ -4,6 +4,7 @@ import 'package:airplan/services/notification_service.dart';
 import 'package:airplan/chat_detail_page.dart';
 import 'package:firebase_auth/firebase_auth.dart';
 import 'package:intl/intl.dart';
+import 'dart:async';
 
 class ChatListPage extends StatefulWidget {
   const ChatListPage({Key? key}) : super(key: key);
@@ -16,11 +17,39 @@ class ChatListPageState extends State<ChatListPage> {
   final ChatService _chatService = ChatService();
   List<Chat> _chats = [];
   bool _isLoading = true;
+  StreamSubscription<Message>? _messageSubscription;
+  String? _currentUsername;
 
   @override
   void initState() {
     super.initState();
+    _getCurrentUsername();
     _loadChats();
+
+    // Inicializar el servicio de chat para WebSockets
+    _chatService.initialize();
+
+    // Suscribirse al stream de mensajes para actualizar la lista de chats en tiempo real
+    _messageSubscription = _chatService.messageStream.listen(_handleNewMessage);
+  }
+
+  void _getCurrentUsername() {
+    final user = FirebaseAuth.instance.currentUser;
+    if (user != null) {
+      _currentUsername = user.displayName;
+    }
+  }
+
+  // Manejar mensajes nuevos para actualizar la lista de chats
+  void _handleNewMessage(Message message) {
+    if (_currentUsername == null) return;
+
+    // Verificar si el mensaje es relevante para este usuario
+    if (message.senderUsername == _currentUsername ||
+        message.receiverUsername == _currentUsername) {
+      // Recargar la lista de chats para incluir el nuevo mensaje
+      _loadChats();
+    }
   }
 
   Future<void> _loadChats() async {
@@ -69,6 +98,12 @@ class ChatListPageState extends State<ChatListPage> {
       // Older, show date
       return DateFormat.yMMMd('es').format(timestamp);
     }
+  }
+
+  @override
+  void dispose() {
+    _messageSubscription?.cancel();
+    super.dispose();
   }
 
   @override

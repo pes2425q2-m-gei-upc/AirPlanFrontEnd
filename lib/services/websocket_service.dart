@@ -5,49 +5,62 @@ import 'package:shared_preferences/shared_preferences.dart';
 import 'package:uuid/uuid.dart';
 import 'dart:convert';
 import 'package:flutter/material.dart';
-import 'package:airplan/main.dart'; // Importar para acceder a navigatorKey
-import 'api_config.dart'; // Importar configuración de API
+import 'package:airplan/main.dart';
+import 'api_config.dart';
 
-/// WebSocketService manages real-time communication for profile updates across devices
+/// Clase principal para gestionar la conexión WebSocket y distribuir mensajes
 class WebSocketService {
   static final WebSocketService _instance = WebSocketService._internal();
   WebSocketChannel? _channel;
-  final StreamController<String> _profileUpdateController =
-      StreamController<String>.broadcast();
-  bool _isConnected = false;
 
-  // Datos actuales del usuario
+  // Controladores para diferentes tipos de mensajes
+  final StreamController<Map<String, dynamic>> _chatMessageController =
+      StreamController<Map<String, dynamic>>.broadcast();
+  final StreamController<Map<String, dynamic>> _profileUpdateController =
+      StreamController<Map<String, dynamic>>.broadcast();
+  final StreamController<Map<String, dynamic>> _accountDeletedController =
+      StreamController<Map<String, dynamic>>.broadcast();
+
+  // Controller para todos los mensajes (para mantener compatibilidad)
+  final StreamController<String> _allMessagesController =
+      StreamController<String>.broadcast();
+
+  bool _isConnected = false;
   String _currentUsername = '';
   String _currentEmail = '';
-
-  // ID único para este cliente/dispositivo
   String _clientId = '';
-
-  // Timer para ping/pong y reconexión automática
   Timer? _pingTimer;
   Timer? _reconnectTimer;
 
-  // Singleton instance
+  // Singleton factory
   factory WebSocketService() {
     return _instance;
   }
 
+  // Streams específicos por tipo de mensaje
+  Stream<Map<String, dynamic>> get chatMessages =>
+      _chatMessageController.stream;
+  Stream<Map<String, dynamic>> get profileUpdateEvents =>
+      _profileUpdateController.stream;
+  Stream<Map<String, dynamic>> get accountDeletedEvents =>
+      _accountDeletedController.stream;
+
+  // Stream de todos los mensajes (para compatibilidad con código existente)
+  Stream<String> get profileUpdates => _allMessagesController.stream;
+
   WebSocketService._internal() {
-    // Inicializar clientId
     _initializeClientId();
 
-    // Escuchar cambios de autenticación para mantener la conexión actualizada
+    // Escuchar cambios de autenticación
     FirebaseAuth.instance.authStateChanges().listen((User? user) {
       if (user != null) {
-        // Usuario logueado - conectar o actualizar conexión
         _updateUserCredentials(user);
       } else {
-        // Usuario desconectado - cerrar WebSocket
         disconnect();
       }
     });
 
-    // Inicializar conexión si ya hay un usuario
+    // Verificar si hay un usuario activo al iniciar
     final user = FirebaseAuth.instance.currentUser;
     if (user != null) {
       _updateUserCredentials(user);
@@ -61,13 +74,11 @@ class WebSocketService {
       final prefs = await SharedPreferences.getInstance();
       _clientId = prefs.getString('websocket_client_id') ?? '';
 
-      // Si no hay ID guardado, generar uno nuevo
       if (_clientId.isEmpty) {
         _clientId = const Uuid().v4();
         await prefs.setString('websocket_client_id', _clientId);
       }
     } catch (e) {
-      // Generar un ID temporal si hay error con SharedPreferences
       _clientId =
           'temp_${DateTime.now().millisecondsSinceEpoch}_${const Uuid().v4()}';
     }
@@ -76,23 +87,18 @@ class WebSocketService {
   // Getter para el clientId
   String get clientId => _clientId;
 
-  // Stream for profile updates that other widgets can listen to
-  Stream<String> get profileUpdates => _profileUpdateController.stream;
-
-  // Check if WebSocket is connected
+  // Verificar si WebSocket está conectado
   bool get isConnected => _isConnected;
 
-  // Actualiza las credenciales del usuario y reconecta si es necesario
+  // Actualiza credenciales del usuario y reconecta si es necesario
   void _updateUserCredentials(User user) {
     final newUsername = user.displayName ?? '';
     final newEmail = user.email ?? '';
 
-    // Verificar si cambiaron las credenciales
     if (newUsername != _currentUsername || newEmail != _currentEmail) {
       _currentUsername = newUsername;
       _currentEmail = newEmail;
 
-      // Si ya estábamos conectados, reconectar con las nuevas credenciales
       if (_isConnected) {
         disconnect();
         connect();
@@ -100,37 +106,29 @@ class WebSocketService {
     }
   }
 
-  // Connect to WebSocket server with current user credentials
+  // Conectar al servidor WebSocket
   void connect() {
-    // Si ya estamos conectados, no hacemos nada
     if (_isConnected && _channel != null) {
       return;
     }
 
-    // Limpiar cualquier conexión anterior que pudiera estar en mal estado
     disconnect();
 
-    // Actualizar las credenciales del usuario antes de conectar
     final user = FirebaseAuth.instance.currentUser;
     if (user == null) {
-      // No hay usuario autenticado, no podemos conectar
       return;
     }
 
     _currentUsername = user.displayName ?? '';
     _currentEmail = user.email ?? '';
 
-    // Si no hay credenciales válidas, no conectar
     if (_currentUsername.isEmpty || _currentEmail.isEmpty) {
       return;
     }
 
     try {
-      // Usar ApiConfig para construir la URL del WebSocket
-      // Convertir http:// a ws:// para WebSockets
       final baseUrl = ApiConfig().baseUrl.replaceFirst('http://', 'ws://');
 
-      // Connect to WebSocket server with user credentials as query parameters
       _channel = WebSocketChannel.connect(
         Uri.parse(
           '$baseUrl/ws?username=$_currentUsername&email=$_currentEmail&clientId=$_clientId',
@@ -139,35 +137,30 @@ class WebSocketService {
 
       _isConnected = true;
 
-      // Listen for incoming messages
+      // Escuchar mensajes entrantes
       _channel!.stream.listen(
         (message) {
-          // Process incoming message
           _handleIncomingMessage(message.toString());
         },
         onDone: () {
           _isConnected = false;
-          // Attempt to reconnect after a delay
           _scheduleReconnect();
         },
         onError: (error) {
           _isConnected = false;
-          // Attempt to reconnect after a delay
           _scheduleReconnect();
         },
       );
 
-      // Iniciar el ping periódico para mantener la conexión activa
       _startPingTimer();
     } catch (e) {
       _isConnected = false;
       debugPrint('Error al conectar WebSocket: $e');
-      // Attempt to reconnect after a delay
       _scheduleReconnect();
     }
   }
 
-  // Iniciar timer para enviar pings periódicos al servidor
+  // Iniciar timer para enviar pings periódicos
   void _startPingTimer() {
     _pingTimer?.cancel();
     _pingTimer = Timer.periodic(const Duration(seconds: 30), (timer) {
@@ -184,9 +177,8 @@ class WebSocketService {
     });
   }
 
-  // Schedule a reconnection attempt
+  // Programar un intento de reconexión
   void _scheduleReconnect() {
-    // Cancelar cualquier timer de reconexión existente
     _reconnectTimer?.cancel();
 
     _reconnectTimer = Timer(const Duration(seconds: 5), () {
@@ -196,50 +188,58 @@ class WebSocketService {
     });
   }
 
-  // Handle incoming WebSocket messages
+  // Manejar mensajes entrantes del WebSocket
   void _handleIncomingMessage(String message) {
     try {
-      // No procesar mensajes ping-pong
+      // Enviamos el mensaje crudo al stream general (compatibilidad)
+      _allMessagesController.add(message);
+
+      // No procesamos mensajes de ping/pong
       if (message.contains('"type":"PING"') ||
           message.contains('"type":"PONG"')) {
         return;
       }
 
-      // Deserializar el mensaje para verificar el clientId
+      // Deserializar el mensaje
       final Map<String, dynamic> data = json.decode(message);
 
-      // Comprobar si el mensaje proviene del mismo dispositivo (mismo clientId)
-      if (data.containsKey('clientId') && data['clientId'] == _clientId) {
-        return; // No procesamos mensajes de nuestro propio dispositivo
-      }
+      // Distribuir el mensaje según su tipo
+      final String type = data['type'] ?? '';
 
-      // Comprobar si es un mensaje de cuenta eliminada
-      if (data['type'] == 'ACCOUNT_DELETED') {
-        _handleAccountDeletedMessage(data);
-        return;
-      }
+      switch (type) {
+        case 'CHAT_MESSAGE':
+          _chatMessageController.add(data);
+          break;
 
-      // Emit the message to all listeners
-      _profileUpdateController.add(message);
+        case 'PROFILE_UPDATE':
+          _profileUpdateController.add(data);
+          break;
+
+        case 'ACCOUNT_DELETED':
+          _accountDeletedController.add(data);
+          _handleAccountDeletedMessage(data);
+          break;
+
+        default:
+          // Para tipos desconocidos, no hacemos nada especial
+          break;
+      }
     } catch (e) {
-      // Ignorar errores de procesamiento
+      debugPrint('Error al procesar mensaje WebSocket: $e');
     }
   }
 
-  // Maneja mensajes de eliminación de cuenta
+  // Manejar mensaje de cuenta eliminada
   void _handleAccountDeletedMessage(Map<String, dynamic> data) {
     try {
       final String email = data['email'] ?? '';
       final String username = data['username'] ?? '';
 
-      // Verificar si el mensaje es relevante para este usuario
       final currentUser = FirebaseAuth.instance.currentUser;
       if (currentUser != null &&
           (currentUser.email == email || currentUser.displayName == username)) {
-        // Mostrar alerta al usuario y cerrar sesión
         _showAccountDeletedDialog();
 
-        // Cerrar sesión después de un breve retraso
         Future.delayed(const Duration(seconds: 2), () {
           _forceLogout();
         });
@@ -249,14 +249,10 @@ class WebSocketService {
     }
   }
 
-  // Muestra un diálogo de cuenta eliminada si hay contexto disponible
+  // Mostrar diálogo de cuenta eliminada
   void _showAccountDeletedDialog() {
     final context = navigatorKey.currentContext;
-    if (context != null) {
-      // Verificar si el widget está montado antes de mostrar el diálogo
-      if (!context.mounted) return;
-
-      // Capture the context in a local variable to avoid closing over it
+    if (context != null && context.mounted) {
       final safeContext = context;
 
       showDialog(
@@ -273,9 +269,7 @@ class WebSocketService {
               TextButton(
                 child: const Text('Entendido'),
                 onPressed: () {
-                  // Cerrar el diálogo
                   Navigator.of(dialogContext).pop();
-                  // Forzar cierre de sesión
                   _forceLogout();
                 },
               ),
@@ -286,37 +280,30 @@ class WebSocketService {
     }
   }
 
-  // Fuerza el cierre de sesión cuando la cuenta se elimina
+  // Forzar cierre de sesión
   Future<void> _forceLogout() async {
     try {
-      // Desconectar WebSocket
       disconnect();
-
-      // Cerrar sesión en Firebase
       await FirebaseAuth.instance.signOut();
 
-      // Redirigir a la página de login
       final context = navigatorKey.currentContext;
       if (context != null && context.mounted) {
         Navigator.pushNamedAndRemoveUntil(context, '/', (route) => false);
       }
     } catch (e) {
-      // Ignorar errores durante el cierre forzado
+      // Ignorar errores
     }
   }
 
-  // Método público para forzar una reconexión
+  // Forzar reconexión
   void reconnect() {
     disconnect();
-
-    // Esperar un momento antes de reconectar para asegurar que los recursos
-    // se liberaron correctamente
     Future.delayed(const Duration(milliseconds: 500), () {
       connect();
     });
   }
 
-  // Disconnect from WebSocket server
+  // Desconectar del servidor WebSocket
   void disconnect() {
     _pingTimer?.cancel();
     _reconnectTimer?.cancel();
@@ -325,7 +312,6 @@ class WebSocketService {
       try {
         _channel!.sink.close();
       } catch (e) {
-        // Ignorar errores al cerrar
         debugPrint('Error al cerrar WebSocket: $e');
       } finally {
         _isConnected = false;
@@ -334,25 +320,39 @@ class WebSocketService {
     }
   }
 
-  // Reinicia la conexión al WebSocket con las credenciales actuales
+  // Actualizar conexión con credenciales actuales
   Future<void> refreshConnection() async {
-    // Desconectar primero
     disconnect();
 
-    // Actualizar credenciales desde Firebase Auth
     final user = FirebaseAuth.instance.currentUser;
     if (user != null) {
       await user.reload();
       _updateUserCredentials(user);
     }
 
-    // Reconectar con las credenciales actualizadas
     connect();
   }
 
-  // Dispose resources
+  // Enviar mensaje a través del WebSocket
+  bool sendMessage(String message) {
+    if (_isConnected && _channel != null) {
+      try {
+        _channel!.sink.add(message);
+        return true;
+      } catch (e) {
+        debugPrint('Error al enviar mensaje por WebSocket: $e');
+        return false;
+      }
+    }
+    return false;
+  }
+
+  // Liberar recursos
   void dispose() {
     disconnect();
+    _chatMessageController.close();
     _profileUpdateController.close();
+    _accountDeletedController.close();
+    _allMessagesController.close();
   }
 }
