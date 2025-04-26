@@ -21,9 +21,7 @@ class ActivityService {
 
   Future<void> sendActivityToBackend(Map<String, String> activityData) async {
     // Validate dates first
-    print ('Validating activity dates...');
     validateActivityDates(activityData);
-    print ('Activity dates validated.');
 
     final url = Uri.parse('http://localhost:8080/api/activitats/crear');
     final dateFormat = DateFormat("yyyy-MM-dd'T'HH:mm:ss");
@@ -66,7 +64,7 @@ class ActivityService {
 
   void validateActivityDates(Map<String, String> activityData) {
 
-    final BuildContext currentContext = activityData['context'] as BuildContext;
+    // error, me lo genera nulo: final BuildContext currentContext = activityData['context'] as BuildContext;
 
     final String? startDateString = activityData['startDate'];
     final String? endDateString = activityData['endDate'];
