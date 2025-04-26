@@ -33,14 +33,17 @@ class MapPageState extends State<MapPage> {
   List<Map<String, dynamic>> activities = [];
   List<Marker> markers = [];
   bool showAirQualityCircles = true;
-  List<dynamic> savedRoutes = [];
+  Map<int, dynamic> savedRoutes = {};
   TransitRoute currentRoute = TransitRoute(
     fullRoute: [],
     steps: [],
-    duration: '',
-    distance: '',
+    duration: 0,
+    distance: 0,
     departure: DateTime.now(),
     arrival: DateTime.now(),
+    origin: LatLng(0, 0),
+    destination: LatLng(0, 0),
+    option: 0
   );
 
   @override
@@ -142,7 +145,7 @@ class MapPageState extends State<MapPage> {
     // Fetch the current location
     try {
       Position position = await Geolocator.getCurrentPosition(
-        desiredAccuracy: LocationAccuracy.high,
+        locationSettings: LocationSettings(accuracy: LocationAccuracy.high),
       );
       setState(() {
         currentPosition = LatLng(position.latitude, position.longitude);
@@ -170,8 +173,49 @@ class MapPageState extends State<MapPage> {
   Future<void> fetchRoutes() async {
     try {
       final routes = await mapService.fetchRoutes();
+      for (Map<String, dynamic> route in routes) {
+        List<TransitStep> steps = [];
+        List<LatLng> fullRoute = [];
+        LatLng origin = LatLng(route['origen']['latitud'], route['origen']['longitud']);
+        LatLng destination = LatLng(route['desti']['latitud'], route['desti']['longitud']);
+        int option;
+        switch (route['tipusVehicle']) {
+          case 'Cotxe':
+            option = 1;
+            break;
+          case 'Moto':
+            option = 2;
+            break;
+          case 'Bicicleta':
+            option = 4;
+            break;
+          case 'TransportPublic':
+            option = 10;
+            break;
+          default:
+            option = 3;
+            break;
+        }
+        TransitRoute temp = TransitRoute(
+            fullRoute: fullRoute,
+            steps: steps,
+            duration: route['duracioMax'],
+            distance: 0,
+            departure: DateTime.parse(route['data']),
+            arrival: DateTime.parse(route['data']),
+            origin: origin,
+            destination: destination,
+            option: option
+        );
+        try {
+          temp = await _calculateRoute(false, false, DateTime.now(), DateTime.now(), temp.option, temp.origin, temp.destination, mapService);
+          savedRoutes[route['id']] = temp;
+        } catch (e) {
+          savedRoutes[route['id']] = temp;
+        }
+      }
       setState(() {
-        savedRoutes = routes;
+        savedRoutes = savedRoutes;
       });
     } catch (e) {
       final actualContext = context;
@@ -278,29 +322,38 @@ class MapPageState extends State<MapPage> {
       },
     );
 
-    if (selectedOption != null) {
-      try {
-        final transitRoute;
-        if (selectedOption == 10) {
-          transitRoute = await mapService.getPublicTransportRoute(start, end);
-        } else {
-          transitRoute = await mapService.getRoute(selectedOption, start, end);
-        }
-        setState(() {
-          currentRoute = transitRoute;
-        });
-        if (context.mounted) {
-          ScaffoldMessenger.of(context).showSnackBar(
-              SnackBar(content: Text("Ruta calculada correctament."))
-          );
-        }
-      } catch (e) {
-        if (context.mounted) {
-          ScaffoldMessenger.of(context).showSnackBar(
-            SnackBar(content: Text('Error al calcular la ruta: ${e.toString()}'))
-          );
-        }
+    try {
+      currentRoute = await _calculateRoute(false, false, DateTime.now(), DateTime.now(), selectedOption!, start, end, mapService);
+      setState(() {
+        currentRoute = currentRoute;
+      });
+      final actualContext = context;
+      if (actualContext.mounted) {
+        ScaffoldMessenger.of(actualContext).showSnackBar(
+            SnackBar(content: Text("Ruta calculada correctament."))
+        );
       }
+    } catch (e) {
+      final actualContext = context;
+      if (actualContext.mounted) {
+        ScaffoldMessenger.of(actualContext).showSnackBar(
+            SnackBar(content: Text('Error al calcular la ruta: ${e.toString()}'))
+        );
+      }
+    }
+  }
+
+  Future<TransitRoute> _calculateRoute(bool departure, bool arrival, DateTime departureTime, DateTime arrivalTime, int selectedOption, LatLng start, LatLng end, MapService mapService) async {
+    try {
+      final TransitRoute transitRoute;
+      if (selectedOption == 10) {
+        transitRoute = await mapService.getPublicTransportRoute(departure, arrival, departureTime, arrivalTime, start, end);
+      } else {
+        transitRoute = await mapService.getRoute(departure, arrival, departureTime, arrivalTime, selectedOption, start, end);
+      }
+      return transitRoute;
+    } catch (e) {
+      throw Exception(e.toString());
     }
   }
 
@@ -311,7 +364,7 @@ class MapPageState extends State<MapPage> {
         children: [
           ListTile(
             title: Text('Total Journey'),
-            subtitle: Text('Duració: ${transitRoute.duration} - Distancia: ${transitRoute.distance} - Sortida: ${DateFormat.Hm().format(transitRoute.departure)} - Arribada: ${DateFormat.Hm().format(transitRoute.arrival)}'),
+            subtitle: Text('Duració: ${transitRoute.duration} min - Distancia: ${transitRoute.distance} m - Sortida: ${DateFormat.Hm().format(transitRoute.departure)} - Arribada: ${DateFormat.Hm().format(transitRoute.arrival)}'),
           ),
           const Divider(),
           ...transitRoute.steps.map((step) => Column(
@@ -390,70 +443,75 @@ class MapPageState extends State<MapPage> {
                     const SizedBox(height: 5),
                     Text(placeDetails),
                     const SizedBox(height: 20),
-                    Row(
-                      mainAxisAlignment: MainAxisAlignment.spaceEvenly,
-                      children: [
-                        ElevatedButton(
-                          onPressed: () {
-                            Navigator.pop(context);
-                            _showFormWithLocation(selectedLocation, placeDetails);
-                            savedLocations[selectedLocation] = placeDetails;
-                          },
-                          child: const Text("Crea Activitat"),
-                        ),
-                        ElevatedButton(
-                          onPressed: () {
-                            setState(() {
+                    SingleChildScrollView(
+                      scrollDirection: Axis.horizontal,
+                      child: Row(
+                        mainAxisAlignment: MainAxisAlignment.spaceEvenly,
+                        children: [
+                          ElevatedButton(
+                            onPressed: () {
+                              Navigator.pop(context);
+                              _showFormWithLocation(selectedLocation, placeDetails);
                               savedLocations[selectedLocation] = placeDetails;
-                              markers = [
-                                // Current selected location marker
-                                Marker(
-                                  width: 80.0,
-                                  height: 80.0,
-                                  point: selectedLocation,
-                                  child: const Icon(
-                                    Icons.location_on,
-                                    color: Colors.red,
-                                    size: 40.0,
-                                  ),
-                                ),
-                                Marker(
-                                  width: 80.0,
-                                  height: 80.0,
-                                  point: currentPosition,
-                                  child: const Icon(
-                                    Icons.my_location,
-                                    color: Colors.blue,
-                                    size: 40.0,
-                                  ),
-                                ),
-                                // Saved locations markers
-                                ...savedLocations.entries.map((entry) => Marker(
-                                  width: 80.0,
-                                  height: 80.0,
-                                  point: entry.key,
-                                  child: GestureDetector(
-                                    onTap: () => _showSavedLocationDetails(entry.key, entry.value),
+                            },
+                            child: const Text("Crea Activitat"),
+                          ),
+                          const SizedBox(width: 10),
+                          ElevatedButton(
+                            onPressed: () {
+                              setState(() {
+                                savedLocations[selectedLocation] = placeDetails;
+                                markers = [
+                                  // Current selected location marker
+                                  Marker(
+                                    width: 80.0,
+                                    height: 80.0,
+                                    point: selectedLocation,
                                     child: const Icon(
-                                      Icons.push_pin,
+                                      Icons.location_on,
                                       color: Colors.red,
                                       size: 40.0,
                                     ),
                                   ),
-                                )),
-                              ];
-                            });
-                            Navigator.pop(context);
-                          },
-                          child: const Text("Guardar marcador"),
-                        ),
-                        ElevatedButton(
-                          onPressed: () {
-                            showRouteOptions(context, currentPosition, selectedLocation, mapService);
-                          },
-                          child: const Text("Com Arribar"),
-                        ),
-                      ],
+                                  Marker(
+                                    width: 80.0,
+                                    height: 80.0,
+                                    point: currentPosition,
+                                    child: const Icon(
+                                      Icons.my_location,
+                                      color: Colors.blue,
+                                      size: 40.0,
+                                    ),
+                                  ),
+                                  // Saved locations markers
+                                  ...savedLocations.entries.map((entry) => Marker(
+                                    width: 80.0,
+                                    height: 80.0,
+                                    point: entry.key,
+                                    child: GestureDetector(
+                                      onTap: () => _showSavedLocationDetails(entry.key, entry.value),
+                                      child: const Icon(
+                                        Icons.push_pin,
+                                        color: Colors.red,
+                                        size: 40.0,
+                                      ),
+                                    ),
+                                  )),
+                                ];
+                              });
+                              Navigator.pop(context);
+                            },
+                            child: const Text("Guardar marcador"),
+                          ),
+                          const SizedBox(width: 10),
+                          ElevatedButton(
+                            onPressed: () {
+                              showRouteOptions(context, currentPosition, selectedLocation, mapService);
+                            },
+                            child: const Text("Com Arribar"),
+                          ),
+                        ],
+                      ),
                     ),
                   ],
                 ),
@@ -820,6 +878,192 @@ class MapPageState extends State<MapPage> {
     });
   }
 
+  Future<int> _sendRouteToBackend(TransitRoute route) async {
+    int id = 0;
+    try {
+      id = await mapService.sendRouteToBackend(route);
+      final actualContext = context;
+      if (actualContext.mounted) {
+        ScaffoldMessenger.of(actualContext).showSnackBar(
+          SnackBar(content: Text('Ruta enviada correctament.')),
+        );
+      }
+    } catch (e) {
+      final actualContext = context;
+      if (actualContext.mounted) {
+        ScaffoldMessenger.of(actualContext).showSnackBar(
+          SnackBar(content: Text('Error al enviar la ruta: ${e.toString()}')),
+        );
+      }
+    }
+    return id;
+  }
+
+  void _showTimeSelectionDialog() async {
+    final selectedOption = await showDialog<String>(
+      context: context,
+      builder: (BuildContext context) {
+        return AlertDialog(
+          title: const Text('Selecciona si vols arribar o sortir a una hora concreta'),
+          content: Column(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              ListTile(
+                leading: const Icon(Icons.access_time),
+                title: const Text('Hora de sortida'),
+                onTap: () => Navigator.pop(context, 'departure'),
+              ),
+              ListTile(
+                leading: const Icon(Icons.access_time_filled),
+                title: const Text('Hora d\'arribada'),
+                onTap: () => Navigator.pop(context, 'arrival'),
+              ),
+            ],
+          ),
+        );
+      },
+    );
+
+    if (selectedOption != null) {
+      final actualContext = context;
+      if (actualContext.mounted) {
+        final selectedTime = await showTimePicker(
+          context: actualContext,
+          initialTime: TimeOfDay.now(),
+        );
+        if (selectedTime != null) {
+          final selectedDateTime = DateTime(
+            DateTime.now().year,
+            DateTime.now().month,
+            DateTime.now().day,
+            selectedTime.hour,
+            selectedTime.minute,
+          );
+
+          try {
+            if (selectedOption == 'departure') {
+              currentRoute = await _calculateRoute(true, false, selectedDateTime, selectedDateTime, currentRoute.option, currentRoute.origin, currentRoute.destination, mapService);
+            } else if (selectedOption == 'arrival') {
+              currentRoute = await _calculateRoute(false, true, selectedDateTime, selectedDateTime, currentRoute.option, currentRoute.origin, currentRoute.destination, mapService);
+            }
+            setState(() {
+              currentRoute = currentRoute;
+            });
+            final actualContext = context;
+            if (actualContext.mounted) {
+              ScaffoldMessenger.of(actualContext).showSnackBar(
+                  SnackBar(content: Text("Ruta calculada correctament."))
+              );
+            }
+          } catch (e) {
+            final actualContext = context;
+            if (actualContext.mounted) {
+              ScaffoldMessenger.of(actualContext).showSnackBar(
+                SnackBar(
+                    content: Text('Error al calcular la ruta: ${e.toString()}')),
+              );
+            }
+          }
+        }
+      }
+    }
+  }
+
+  void _showSavedRoutes() {
+    showModalBottomSheet(
+      context: context,
+      builder: (context) {
+        if (savedRoutes.isEmpty) {
+          return Center(
+            child: Text(
+              'No tens cap ruta guardada',
+              style: TextStyle(fontSize: 20, fontWeight: FontWeight.bold),
+            ),
+          );
+        }
+        return ListView.builder(
+          itemCount: savedRoutes.length,
+          itemBuilder: (context, index) {
+            final route = savedRoutes.values.elementAt(index);
+            return ListTile(
+              title: Text('Ruta ${index + 1}'),
+              subtitle: Text('Duració: ${route.duration} min - Distancia: ${route.distance} m'),
+              trailing: Row(
+                mainAxisSize: MainAxisSize.min,
+                children: [
+                  IconButton(
+                    icon: Icon(Icons.visibility, color: Colors.blue),
+                    onPressed: () {
+                      setState(() {
+                        currentRoute = route;
+                      });
+                      Navigator.pop(context);
+                    },
+                  ),
+                  IconButton(
+                    icon: Icon(Icons.delete, color: Colors.red),
+                    onPressed: () {
+                      showDialog(
+                        context: context,
+                        builder: (context) {
+                          return AlertDialog(
+                            title: Text('Confirm Deletion'),
+                            content: Text('Segur que vols eliminar la ruta seleccionada?'),
+                            actions: [
+                              TextButton(
+                                onPressed: () {
+                                  Navigator.pop(context); // Close the dialog
+                                },
+                                child: Text('Cancel·lar', style: TextStyle(color: Colors.grey)),
+                              ),
+                              TextButton(
+                                onPressed: () {
+                                  setState(() {
+                                    _eliminarRuta(savedRoutes.keys.elementAt(index),index);
+                                  });
+                                  Navigator.pop(context);
+                                  Navigator.pop(context);
+                                },
+                                child: Text('Delete', style: TextStyle(color: Colors.red)),
+                              ),
+                            ],
+                          );
+                        },
+                      );
+                    },
+                  ),
+                ],
+              ),
+            );
+          },
+        );
+      },
+    );
+  }
+
+  Future<void> _eliminarRuta(int id, int index) async {
+    try {
+      await mapService.deleteRouteInBackend(id);
+      final actualContext = context;
+      if (actualContext.mounted) {
+        ScaffoldMessenger.of(actualContext).showSnackBar(
+          SnackBar(content: Text('Ruta eliminada correctament.')),
+        );
+      }
+      savedRoutes.remove(id);
+      setState(() {
+        savedRoutes = savedRoutes;
+      });
+    } catch (e) {
+      final actualContext = context;
+      if (actualContext.mounted) {
+        ScaffoldMessenger.of(actualContext).showSnackBar(
+          SnackBar(content: Text('Error al eliminar la ruta: ${e.toString()}')),
+        );
+      }
+    }
+  }
+
   @override
   Widget build(BuildContext context) {
     return Scaffold(
@@ -843,16 +1087,26 @@ class MapPageState extends State<MapPage> {
           Positioned(
             top: 10,
             right: 10,
-            child: FloatingActionButton(
-              heroTag: "toggleAirQuality",
-              onPressed: _toggleAirQualityCircles,
-              child: Icon(showAirQualityCircles ? Icons.visibility : Icons.visibility_off),
-            ),
+            child: Column(
+              children: [
+                FloatingActionButton(
+                  heroTag: "toggleAirQuality",
+                  onPressed: _toggleAirQualityCircles,
+                  child: Icon(showAirQualityCircles ? Icons.visibility : Icons.visibility_off),
+                ),
+                const SizedBox(height: 10),
+                FloatingActionButton(
+                  heroTag: "showSavedRoutes",
+                  onPressed: _showSavedRoutes,
+                  child: Icon(Icons.route),
+                ),
+              ],
+            )
           ),
           // Route action buttons - only show when route is active
           if (currentRoute.fullRoute.isNotEmpty) ...[
             Positioned(
-              top: 80,
+              top: 160,
               right: 10,
               child: Column(
                 children: [
@@ -879,12 +1133,25 @@ class MapPageState extends State<MapPage> {
                   ),
                   const SizedBox(height: 10),
                   FloatingActionButton(
+                    heroTag: "changeDepartureArrival",
+                    backgroundColor: Colors.cyan,
+                    onPressed: () {
+                      _showTimeSelectionDialog();
+                    },
+                    child: const Icon(Icons.access_time),
+                  ),
+                  const SizedBox(height: 10),
+                  FloatingActionButton(
                     heroTag: "saveRoute",
                     backgroundColor: Colors.orange,
-                    onPressed: () {
-                      ScaffoldMessenger.of(context).showSnackBar(
-                        const SnackBar(content: Text('Save route functionality coming soon')),
-                      );
+                    onPressed: () async {
+                      int id = await _sendRouteToBackend(currentRoute);
+                      if (id != 0) {
+                        savedRoutes[id] = currentRoute;
+                        setState(() {
+                          savedRoutes = savedRoutes;
+                        });
+                      }
                     },
                     child: const Icon(Icons.save),
                   ),
@@ -897,10 +1164,13 @@ class MapPageState extends State<MapPage> {
                         currentRoute = TransitRoute(
                           fullRoute: [],
                           steps: [],
-                          duration: '',
-                          distance: '',
+                          duration: 0,
+                          distance: 0,
                           departure: DateTime.now(),
                           arrival: DateTime.now(),
+                          origin: LatLng(0, 0),
+                          destination: LatLng(0, 0),
+                          option: 0
                         );
                       });
                     },

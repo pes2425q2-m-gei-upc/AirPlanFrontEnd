@@ -2,6 +2,7 @@
 import 'dart:convert';
 import 'dart:ui';
 import 'package:airplan/transit_service.dart';
+import 'package:firebase_auth/firebase_auth.dart';
 import 'package:flutter_map/flutter_map.dart';
 import 'package:http/http.dart' as http;
 import 'package:intl/intl.dart';
@@ -74,34 +75,46 @@ class MapService {
     }
   }
 
-  Future<TransitRoute> getPublicTransportRoute(LatLng source, LatLng destination) async {
-    return await calculatePublicTransportRoute(source, destination);
+  Future<TransitRoute> getPublicTransportRoute(bool departure, bool arrival, DateTime departureTime, DateTime arrivalTime, LatLng source, LatLng destination) async {
+    return await calculatePublicTransportRoute(departure, arrival, departureTime, arrivalTime, source, destination);
   }
 
-  Future<TransitRoute> getRoute(int option, LatLng source, LatLng destination) async {
-    return await calculateRoute(option, source, destination);
+  Future<TransitRoute> getRoute(bool departure, bool arrival, DateTime departureTime, DateTime arrivalTime, int option, LatLng source, LatLng destination) async {
+    return await calculateRoute(departure, arrival, departureTime, arrivalTime, option, source, destination);
   }
 
-  Future<void> sendRouteToBackend(Map<String, String> rutaData) async {
+  Future<int> sendRouteToBackend(TransitRoute ruta) async {
     final url = Uri.parse('http://nattech.fib.upc.edu:40350/api/rutas/crear');
     final dateFormat = DateFormat("yyyy-MM-dd'T'HH:mm:ss");
     final origen = <String, double>{
-      'latitud': double.parse(rutaData['origen']!.split(',')[0]),
-      'longitud': double.parse(rutaData['origen']!.split(',')[1]),
+      'latitud': ruta.origin.latitude,
+      'longitud': ruta.origin.longitude,
     };
     final desti = <String, double>{
-      'latitud': double.parse(rutaData['desti']!.split(',')[0]),
-      'longitud': double.parse(rutaData['desti']!.split(',')[1]),
+      'latitud': ruta.destination.latitude,
+      'longitud': ruta.destination.longitude,
     };
+
+    String tipusVehicle = '';
+    for (var step in ruta.steps) {
+      if (step.mode == TipusVehicle.autobus || step.mode == TipusVehicle.tren || step.mode == TipusVehicle.metro) {
+        tipusVehicle = 'TransportPublic';
+        break;
+      }
+    }
+    if (tipusVehicle.isEmpty) {
+      tipusVehicle = translateTipusVehicle(ruta.steps.first.mode);
+    }
 
     final body = <String, dynamic>{
       'origen': origen,
       'desti': desti,
-      'clientUsername': rutaData['clientUsername']!,
-      'data': dateFormat.format(DateTime.parse(rutaData['data']!)),
-      'duracioMin': rutaData['duracioMin']!,
-      'duracioMax': rutaData['duracioMax']!,
-      'tipusVehicle': rutaData['tipusVehicle']!,
+      'client': FirebaseAuth.instance.currentUser?.displayName,
+      'data': dateFormat.format(ruta.departure),
+      'id': 1,
+      'duracioMin': ruta.duration,
+      'duracioMax': ruta.duration,
+      'tipusVehicle': tipusVehicle,
     };
 
     final response = await http.post(
@@ -115,34 +128,28 @@ class MapService {
     if (response.statusCode != 201) {
       throw Exception('Error al crear la ruta: ${response.body}');
     }
+
+    return json.decode(response.body);
   }
 
-  Future<List<dynamic>> fetchRoutes() {
-    final url = Uri.parse('http://nattech.fib.upc.edu:40350/api/rutas');
-    return http.get(url).then((response) {
-      if (response.statusCode == 200) {
-        final data = json.decode(response.body);
-        final List<dynamic> rutes = [];
-        for (var entry in data) {
-          final origen = LatLng(entry['origen']['latitud'], entry['origen']['longitud']);
-          final desti = LatLng(entry['desti']['latitud'], entry['desti']['longitud']);
-          final ruta = {
-            'origen': origen,
-            'desti': desti,
-            'clientUsername': entry['clientUsername'],
-            'data': entry['data'],
-            'duracioMin': entry['duracioMin'],
-            'duracioMax': entry['duracioMax'],
-            'tipusVehicle': entry['tipusVehicle'],
-          };
-          rutes.add(ruta);
-        }
-        return rutes;
-      } else {
-        throw Exception('Failed to load routes');
-      }
-    }).catchError((error) {
-      throw Exception('Error fetching routes: $error');
-    });
+  Future<void> deleteRouteInBackend(int routeId) async {
+    final url = Uri.parse('http://nattech.fib.upc.edu:40350/api/rutas/$routeId');
+    final response = await http.delete(url);
+
+    if (response.statusCode != 200) {
+      throw Exception('Error al eliminar la ruta: ${response.body}');
+    }
+  }
+
+  Future<List<Map<String,dynamic>>> fetchRoutes() async {
+    final url = Uri.parse('http://nattech.fib.upc.edu:40350/api/rutas?username=${FirebaseAuth.instance.currentUser?.displayName}');
+    final response = await http.get(url);
+
+    if (response.statusCode == 200) {
+      final List<dynamic> data = jsonDecode(response.body);
+      return data.cast<Map<String, dynamic>>();
+    } else {
+      throw Exception('Error al carregar les rutes');
+    }
   }
 }
