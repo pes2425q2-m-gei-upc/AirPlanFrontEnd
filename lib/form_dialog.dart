@@ -177,10 +177,8 @@ class FormDialogState extends State<FormDialog> {
           ElevatedButton(
             onPressed: () {
               String? nom = FirebaseAuth.instance.currentUser?.displayName;
-              print ('User1: $nom');
               if (nom != null) {
                 _userController.text = nom;
-                print ('User2: $nom');
               }
               if (_formKey.currentState!.validate()) {
                 Navigator.of(context).pop({

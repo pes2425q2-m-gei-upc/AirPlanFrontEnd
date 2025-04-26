@@ -185,7 +185,7 @@ void main() async {
         );
       }
     }
-
+    ApiConfig().initialize();
     runApp(MiApp());
   }
 
