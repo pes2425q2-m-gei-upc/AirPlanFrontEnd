@@ -21,9 +21,11 @@ class ActivityService {
 
   Future<void> sendActivityToBackend(Map<String, String> activityData) async {
     // Validate dates first
+    print ('Validating activity dates...');
     validateActivityDates(activityData);
+    print ('Activity dates validated.');
 
-    final url = Uri.parse(ApiConfig().buildUrl('api/activitats/crear'));
+    final url = Uri.parse('http://localhost:8080/api/activitats/crear');
     final dateFormat = DateFormat("yyyy-MM-dd'T'HH:mm:ss");
     final ubicacioParts = activityData['location']!.split(',');
     final ubicacio = <String, double>{
@@ -70,20 +72,10 @@ class ActivityService {
     final String? endDateString = activityData['endDate'];
 
     if (startDateString == null || startDateString.isEmpty) {
-      if (!currentContext.mounted) return;
-      NotificationService.showError(
-        currentContext,
-        'La fecha de inicio es obligatoria',
-      );
       throw Exception('La fecha de inicio es obligatoria');
     }
 
     if (endDateString == null || endDateString.isEmpty) {
-      if (!currentContext.mounted) return;
-      NotificationService.showError(
-        currentContext,
-        'La fecha de fin es obligatoria',
-      );
       throw Exception('La fecha de fin es obligatoria');
     }
 
@@ -93,43 +85,23 @@ class ActivityService {
     try {
       startDate = DateTime.parse(startDateString);
     } catch (e) {
-      if (!currentContext.mounted) return;
-      NotificationService.showError(
-        currentContext,
-        'El formato de la fecha de inicio no es válido',
-      );
       throw Exception('El formato de la fecha de inicio no es válido');
     }
 
     try {
       endDate = DateTime.parse(endDateString);
     } catch (e) {
-      if (!currentContext.mounted) return;
-      NotificationService.showError(
-        currentContext,
-        'El formato de la fecha de fin no es válido',
-      );
       throw Exception('El formato de la fecha de fin no es válido');
     }
 
     // Check if start date is after end date
     if (startDate.isAfter(endDate)) {
-      if (!currentContext.mounted) return;
-      NotificationService.showError(
-        currentContext,
-        'La fecha de inicio no puede ser posterior a la fecha de fin',
-      );
       throw Exception('La fecha de inicio no puede ser posterior a la fecha de fin');
     }
 
     // Optional: Check if dates are in the past
     final now = DateTime.now();
     if (startDate.isBefore(now)) {
-      if (!currentContext.mounted) return;
-      NotificationService.showError(
-        currentContext,
-        'La fecha de inicio no puede ser en el pasado',
-      );
       throw Exception('La fecha de inicio no puede ser en el pasado');
     }
   }

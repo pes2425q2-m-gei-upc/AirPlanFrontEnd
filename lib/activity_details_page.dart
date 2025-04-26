@@ -1,4 +1,5 @@
 import 'dart:convert';
+import 'package:airplan/services/notification_service.dart';
 import 'package:firebase_auth/firebase_auth.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_rating_bar/flutter_rating_bar.dart';
@@ -186,6 +187,7 @@ class ActivityDetailsPage extends StatelessWidget {
     required String userId,
     required double rating,
     String? comment,
+    required BuildContext context,
   }) async {
     final String backendUrl = 'http://127.0.0.1:8080/valoracions';
 
@@ -203,13 +205,19 @@ class ActivityDetailsPage extends StatelessWidget {
         }),
       );
 
-      if (response.statusCode == 200) {
-        //print('Rating saved successfully: ${response.body}');
+      if (response.statusCode >= 200 && response.statusCode < 300) {
+        final String message = 'Valoración guardada con éxito';
+        if(!context.mounted) return;
+        NotificationService.showSuccess(context, message);
       } else {
-        //print('Failed to save rating: ${response.statusCode} - ${response.body}');
+        final String message = 'Error al guardar la valoración';
+        if(!context.mounted) return;
+        NotificationService.showError(context, message);
       }
     } catch (e) {
-      //print('Error connecting to backend: $e');
+      final String message = 'Error al conectar con el backend';
+      if(!context.mounted) return;
+      NotificationService.showError(context, message);
     }
   }
 
@@ -446,6 +454,7 @@ class ActivityDetailsPage extends StatelessWidget {
                                     userId: currentUser,
                                     rating: rating,
                                     comment: commentController.text,
+                                    context: context,
                                   );
                                   Navigator.of(context).pop();
                                   Navigator.popUntil(context, (route) =>
