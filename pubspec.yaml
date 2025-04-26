@@ -42,6 +42,9 @@ dependencies:
   js_interop: ^0.0.1
   rive: ^0.13.20
   rive_common: ^0.4.15
+  sign_button: ^2.0.0
+  oauth2_client: ^4.0.0  # Paquete alternativo para OAuth2 con GitHub
+  url_launcher: ^6.1.10
   image_picker: ^0.8.5+3
   web_socket_channel: ^2.4.0
   shared_preferences: ^2.5.3

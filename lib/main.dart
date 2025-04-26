@@ -166,23 +166,28 @@ class GlobalNotificationService {
 
 void main() async {
   WidgetsFlutterBinding.ensureInitialized();
-  await Firebase.initializeApp(
-    options: FirebaseOptions(
-      apiKey: "AIzaSyDjyHcnvD1JTfN7xpkRMD-S_qDMSnvbZII",
-      authDomain: "airplan-f08be.firebaseapp.com",
-      projectId: "airplan-f08be",
-      storageBucket: "airplan-f08be.appspot.com",
-      messagingSenderId: "952401482773",
-      appId: "1:952401482773:web:9f9a3484c2cce60970ea1c",
-      measurementId: "G-L70Y1N6J8Z",
-    ),
-  );
-
-  // Inicializar la configuración de API
-  ApiConfig().initialize();
-
-  runApp(const MiApp());
-}
+    if (Firebase.apps.isEmpty) {
+      if (!kIsWeb) {
+        // No necesitas inicializar manualmente, Firebase usará google-services.json automáticamente
+        await Firebase.initializeApp();
+      } else {
+        // Manual para Web y otras plataformas
+        await Firebase.initializeApp(
+          options: FirebaseOptions(
+            apiKey: "AIzaSyDjyHcnvD1JTfN7xpkRMD-S_qDMSnvbZII",
+            authDomain: "airplan-f08be.firebaseapp.com",
+            projectId: "airplan-f08be",
+            storageBucket: "airplan-f08be.appspot.com",
+            messagingSenderId: "952401482773",
+            appId: "1:952401482773:web:9f9a3484c2cce60970ea1c",
+            measurementId: "G-L70Y1N6J8Z",
+          ),
+        );
+      }
+    }
+    ApiConfig().initialize();
+    runApp(MiApp());
+  }
 
 class MiApp extends StatefulWidget {
   const MiApp({super.key});
