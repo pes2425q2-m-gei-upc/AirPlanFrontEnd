@@ -1,7 +1,5 @@
 // activity_service.dart
 import 'dart:convert';
-import 'package:airplan/services/notification_service.dart';
-import 'package:flutter/cupertino.dart';
 import 'package:http/http.dart' as http;
 import 'package:intl/intl.dart';
 import 'services/api_config.dart'; // Importar la configuración de API
@@ -52,19 +50,12 @@ class ActivityService {
     );
 
     if (response.statusCode != 201) {
-
-      final BuildContext context = activityData['context'] as BuildContext;
-      final message = 'Error al crear la actividad: ${response.body}';
-      if (!context.mounted) return;
-      NotificationService.showError(context, message);
-
       throw Exception('Error al crear la actividad: ${response.body}');
     }
   }
 
   void validateActivityDates(Map<String, String> activityData) {
 
-    // error, me lo genera nulo: final BuildContext currentContext = activityData['context'] as BuildContext;
 
     final String? startDateString = activityData['startDate'];
     final String? endDateString = activityData['endDate'];
@@ -109,12 +100,6 @@ class ActivityService {
     final response = await http.delete(url);
 
     if (response.statusCode != 200) {
-
-      final BuildContext context = activityId as BuildContext;
-      final message = 'Error al eliminar la actividad: ${response.body}';
-      if (!context.mounted) return;
-      NotificationService.showError(context, message);
-
       throw Exception('Error al eliminar la actividad: ${response.body}');
     }
   }
@@ -158,11 +143,6 @@ class ActivityService {
 
     if (response.statusCode != 200) {
       // Fixed the context retrieval
-      final BuildContext context = activityData['context'] as BuildContext;
-      final message = 'Error al actualizar la actividad: ${response.body}';
-      if (!context.mounted) return;
-      NotificationService.showError(context, message);
-
       throw Exception('Error al actualizar la actividad: ${response.body}');
     }
   }
