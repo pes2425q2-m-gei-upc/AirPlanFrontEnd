@@ -1,18 +1,13 @@
-//import 'package:airplan/services/api_config.dart';
-import 'package:airplan/services/notification_service.dart';
 import 'package:flutter/material.dart';
 import 'package:firebase_auth/firebase_auth.dart';
 import 'package:airplan/user_services.dart';
 import 'package:airplan/services/websocket_service.dart';
-import 'package:http/http.dart' as http;
 import 'dart:convert';
 import 'login_page.dart';
 import 'edit_profile_page.dart';
 import 'dart:async';
 import 'main.dart';
-import 'package:flutter_rating_bar/flutter_rating_bar.dart';
-import 'package:intl/intl.dart';
-import 'package:airplan/activity_service.dart'; // Adjust path if needed
+import 'rating_page.dart';
 
 /// Widget para mostrar la información del usuario
 class UserInfoCard extends StatelessWidget {
@@ -55,7 +50,7 @@ class UserInfoCard extends StatelessWidget {
               title: 'Username',
               value: username,
               isLoading:
-                  false, // Username comes directly from Firebase Auth, not loaded async here
+              false, // Username comes directly from Firebase Auth, not loaded async here
             ),
             const Divider(),
             _buildInfoListTile(
@@ -93,47 +88,21 @@ class UserInfoCard extends StatelessWidget {
       leading: Icon(icon, color: iconColor),
       title: Text(title, style: const TextStyle(fontWeight: FontWeight.bold)),
       subtitle:
-          isLoading
-              ? const Center(
-                child: SizedBox(
-                  height: 20,
-                  width: 20,
-                  child: CircularProgressIndicator(strokeWidth: 2),
-                ),
-              )
-              : Text(
-                value,
-                style: TextStyle(
-                  fontSize: 16,
-                  fontWeight: isBold ? FontWeight.bold : FontWeight.normal,
-                ),
-              ),
-    );
-  }
-}
-
-class Valoracio {
-  final String username;
-  final int idActivitat;
-  final double valoracion;
-  final String? comentario;
-  final DateTime fecha;
-
-  Valoracio({
-    required this.username,
-    required this.idActivitat,
-    required this.valoracion,
-    this.comentario,
-    required this.fecha,
-  });
-
-  factory Valoracio.fromJson(Map<String, dynamic> json) {
-    return Valoracio(
-      username: json['username'],
-      idActivitat: json['idActivitat'],
-      valoracion: json['valoracion'].toDouble(),
-      comentario: json['comentario'],
-      fecha: DateTime.parse(json['fechaValoracion']),
+      isLoading
+          ? const Center(
+        child: SizedBox(
+          height: 20,
+          width: 20,
+          child: CircularProgressIndicator(strokeWidth: 2),
+        ),
+      )
+          : Text(
+        value,
+        style: TextStyle(
+          fontSize: 16,
+          fontWeight: isBold ? FontWeight.bold : FontWeight.normal,
+        ),
+      ),
     );
   }
 }
@@ -158,64 +127,6 @@ class _UserPageState extends State<UserPage> {
   // Suscripción para eventos de actualización global
   StreamSubscription<Map<String, dynamic>>? _globalUpdateSubscription;
 
-  late Future<List<Valoracio>>? _userRatingsFuture;
-  List<Map<String, dynamic>> _activities = [];
-  final ActivityService _activityService = ActivityService();
-  bool _isLoadingRatings = true;
-
-  void _loadUserRatings() {
-    if (_currentUser != null && _username.isNotEmpty) {
-      setState(() {
-        _isLoadingRatings = true;
-        _userRatingsFuture = _fetchUserRatings(_username);
-      });
-      _fetchActivities();
-    }
-  }
-
-  Future<List<Valoracio>> _fetchUserRatings(String username) async {
-    try {
-      final response = await http.get(
-        Uri.parse('http://127.0.0.1:8080/valoracions/usuari/$username'),
-        headers: {'Accept': 'application/json'},
-      ).timeout(const Duration(seconds: 10));
-
-      if (response.statusCode == 200) {
-        final List<dynamic> data = json.decode(utf8.decode(response.bodyBytes));
-        setState(() {
-          _isLoadingRatings = false;
-        });
-        return data.map((json) => Valoracio.fromJson(json)).toList()
-          ..sort((a, b) => b.fecha.compareTo(a.fecha));
-      }
-      throw Exception('Error ${response.statusCode}');
-    } catch (e) {
-      setState(() {
-        _isLoadingRatings = false;
-      });
-      debugPrint('Error al cargar valoraciones: $e');
-      return [];
-    }
-  }
-
-  Future<void> _fetchActivities() async {
-    try {
-      _activities = await _activityService.fetchActivities();
-    } catch (e) {
-      final String message = 'Error al cargar actividades';
-      if(!mounted) return;
-      NotificationService.showError(context, message);
-    }
-  }
-
-  String? _findActivityTitleById(int id) {
-    final activity = _activities.firstWhere(
-          (activity) => activity['id'] == id,
-      orElse: () => {},
-    );
-    return activity.isNotEmpty ? activity['nom'] as String? : null;
-  }
-
   // Store user data locally to avoid relying solely on FirebaseAuth.instance.currentUser
   User? _currentUser;
   String _username = '';
@@ -231,8 +142,6 @@ class _UserPageState extends State<UserPage> {
     // Inicializar la conexión WebSocket antes de cargar datos
     _ensureWebSocketConnection();
     _loadUserData();
-    _loadUserRatings(); // Add this line
-
     // Suscribirse a eventos globales de actualización
     _subscribeToGlobalUpdates();
   }
@@ -253,8 +162,8 @@ class _UserPageState extends State<UserPage> {
   // Método para suscribirse a eventos globales
   void _subscribeToGlobalUpdates() {
     _globalUpdateSubscription = profileUpdateStreamController.stream.listen((
-      data,
-    ) {
+        data,
+        ) {
       // Verificar si es un evento de reanudación de la app O inicio de la app
       if (data['type'] == 'app_resumed' || data['type'] == 'app_launched') {
         // Recargar datos cuando la app se reanuda desde segundo plano o cuando se inicia desde cero
@@ -290,7 +199,7 @@ class _UserPageState extends State<UserPage> {
 
     // Listen for profile update events
     _profileUpdateSubscription = WebSocketService().profileUpdates.listen(
-      (message) {
+          (message) {
         // Added mounted check at the beginning of the callback
         if (!mounted) return;
 
@@ -310,8 +219,8 @@ class _UserPageState extends State<UserPage> {
               final isPasswordUpdate = updatedFields.contains('password');
               final isNameUpdate =
                   updatedFields.contains('nom') ||
-                  updatedFields.contains('username') ||
-                  updatedFields.contains('displayName');
+                      updatedFields.contains('username') ||
+                      updatedFields.contains('displayName');
               final isPhotoUpdate = updatedFields.contains('photoURL');
 
               // Determine if it's a critical change requiring re-login
@@ -367,14 +276,14 @@ class _UserPageState extends State<UserPage> {
     String message = '';
     if (isEmailUpdate && isPasswordUpdate) {
       message =
-          'Se han detectado cambios en tu correo y contraseña en otro dispositivo. Es necesario volver a iniciar sesión.';
+      'Se han detectado cambios en tu correo y contraseña en otro dispositivo. Es necesario volver a iniciar sesión.';
     } else if (isEmailUpdate) {
       message =
-          'Se ha detectado un cambio de correo electrónico en otro dispositivo. Es necesario volver a iniciar sesión.';
+      'Se ha detectado un cambio de correo electrónico en otro dispositivo. Es necesario volver a iniciar sesión.';
     } else {
       // isPasswordUpdate
       message =
-          'Se ha detectado un cambio de contraseña en otro dispositivo. Es necesario volver a iniciar sesión.';
+      'Se ha detectado un cambio de contraseña en otro dispositivo. Es necesario volver a iniciar sesión.';
     }
 
     // Show info message and trigger logout/redirect
@@ -388,7 +297,7 @@ class _UserPageState extends State<UserPage> {
     String message = 'Tu perfil ha sido actualizado en otro dispositivo.';
     if (isNameUpdate && isPhotoUpdate) {
       message =
-          'Tu nombre y foto de perfil han sido actualizados en otro dispositivo.';
+      'Tu nombre y foto de perfil han sido actualizados en otro dispositivo.';
     } else if (isNameUpdate) {
       message = 'Tu nombre ha sido actualizado en otro dispositivo.';
     } else if (isPhotoUpdate) {
@@ -409,7 +318,6 @@ class _UserPageState extends State<UserPage> {
       _isLoading = true;
     });
     _loadUserData();
-    _loadUserRatings(); // Add this line
   }
 
   // Handles account deletion initiated remotely via WebSocket
@@ -509,128 +417,12 @@ class _UserPageState extends State<UserPage> {
         _handleSessionClose(
           title: 'Sesión Expirada',
           message:
-              'Tu sesión ha expirado o no se pudo verificar. Por favor, inicia sesión nuevamente.',
+          'Tu sesión ha expirado o no se pudo verificar. Por favor, inicia sesión nuevamente.',
           redirectToLogin: true,
           isRemoteAction: false,
         );
       }
     }
-  }
-  Widget _buildUserRatings() {
-    if (_userRatingsFuture == null) {
-      return const Padding(
-        padding: EdgeInsets.all(16),
-        child: Text(
-          'No se pudieron cargar las valoraciones',
-          style: TextStyle(color: Colors.grey),
-          textAlign: TextAlign.center,
-        ),
-      );
-    }
-
-    return FutureBuilder<List<Valoracio>>(
-      future: _userRatingsFuture,
-      builder: (context, snapshot) {
-        if (snapshot.connectionState == ConnectionState.waiting || _isLoadingRatings) {
-          return const Center(
-            child: Padding(
-              padding: EdgeInsets.all(16.0),
-              child: CircularProgressIndicator(),
-            ),
-          );
-        }
-
-        if (snapshot.hasError) {
-          return Padding(
-            padding: const EdgeInsets.all(16),
-            child: Column(
-              children: [
-                const Text(
-                  'Error al cargar valoraciones',
-                  style: TextStyle(color: Colors.red),
-                ),
-                const SizedBox(height: 8),
-                ElevatedButton(
-                  onPressed: _loadUserRatings,
-                  child: const Text('Reintentar'),
-                ),
-              ],
-            ),
-          );
-        }
-
-        final valoracions = snapshot.data ?? [];
-
-        if (valoracions.isEmpty) {
-          return const Padding(
-            padding: EdgeInsets.all(16),
-            child: Text(
-              'No has realizado ninguna valoración aún',
-              style: TextStyle(color: Colors.grey),
-              textAlign: TextAlign.center,
-            ),
-          );
-        }
-
-        return Column(
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-            Padding(
-              padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
-              child: Text(
-                'Tus valoraciones (${valoracions.length})',
-                style: const TextStyle(
-                  fontSize: 18,
-                  fontWeight: FontWeight.bold,
-                ),
-              ),
-            ),
-            ListView.builder(
-              shrinkWrap: true,
-              physics: const NeverScrollableScrollPhysics(),
-              itemCount: valoracions.length,
-              itemBuilder: (context, index) {
-                final valoracio = valoracions[index];
-                return Card(
-                  margin: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
-                  child: Padding(
-                    padding: const EdgeInsets.all(12),
-                    child: Column(
-                      crossAxisAlignment: CrossAxisAlignment.start,
-                      children: [
-                        Text(
-                          _findActivityTitleById(valoracio.idActivitat) ?? "Actividad no encontrada",
-                          style: const TextStyle(fontWeight: FontWeight.bold),
-                        ),
-                        const SizedBox(height: 8),
-                        RatingBarIndicator(
-                          rating: valoracio.valoracion,
-                          itemBuilder: (context, _) => const Icon(Icons.star, color: Colors.amber),
-                          itemCount: 5,
-                          itemSize: 20,
-                        ),
-                        if (valoracio.comentario?.isNotEmpty ?? false) ...[
-                          const SizedBox(height: 8),
-                          Text(
-                            '"${valoracio.comentario!}"',
-                            style: const TextStyle(fontStyle: FontStyle.italic),
-                          ),
-                        ],
-                        const SizedBox(height: 4),
-                        Text(
-                          'Fecha: ${DateFormat('dd/MM/yyyy').format(valoracio.fecha)}',
-                          style: const TextStyle(color: Colors.grey, fontSize: 12),
-                        ),
-                      ],
-                    ),
-                  ),
-                );
-              },
-            ),
-          ],
-        );
-      },
-    );
   }
 
   // --- Deprecated: _showSessionExpiredDialog --- (Replaced by _handleSessionClose)
@@ -673,24 +465,24 @@ class _UserPageState extends State<UserPage> {
       context: contextCaptured,
       builder:
           (dialogContext) => AlertDialog(
-            title: const Text("Eliminar cuenta"),
-            content: const Text(
-              "¿Estás seguro de que quieres eliminar tu cuenta? Esta acción no se puede deshacer.",
-            ),
-            actions: [
-              TextButton(
-                onPressed: () => Navigator.of(dialogContext).pop(false),
-                child: const Text("Cancelar"),
-              ),
-              TextButton(
-                onPressed: () => Navigator.of(dialogContext).pop(true),
-                child: const Text(
-                  "Eliminar",
-                  style: TextStyle(color: Colors.red),
-                ),
-              ),
-            ],
+        title: const Text("Eliminar cuenta"),
+        content: const Text(
+          "¿Estás seguro de que quieres eliminar tu cuenta? Esta acción no se puede deshacer.",
+        ),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.of(dialogContext).pop(false),
+            child: const Text("Cancelar"),
           ),
+          TextButton(
+            onPressed: () => Navigator.of(dialogContext).pop(true),
+            child: const Text(
+              "Eliminar",
+              style: TextStyle(color: Colors.red),
+            ),
+          ),
+        ],
+      ),
     );
 
     // Re-check mounted status after await
@@ -729,7 +521,7 @@ class _UserPageState extends State<UserPage> {
       // Redirect to login page
       Navigator.of(contextCaptured).pushAndRemoveUntil(
         MaterialPageRoute(builder: (context) => const LoginPage()),
-        (route) => false,
+            (route) => false,
       );
     } else {
       ScaffoldMessenger.of(contextCaptured).showSnackBar(
@@ -756,7 +548,7 @@ class _UserPageState extends State<UserPage> {
     String message = 'Tu sesión ha sido cerrada',
     bool redirectToLogin = true,
     bool isRemoteAction =
-        false, // Flag to indicate if triggered by remote event
+    false, // Flag to indicate if triggered by remote event
   }) async {
     // Capture context early
     final contextCaptured = context;
@@ -828,7 +620,7 @@ class _UserPageState extends State<UserPage> {
         if (contextCaptured.mounted) {
           Navigator.of(contextCaptured).pushAndRemoveUntil(
             MaterialPageRoute(builder: (context) => const LoginPage()),
-            (route) => false,
+                (route) => false,
           );
         }
       }
@@ -841,7 +633,7 @@ class _UserPageState extends State<UserPage> {
         );
         Navigator.of(contextCaptured).pushAndRemoveUntil(
           MaterialPageRoute(builder: (context) => const LoginPage()),
-          (route) => false,
+              (route) => false,
         );
       }
     }
@@ -857,22 +649,22 @@ class _UserPageState extends State<UserPage> {
       context: contextCaptured,
       builder:
           (dialogContext) => AlertDialog(
-            title: const Text("Cerrar Sesión"),
-            content: const Text("¿Estás seguro de que quieres cerrar sesión?"),
-            actions: [
-              TextButton(
-                onPressed: () => Navigator.of(dialogContext).pop(false),
-                child: const Text("Cancelar"),
-              ),
-              TextButton(
-                onPressed: () => Navigator.of(dialogContext).pop(true),
-                child: const Text(
-                  "Cerrar Sesión",
-                  style: TextStyle(color: Colors.red),
-                ),
-              ),
-            ],
+        title: const Text("Cerrar Sesión"),
+        content: const Text("¿Estás seguro de que quieres cerrar sesión?"),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.of(dialogContext).pop(false),
+            child: const Text("Cancelar"),
           ),
+          TextButton(
+            onPressed: () => Navigator.of(dialogContext).pop(true),
+            child: const Text(
+              "Cerrar Sesión",
+              style: TextStyle(color: Colors.red),
+            ),
+          ),
+        ],
+      ),
     );
 
     // Re-check mounted status and confirmation
@@ -910,15 +702,15 @@ class _UserPageState extends State<UserPage> {
                   backgroundColor: Colors.grey[300],
                   // Use local _photoURL
                   backgroundImage:
-                      _photoURL != null ? NetworkImage(_photoURL!) : null,
+                  _photoURL != null ? NetworkImage(_photoURL!) : null,
                   child:
-                      _photoURL == null
-                          ? const Icon(
-                            Icons.person,
-                            size: 60,
-                            color: Colors.grey,
-                          )
-                          : null,
+                  _photoURL == null
+                      ? const Icon(
+                    Icons.person,
+                    size: 60,
+                    color: Colors.grey,
+                  )
+                      : null,
                 ),
                 const SizedBox(height: 30),
                 // Información del usuario
@@ -930,21 +722,25 @@ class _UserPageState extends State<UserPage> {
                   userLevel: _userLevel,
                   isLoading: _isLoading,
                 ),
-                const SizedBox(height: 30),
-                // User Ratings Section
-                const SizedBox(height: 30),
-                const Divider(),
-                const SizedBox(height: 10),
-                const Text(
-                  'Historial de Valoraciones',
-                  style: TextStyle(
-                    fontSize: 20,
-                    fontWeight: FontWeight.bold,
+                const SizedBox(height: 16),
+                ElevatedButton.icon(
+                  onPressed: () {
+                    Navigator.of(context).push(
+                      MaterialPageRoute(
+                        builder: (context) => RatingsPage(username: _username),
+                      ),
+                    );
+                  },
+                  icon: const Icon(Icons.star),
+                  label: const Text('Ver Mis Valoraciones'),
+                  style: ElevatedButton.styleFrom(
+                    backgroundColor: Colors.amber,
+                    foregroundColor: Colors.white,
+                    minimumSize: const Size(double.infinity, 50),
+                    padding: const EdgeInsets.symmetric(vertical: 12),
                   ),
-                  textAlign: TextAlign.center,
                 ),
-                const SizedBox(height: 10),
-                _buildUserRatings(),
+                const SizedBox(height: 20),
                 // Botones de acción
                 Row(
                   mainAxisAlignment: MainAxisAlignment.spaceEvenly,
