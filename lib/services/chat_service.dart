@@ -2,8 +2,7 @@ import 'dart:convert';
 import 'package:http/http.dart' as http;
 import 'package:firebase_auth/firebase_auth.dart';
 import 'package:airplan/services/api_config.dart';
-import 'dart:async';
-import 'package:airplan/services/websocket_service.dart';
+import 'package:airplan/services/chat_websocket_service.dart';
 
 class Message {
   final String senderUsername;
@@ -21,8 +20,7 @@ class Message {
   factory Message.fromJson(Map<String, dynamic> json) {
     return Message(
       senderUsername: json['usernameSender'],
-      receiverUsername:
-          json['usernameReceiver'], // Corregido de usernameReciever a usernameReceiver
+      receiverUsername: json['usernameReceiver'],
       timestamp: DateTime.parse(json['dataEnviament']),
       content: json['missatge'],
     );
@@ -31,8 +29,7 @@ class Message {
   Map<String, dynamic> toJson() {
     return {
       'usernameSender': senderUsername,
-      'usernameReceiver':
-          receiverUsername, // Corregido de usernameReciever a usernameReceiver
+      'usernameReceiver': receiverUsername,
       'dataEnviament': timestamp.toIso8601String(),
       'missatge': content,
     };
@@ -57,69 +54,70 @@ class ChatService {
   // Singleton instance
   static final ChatService _instance = ChatService._internal();
   factory ChatService() => _instance;
-
-  // Controller para transmitir mensajes en tiempo real
-  final StreamController<Message> _messageStreamController =
-      StreamController<Message>.broadcast();
-  StreamSubscription<Map<String, dynamic>>? _chatMessageSubscription;
-
-  // Obtener el stream de mensajes
-  Stream<Message> get messageStream => _messageStreamController.stream;
-
   ChatService._internal() {
-    // Inicializar la suscripción en el constructor interno
-    _initializeSubscription();
+    // Inicializa la escucha de mensajes WebSocket
+    _chatWebSocketService = ChatWebSocketService();
+    _setupWebSocketListeners();
   }
 
-  // Inicializar o reiniciar la suscripción a mensajes de chat
-  void _initializeSubscription() {
-    // Cancelar suscripción existente si hay alguna
-    _chatMessageSubscription?.cancel();
+  // Referencia al servicio WebSocket específico para chat
+  late final ChatWebSocketService _chatWebSocketService;
 
-    // Asegurar que WebSocket está conectado
-    if (!WebSocketService().isConnected) {
-      WebSocketService().connect();
-    }
+  // Mensajes recibidos a través de WebSocket
+  final List<Message> _messageCache = [];
 
-    // Suscribirse al stream específico de mensajes de chat
-    _chatMessageSubscription = WebSocketService().chatMessages.listen((data) {
-      try {
-        final currentUser = FirebaseAuth.instance.currentUser;
-        if (currentUser != null && currentUser.displayName != null) {
-          // Comprobar si el mensaje es para este usuario
-          if (data['usernameReceiver'] == currentUser.displayName ||
-              data['usernameSender'] == currentUser.displayName) {
-            // Convertir a objeto Message y añadirlo al stream
-            final newMessage = Message.fromJson(data);
-            _messageStreamController.add(newMessage);
-          }
+  // Configura los escuchadores para el WebSocket
+  void _setupWebSocketListeners() {
+    _chatWebSocketService.chatMessages.listen((messageData) {
+      // Si el mensaje tiene la marca 'fromHistory', significa que viene del historial inicial
+      bool isFromHistory =
+          messageData.containsKey('fromHistory') &&
+          messageData['fromHistory'] == true;
+
+      // Añadimos el mensaje recibido a la caché
+      if (messageData.containsKey('usernameSender') &&
+          messageData.containsKey('usernameReceiver') &&
+          messageData.containsKey('missatge') &&
+          messageData.containsKey('dataEnviament')) {
+        final message = Message(
+          senderUsername: messageData['usernameSender'],
+          receiverUsername: messageData['usernameReceiver'],
+          timestamp: DateTime.parse(messageData['dataEnviament']),
+          content: messageData['missatge'],
+        );
+
+        // Para mensajes del historial, solo verificamos si ya existe un duplicado exacto
+        // Para mensajes nuevos, aplicamos la verificación con tolerancia de tiempo
+        bool isDuplicate;
+
+        if (isFromHistory) {
+          // Verificación estricta para mensajes históricos (solo duplicados exactos)
+          isDuplicate = _messageCache.any(
+            (m) =>
+                m.senderUsername == message.senderUsername &&
+                m.receiverUsername == message.receiverUsername &&
+                m.content == message.content &&
+                m.timestamp.isAtSameMomentAs(message.timestamp),
+          );
+        } else {
+          // Verificación con tolerancia para mensajes nuevos
+          isDuplicate = _messageCache.any(
+            (m) =>
+                m.senderUsername == message.senderUsername &&
+                m.receiverUsername == message.receiverUsername &&
+                m.content == message.content &&
+                (m.timestamp.difference(message.timestamp).inSeconds.abs() < 5),
+          ); // Tolerancia de 5 segundos
         }
-      } catch (e) {
-        print('Error procesando mensaje de chat: $e');
+
+        if (!isDuplicate) {
+          _messageCache.add(message);
+        }
       }
     });
   }
 
-  // Método público para compatibilidad con código existente
-  void initialize() {
-    // Asegurar que la conexión WebSocket está establecida
-    if (!WebSocketService().isConnected) {
-      WebSocketService().connect();
-    }
-
-    // Solo reiniciar la suscripción si es necesario
-    if (_chatMessageSubscription == null) {
-      _initializeSubscription();
-    }
-  }
-
-  // Liberar recursos cuando ya no se necesitan
-  void dispose() {
-    _chatMessageSubscription?.cancel();
-    _messageStreamController.close();
-  }
-
-  // Send a message to another user
+  // Send a message to another user using WebSocket
   Future<bool> sendMessage(String receiverUsername, String content) async {
     try {
       final currentUser = FirebaseAuth.instance.currentUser;
@@ -127,6 +125,7 @@ class ChatService {
         return false;
       }
 
+      // Crear el mensaje
       final message = Message(
         senderUsername: currentUser.displayName!,
         receiverUsername: receiverUsername,
@@ -134,30 +133,25 @@ class ChatService {
         content: content,
       );
 
-      // Enviamos un mensaje de tipo CHAT_MESSAGE al servidor WebSocket
-      final chatMessage = {
-        ...message.toJson(),
-        'type': 'CHAT_MESSAGE',
-        'clientId': WebSocketService().clientId,
-      };
+      // Verificar si el mensaje ya existe en la caché antes de añadirlo
+      bool isDuplicate = _messageCache.any(
+        (m) =>
+            m.senderUsername == message.senderUsername &&
+            m.receiverUsername == message.receiverUsername &&
+            m.content == message.content &&
+            (m.timestamp.difference(message.timestamp).inSeconds.abs() < 5),
+      ); // Tolerancia de 5 segundos
 
-      // IMPORTANTE: Añadir el mensaje al stream local inmediatamente
-      // para que aparezca en la interfaz del remitente sin esperar al WebSocket
-      _messageStreamController.add(message);
-
-      // Si el WebSocket está conectado, enviamos el mensaje a través de él
-      if (WebSocketService().isConnected) {
-        WebSocketService().sendMessage(jsonEncode(chatMessage));
-        return true;
-      } else {
-        // Si WebSocket no está disponible, realizamos una petición HTTP como fallback
-        final response = await http.post(
-          Uri.parse(ApiConfig().buildUrl('chat/send')),
-          headers: {'Content-Type': 'application/json'},
-          body: jsonEncode(message.toJson()),
-        );
-        return response.statusCode == 201;
+      // Solo añadir a la caché si no es un duplicado
+      if (!isDuplicate) {
+        _messageCache.add(message);
       }
+
+      // Enviar mensaje usando ChatWebSocketService
+      return await _chatWebSocketService.sendChatMessage(
+        receiverUsername,
+        content,
+      );
     } catch (e) {
       print('Error sending message: $e');
       return false;
@@ -172,6 +166,13 @@ class ChatService {
         return [];
       }
 
+      // Limpiar la caché específica para esta conversación para evitar acumulación de mensajes
+      _cleanCacheForConversation(currentUser.displayName!, otherUsername);
+
+      // Primero intentamos conectar al chat WebSocket para empezar a recibir mensajes en tiempo real
+      _chatWebSocketService.connectToChat(otherUsername);
+
+      // Luego obtenemos el historial de mensajes desde el backend
       final response = await http.get(
         Uri.parse(
           ApiConfig().buildUrl(
@@ -180,14 +181,89 @@ class ChatService {
         ),
       );
 
+      // Lista para almacenar todos los mensajes
+      List<Message> allMessages = [];
+
       if (response.statusCode == 200) {
         final List<dynamic> jsonData = jsonDecode(response.body);
-        return jsonData.map((data) => Message.fromJson(data)).toList();
+        allMessages = jsonData.map((data) => Message.fromJson(data)).toList();
       }
-      return [];
+
+      // Añadimos los mensajes de la caché que pertenecen a esta conversación
+      for (var message in _messageCache) {
+        if ((message.senderUsername == currentUser.displayName &&
+                message.receiverUsername == otherUsername) ||
+            (message.senderUsername == otherUsername &&
+                message.receiverUsername == currentUser.displayName)) {
+          // Verificación más robusta de duplicados con tolerancia de tiempo
+          bool isDuplicate = allMessages.any(
+            (m) =>
+                m.senderUsername == message.senderUsername &&
+                m.receiverUsername == message.receiverUsername &&
+                m.content == message.content &&
+                (m.timestamp.difference(message.timestamp).inSeconds.abs() < 5),
+          ); // Tolerancia de 5 segundos
+
+          if (!isDuplicate) {
+            allMessages.add(message);
+          }
+        }
+      }
+
+      // Normalizar formato de fechas
+      _normalizeMessageDates(allMessages);
+
+      // Ordenar por fecha de forma estable
+      allMessages.sort((a, b) {
+        int dateCompare = a.timestamp.compareTo(b.timestamp);
+        if (dateCompare == 0) {
+          // Si las fechas son iguales, ordenar por contenido para estabilidad
+          return a.content.compareTo(b.content);
+        }
+        return dateCompare;
+      });
+
+      return allMessages;
     } catch (e) {
       print('Error getting conversation: $e');
       return [];
+    }
+  }
+
+  // Limpia la caché de mensajes específicos para una conversación
+  void _cleanCacheForConversation(String user1, String user2) {
+    // Mantener solo mensajes recientes (últimas 24 horas) para evitar acumulación
+    final cutoffTime = DateTime.now().subtract(const Duration(hours: 24));
+
+    _messageCache.removeWhere(
+      (message) =>
+          ((message.senderUsername == user1 &&
+                  message.receiverUsername == user2) ||
+              (message.senderUsername == user2 &&
+                  message.receiverUsername == user1)) &&
+          message.timestamp.isBefore(cutoffTime),
+    );
+  }
+
+  // Normaliza el formato de fechas para asegurar consistencia
+  void _normalizeMessageDates(List<Message> messages) {
+    for (int i = 0; i < messages.length; i++) {
+      // Asegurarnos de que todas las fechas tienen la misma precisión (sin milisegundos)
+      final normalizedDate = DateTime(
+        messages[i].timestamp.year,
+        messages[i].timestamp.month,
+        messages[i].timestamp.day,
+        messages[i].timestamp.hour,
+        messages[i].timestamp.minute,
+        messages[i].timestamp.second,
+      );
+
+      messages[i] = Message(
+        senderUsername: messages[i].senderUsername,
+        receiverUsername: messages[i].receiverUsername,
+        content: messages[i].content,
+        timestamp: normalizedDate,
+      );
     }
   }
 
@@ -207,5 +283,10 @@ class ChatService {
       print('Error getting all chats: $e');
       return [];
     }
+  }
+
+  // Método para limpiar la conexión del WebSocket cuando el usuario sale de la pantalla de chat
+  void disconnectFromChat() {
+    _chatWebSocketService.disconnectChat();
   }
 }

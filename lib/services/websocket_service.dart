@@ -13,16 +13,7 @@ class WebSocketService {
   static final WebSocketService _instance = WebSocketService._internal();
   WebSocketChannel? _channel;
 
-  // Controladores para diferentes tipos de mensajes
-  final StreamController<Map<String, dynamic>> _chatMessageController =
-      StreamController<Map<String, dynamic>>.broadcast();
-  final StreamController<Map<String, dynamic>> _profileUpdateController =
-      StreamController<Map<String, dynamic>>.broadcast();
-  final StreamController<Map<String, dynamic>> _accountDeletedController =
-      StreamController<Map<String, dynamic>>.broadcast();
-
-  // Controller para todos los mensajes (para mantener compatibilidad)
-  final StreamController<String> _allMessagesController =
+  final StreamController<String> _profileUpdateController =
       StreamController<String>.broadcast();
 
   bool _isConnected = false;
@@ -36,17 +27,6 @@ class WebSocketService {
   factory WebSocketService() {
     return _instance;
   }
-
-  // Streams específicos por tipo de mensaje
-  Stream<Map<String, dynamic>> get chatMessages =>
-      _chatMessageController.stream;
-  Stream<Map<String, dynamic>> get profileUpdateEvents =>
-      _profileUpdateController.stream;
-  Stream<Map<String, dynamic>> get accountDeletedEvents =>
-      _accountDeletedController.stream;
-
-  // Stream de todos los mensajes (para compatibilidad con código existente)
-  Stream<String> get profileUpdates => _allMessagesController.stream;
 
   WebSocketService._internal() {
     _initializeClientId();
@@ -86,6 +66,9 @@ class WebSocketService {
 
   // Getter para el clientId
   String get clientId => _clientId;
+
+  // Stream for profile updates that other widgets can listen to
+  Stream<String> get profileUpdates => _profileUpdateController.stream;
 
   // Verificar si WebSocket está conectado
   bool get isConnected => _isConnected;
@@ -160,7 +143,7 @@ class WebSocketService {
     }
   }
 
-  // Iniciar timer para enviar pings periódicos
+  // Iniciar timer para enviar pings periódicos al servidor principal
   void _startPingTimer() {
     _pingTimer?.cancel();
     _pingTimer = Timer.periodic(const Duration(seconds: 30), (timer) {
@@ -191,9 +174,6 @@ class WebSocketService {
   // Manejar mensajes entrantes del WebSocket
   void _handleIncomingMessage(String message) {
     try {
-      // Enviamos el mensaje crudo al stream general (compatibilidad)
-      _allMessagesController.add(message);
-
       // No procesamos mensajes de ping/pong
       if (message.contains('"type":"PING"') ||
           message.contains('"type":"PONG"')) {
@@ -203,30 +183,17 @@ class WebSocketService {
       // Deserializar el mensaje
       final Map<String, dynamic> data = json.decode(message);
 
-      // Distribuir el mensaje según su tipo
-      final String type = data['type'] ?? '';
-
-      switch (type) {
-        case 'CHAT_MESSAGE':
-          _chatMessageController.add(data);
-          break;
-
-        case 'PROFILE_UPDATE':
-          _profileUpdateController.add(data);
-          break;
-
-        case 'ACCOUNT_DELETED':
-          _accountDeletedController.add(data);
-          _handleAccountDeletedMessage(data);
-          break;
-
-        default:
-          // Para tipos desconocidos, no hacemos nada especial
-          break;
+      if (data.containsKey('clientId') && data['clientId'] == _clientId) {
+        return; // No procesamos mensajes de nuestro propio dispositivo
       }
-    } catch (e) {
-      debugPrint('Error al procesar mensaje WebSocket: $e');
-    }
+
+      if (data['type'] == 'ACCOUNT_DELETED') {
+        _handleAccountDeletedMessage(data);
+        return;
+      }
+
+      _profileUpdateController.add(message);
+    } catch (e) {}
   }
 
   // Manejar mensaje de cuenta eliminada
@@ -252,7 +219,10 @@ class WebSocketService {
   // Mostrar diálogo de cuenta eliminada
   void _showAccountDeletedDialog() {
     final context = navigatorKey.currentContext;
-    if (context != null && context.mounted) {
+    if (context != null) {
+      // Verificar si el widget está montado antes de mostrar el diálogo
+      if (!context.mounted) return;
+
       final safeContext = context;
 
       showDialog(
@@ -303,7 +273,7 @@ class WebSocketService {
     });
   }
 
-  // Desconectar del servidor WebSocket
+  // Desconectar del servidor WebSocket principal
   void disconnect() {
     _pingTimer?.cancel();
     _reconnectTimer?.cancel();
@@ -333,26 +303,9 @@ class WebSocketService {
     connect();
   }
 
-  // Enviar mensaje a través del WebSocket
-  bool sendMessage(String message) {
-    if (_isConnected && _channel != null) {
-      try {
-        _channel!.sink.add(message);
-        return true;
-      } catch (e) {
-        debugPrint('Error al enviar mensaje por WebSocket: $e');
-        return false;
-      }
-    }
-    return false;
-  }
-
   // Liberar recursos
   void dispose() {
     disconnect();
-    _chatMessageController.close();
     _profileUpdateController.close();
-    _accountDeletedController.close();
-    _allMessagesController.close();
   }
 }
