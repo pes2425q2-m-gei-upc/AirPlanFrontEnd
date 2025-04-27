@@ -8,7 +8,7 @@ import 'package:airplan/chat_detail_page.dart';
 import 'package:intl/intl.dart';
 
 class ChatListPage extends StatefulWidget {
-  const ChatListPage({Key? key}) : super(key: key);
+  const ChatListPage({super.key});
 
   @override
   ChatListPageState createState() => ChatListPageState();
@@ -20,7 +20,7 @@ class ChatListPageState extends State<ChatListPage> {
   List<Chat> _chats = [];
   List<Chat> _filteredChats = []; // Lista filtrada para búsqueda
   bool _isLoading = true;
-  Map<String, String> _userNames =
+  final Map<String, String> _userNames =
       {}; // Almacenar nombres reales de los usuarios
   Timer? _refreshTimer;
   StreamSubscription? _chatMessageSubscription;

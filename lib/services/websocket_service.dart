@@ -193,7 +193,9 @@ class WebSocketService {
       }
 
       _profileUpdateController.add(message);
-    } catch (e) {}
+    } catch (e) {
+      debugPrint('Error handling WebSocket message: $e');
+    }
   }
 
   // Manejar mensaje de cuenta eliminada

@@ -9,7 +9,7 @@ import 'dart:async';
 class ChatDetailPage extends StatefulWidget {
   final String username;
 
-  const ChatDetailPage({Key? key, required this.username}) : super(key: key);
+  const ChatDetailPage({super.key, required this.username});
 
   @override
   ChatDetailPageState createState() => ChatDetailPageState();
@@ -342,7 +342,7 @@ class ChatDetailPageState extends State<ChatDetailPage> {
             Text(
               _formatTimestamp(message.timestamp),
               style: TextStyle(
-                color: isMe ? Colors.white.withOpacity(0.8) : Colors.black54,
+                color: isMe ? Colors.white.withAlpha(204) : Colors.black54,
                 fontSize: 12,
               ),
               textAlign: TextAlign.right,

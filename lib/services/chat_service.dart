@@ -3,6 +3,7 @@ import 'package:http/http.dart' as http;
 import 'package:firebase_auth/firebase_auth.dart';
 import 'package:airplan/services/api_config.dart';
 import 'package:airplan/services/chat_websocket_service.dart';
+import 'package:flutter/foundation.dart';
 
 class Message {
   final String senderUsername;
@@ -163,7 +164,7 @@ class ChatService {
         content,
       );
     } catch (e) {
-      print('Error sending message: $e');
+      debugPrint('Error sending message: $e');
       return false;
     }
   }
@@ -235,7 +236,7 @@ class ChatService {
 
       return allMessages;
     } catch (e) {
-      print('Error getting conversation: $e');
+      debugPrint('Error getting conversation: $e');
       return [];
     }
   }
@@ -317,11 +318,11 @@ class ChatService {
 
         return chats;
       } else {
-        print('Error getting chats: ${response.statusCode}');
+        debugPrint('Error getting chats: ${response.statusCode}');
         return [];
       }
     } catch (e) {
-      print('Error getting all chats: $e');
+      debugPrint('Error getting all chats: $e');
       return [];
     }
   }
