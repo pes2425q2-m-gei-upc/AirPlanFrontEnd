@@ -8,7 +8,7 @@ import 'air_quality.dart';
 
 class MapService {
   Future<List<CircleMarker>> fetchAirQualityData(Map<LatLng, Map<Contaminant, AirQualityData>> contaminantsPerLocation) async {
-    final url = Uri.parse('https://analisi.transparenciacatalunya.cat/resource/tasf-thgu.json?data=${DateTime.now().toString().substring(0,10)}');
+    final url = Uri.parse('http://localhost:8080/api/airquality');
     final response = await http.get(url);
 
     if (response.statusCode == 200) {
@@ -61,7 +61,7 @@ class MapService {
   }
 
   Future<String> fetchPlaceDetails(LatLng position) async {
-    final url = Uri.parse('https://nominatim.openstreetmap.org/reverse?format=json&lat=${position.latitude}&lon=${position.longitude}');
+    final url = Uri.parse('http://localhost:8080/api/locations?format=json&lat=${position.latitude}&lon=${position.longitude}');
     final response = await http.get(url);
 
     if (response.statusCode == 200) {
