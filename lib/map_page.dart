@@ -237,71 +237,110 @@ class MapPageState extends State<MapPage> {
     }
   }
 
-  void _showActivityDetails(Map<String, dynamic> activity) {
-    // Obtener el usuario actual
+  void _showActivityDetails(Map<String, dynamic> activity) async {
     final String? currentUser = FirebaseAuth.instance.currentUser?.displayName;
     final bool isCurrentUserCreator = currentUser != null &&
         activity['creador'] == currentUser;
 
+    bool isFavorite = false;
+
+    try {
+      isFavorite = await isActivityFavorite(activity['id']);
+    } catch (error) {
+      if (context.mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(SnackBar(
+          content: Text('Error checking favorite status: $error'),
+        ));
+      }
+    }
+
+    if (!mounted) return;
+
     showModalBottomSheet(
       context: context,
       builder: (context) {
-        return Container(
-          padding: EdgeInsets.all(16.0),
-          child: Row(
-            mainAxisAlignment: MainAxisAlignment.spaceBetween,
-            children: [
-              // Contenido a la izquierda (título y creador)
-              Expanded(
-                child: Column(
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  mainAxisSize: MainAxisSize.min,
-                  children: [
-                    GestureDetector(
-                      onTap: () {
-                        Navigator.pop(context);
-                        _navigateToActivityDetails(activity);
-                      },
-                      child: Text(
-                        activity['nom'] ?? '',
-                        style: TextStyle(
-                          fontSize: 20,
-                          fontWeight: FontWeight.bold,
-                          color: Colors.blue,
-                          decoration: TextDecoration.underline,
+        return StatefulBuilder(
+          builder: (context, setState) {
+            return Container(
+              padding: EdgeInsets.all(16.0),
+              child: Row(
+                mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                children: [
+                  Expanded(
+                    child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      mainAxisSize: MainAxisSize.min,
+                      children: [
+                        GestureDetector(
+                          onTap: () {
+                            Navigator.pop(context);
+                            _navigateToActivityDetails(activity);
+                          },
+                          child: Text(
+                            activity['nom'] ?? '',
+                            style: TextStyle(
+                              fontSize: 20,
+                              fontWeight: FontWeight.bold,
+                              color: Colors.blue,
+                              decoration: TextDecoration.underline,
+                            ),
+                          ),
                         ),
-                      ),
+                        SizedBox(height: 8),
+                        Text(
+                          'Creador: ${activity['creador'] ?? ''}',
+                          style: TextStyle(fontSize: 16),
+                        ),
+                      ],
                     ),
-                    SizedBox(height: 8),
-                    Text(
-                      'Creador: ${activity['creador'] ?? ''}',
-                      style: TextStyle(fontSize: 16),
+                  ),
+                  IconButton(
+                    icon: Icon(
+                      isFavorite ? Icons.favorite : Icons.favorite_border,
+                      color: isFavorite ? Colors.red : Colors.grey,
                     ),
-                  ],
-                ),
+                    onPressed: () async {
+                      try {
+                        if (isFavorite) {
+                          await removeActivityFromFavorites(activity['id']);
+                        } else {
+                          await addActivityToFavorites(activity['id']);
+                        }
+                        setState(() {
+                          isFavorite = !isFavorite;
+                        });
+                      } catch (error) {
+                        if (context.mounted) {
+                          ScaffoldMessenger.of(context).showSnackBar(SnackBar(
+                            content: Text('Error updating favorite status: $error'),
+                          ));
+                        }
+                      }
+                    },
+                  ),
+                  if (isCurrentUserCreator)
+                    Row(
+                      children: [
+                        IconButton(
+                          icon: Icon(Icons.edit, color: Colors.blue),
+                          onPressed: () {
+                            Navigator.pop(context);
+                            _showEditActivityForm(activity);
+                          },
+                        ),
+                        IconButton(
+                          icon: Icon(Icons.delete, color: Colors.red),
+                          onPressed: () {
+                            Navigator.pop(context);
+                            _showDeleteConfirmation(activity);
+                          },
+                        ),
+                      ],
+                    ),
+                ],
               ),
-              // Botones a la derecha (solo si el usuario es el creador)
-              if (isCurrentUserCreator) // <-- Condición para mostrar los botones
-                Row(
-                  children: [
-                    IconButton(
-                      icon: Icon(Icons.edit, color: Colors.blue),
-                      onPressed: () {
-                        Navigator.pop(context);
-                        _showEditActivityForm(activity);
-                      },
-                    ),
-                    IconButton(
-                      icon: Icon(Icons.delete, color: Colors.red),
-                      onPressed: () {
-                        Navigator.pop(context);
-                        _showDeleteConfirmation(activity);
-                      },
-                    ),
-                  ],
-                ),
-            ],
-          ),
+            );
+          },
         );
       },
     );
@@ -548,6 +587,82 @@ class MapPageState extends State<MapPage> {
       showAirQualityCircles = !showAirQualityCircles;
     });
   }
+  //Puentes entre boton de favorita y activityService
+  Future<bool> isActivityFavorite(int activityId) async {
+    final String? username = FirebaseAuth.instance.currentUser?.displayName;
+    if (username == null) {
+      throw Exception('User not logged in');
+    }
+    return await activityService.isActivityFavorite(activityId, username);
+  }
+
+  Future<void> addActivityToFavorites(int activityId) async {
+    final String? username = FirebaseAuth.instance.currentUser?.displayName;
+    if (username == null) {
+      throw Exception('User not logged in');
+    }
+    await activityService.addActivityToFavorites(activityId, username);
+  }
+
+  Future<void> removeActivityFromFavorites(int activityId) async {
+    final String? username = FirebaseAuth.instance.currentUser?.displayName;
+    if (username == null) {
+      throw Exception('User not logged in');
+    }
+    await activityService.removeActivityFromFavorites(activityId, username);
+  }
+
+  Future<void> _showFavoriteActivities() async {
+    try {
+      final String? username = FirebaseAuth.instance.currentUser?.displayName;
+      if (username == null) {
+        throw Exception('User not logged in');
+      }
+
+      final favoriteActivities = await activityService.fetchFavoriteActivities(username);
+
+      if (!mounted) return;
+
+      showModalBottomSheet(
+        context: context,
+        builder: (context) {
+          if (favoriteActivities.isEmpty) {
+            return Center(
+              child: Padding(
+                padding: const EdgeInsets.all(16.0),
+                child: Text(
+                  'No tienes actividades favoritas.',
+                  style: TextStyle(fontSize: 16, fontWeight: FontWeight.bold),
+                  textAlign: TextAlign.center,
+                ),
+              ),
+            );
+          }
+
+          return ListView.builder(
+            itemCount: favoriteActivities.length,
+            itemBuilder: (context, index) {
+              final activity = favoriteActivities[index];
+              return ListTile(
+                title: Text(activity['nom'] ?? 'Sin título'),
+                subtitle: Text(activity['descripcio'] ?? 'Sin descripción'),
+                onTap: () {
+                  Navigator.pop(context);
+                  _navigateToActivityDetails(activity);
+                },
+              );
+            },
+          );
+        },
+      );
+    } catch (e) {
+      if (context.mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(SnackBar(
+          content: Text('Error al obtener actividades favoritas: ${e.toString()}'),
+        ));
+      }
+    }
+  }
 
   @override
   Widget build(BuildContext context) {
@@ -572,6 +687,14 @@ class MapPageState extends State<MapPage> {
             child: FloatingActionButton(
               onPressed: _toggleAirQualityCircles,
               child: Icon(showAirQualityCircles ? Icons.visibility : Icons.visibility_off),
+            ),
+          ),
+          Positioned(
+            top: 10,
+            left: 10,
+            child: FloatingActionButton(
+              onPressed: _showFavoriteActivities,
+              child: const Icon(Icons.favorite),
             ),
           ),
         ],

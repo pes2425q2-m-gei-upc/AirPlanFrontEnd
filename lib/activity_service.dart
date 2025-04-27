@@ -146,4 +146,48 @@ class ActivityService {
       throw Exception('Error al actualizar la actividad: ${response.body}');
     }
   }
+  Future<bool> isActivityFavorite(int activityId, String username) async {
+    //final url = Uri.parse('http://nattech.fib.upc.edu:40350/api/activitats/favorita/$activityId/$username');
+    final url = Uri.parse('http://127.0.0.1:8080/api/activitats/favorita/$activityId/$username');
+    final response = await http.get(url);
+
+    if (response.statusCode == 200) {
+      return jsonDecode(response.body)['esFavorita'] as bool;
+    } else {
+      throw Exception('Error checking if activity is favorite: ${response.body}');
+    }
+  }
+
+  Future<void> addActivityToFavorites(int activityId, String username) async {
+    //final url = Uri.parse('http://nattech.fib.upc.edu:40350/api/activitats/favorita/anadir/$activityId/$username');
+    final url = Uri.parse('http://127.0.0.1:8080/api/activitats/favorita/anadir/$activityId/$username');
+    final response = await http.post(url);
+
+    if (response.statusCode != 201) {
+      throw Exception('Error adding activity to favorites: ${response.body}');
+    }
+  }
+
+  Future<void> removeActivityFromFavorites(int activityId, String username) async {
+    //final url = Uri.parse('http://nattech.fib.upc.edu:40350/api/activitats/favorita/eliminar/$activityId/$username');
+    final url = Uri.parse('http://127.0.0.1:8080/api/activitats/favorita/eliminar/$activityId/$username');
+    final response = await http.delete(url);
+
+    if (response.statusCode != 200) {
+      throw Exception('Error removing activity from favorites: ${response.body}');
+    }
+  }
+
+  Future<List<Map<String, dynamic>>> fetchFavoriteActivities(String username) async {
+    //final url = Uri.parse('http://nattech.fib.upc.edu:40350/api/activitats/favoritas/$username');
+    final url = Uri.parse('http://127.0.0.1:8080/api/activitats/favoritas/$username');
+    final response = await http.get(url);
+
+    if (response.statusCode == 200) {
+      final List<dynamic> data = jsonDecode(response.body);
+      return data.cast<Map<String, dynamic>>();
+    } else {
+      throw Exception('Error al obtener actividades favoritas: ${response.body}');
+    }
+  }
 }
