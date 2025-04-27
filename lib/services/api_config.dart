@@ -27,7 +27,7 @@ class ApiConfig {
     else {
       // Reemplaza esta IP con la dirección IP de tu ordenador en tu red local
       // Puedes encontrarla ejecutando 'ipconfig' en Windows o 'ifconfig' en Mac/Linux
-      _baseUrl = 'http://192.168.1.142:8080';
+      _baseUrl = 'http://192.168.1.69:8080';
     }
   }
 

@@ -1,4 +1,5 @@
 import 'dart:convert';
+import 'package:airplan/services/api_config.dart';
 import 'package:airplan/services/notification_service.dart';
 import 'package:firebase_auth/firebase_auth.dart';
 import 'package:flutter/material.dart';
@@ -59,10 +60,10 @@ class ActivityDetailsPage extends StatelessWidget {
   });
 
   Future<List<Valoracio>> fetchValoracions(String activityId) async {
-    final String backendUrl = 'http://127.0.0.1:8080/valoracions/activitat/$activityId';
+    final backendUrl = Uri.parse(ApiConfig().buildUrl('valoracions/activitat/$activityId'));
 
     try {
-      final response = await http.get(Uri.parse(backendUrl));
+      final response = await http.get(backendUrl);
 
       if (response.statusCode == 200) {
         final List<dynamic> data = jsonDecode(response.body);
@@ -80,10 +81,10 @@ class ActivityDetailsPage extends StatelessWidget {
 
   // New method to check if a user has already rated an activity
   Future<bool> checkUserHasRated(String activityId, String userId) async {
-    final String backendUrl = 'http://127.0.0.1:8080/valoracions/usuario/$userId/activitat/$activityId';
+    final backendUrl = Uri.parse(ApiConfig().buildUrl('valoracions/usuario/$userId/activitat/$activityId'));
 
     try {
-      final response = await http.get(Uri.parse(backendUrl));
+      final response = await http.get(backendUrl);
       return response.statusCode == 200 && jsonDecode(response.body) != null;
     } catch (e) {
       return false;
@@ -189,11 +190,12 @@ class ActivityDetailsPage extends StatelessWidget {
     String? comment,
     required BuildContext context,
   }) async {
-    final String backendUrl = 'http://127.0.0.1:8080/valoracions';
+    final backendUrl = Uri.parse(ApiConfig().buildUrl('valoracions'));
+
 
     try {
       final response = await http.post(
-        Uri.parse(backendUrl),
+        backendUrl,
         headers: {
           'Content-Type': 'application/json',
         },

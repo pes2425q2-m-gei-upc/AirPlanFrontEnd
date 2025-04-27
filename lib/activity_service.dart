@@ -21,7 +21,7 @@ class ActivityService {
     // Validate dates first
     validateActivityDates(activityData);
 
-    final url = Uri.parse('http://localhost:8080/api/activitats/crear');
+    final url = Uri.parse(ApiConfig().buildUrl('api/activitats/crear'));
     final dateFormat = DateFormat("yyyy-MM-dd'T'HH:mm:ss");
     final ubicacioParts = activityData['location']!.split(',');
     final ubicacio = <String, double>{
