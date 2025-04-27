@@ -7,10 +7,12 @@ import 'package:http/http.dart' as http;
 import 'package:flutter/foundation.dart' show kIsWeb;
 import 'package:airplan/user_page.dart';
 import 'package:airplan/utils/web_utils_stub.dart';
+import 'package:intl/date_symbol_data_local.dart';
 import 'calendar_page.dart';
 import 'login_page.dart';
 import 'map_page.dart';
 import 'admin_page.dart';
+import 'chat_list_page.dart'; // Import the new ChatListPage
 import 'services/websocket_service.dart'; // Import WebSocket service
 import 'services/api_config.dart'; // Importar la configuración de API
 import 'dart:async'; // Para StreamSubscription
@@ -166,6 +168,10 @@ class GlobalNotificationService {
 
 void main() async {
   WidgetsFlutterBinding.ensureInitialized();
+
+  // Inicializar datos de formateo para español y otros idiomas que puedas necesitar
+  await initializeDateFormatting('es', null);
+
   await Firebase.initializeApp(
     options: FirebaseOptions(
       apiKey: "AIzaSyDjyHcnvD1JTfN7xpkRMD-S_qDMSnvbZII",
@@ -687,6 +693,7 @@ class MyHomePageState extends State<MyHomePage> {
   static final List<Widget> _widgetOptions = <Widget>[
     MapPage(),
     CalendarPage(),
+    const ChatListPage(), // Add the Chat tab
     UserPage(),
   ];
 
@@ -707,11 +714,18 @@ class MyHomePageState extends State<MyHomePage> {
             icon: Icon(Icons.calendar_today),
             label: 'Calendar',
           ),
+          BottomNavigationBarItem(
+            icon: Icon(Icons.chat),
+            label: 'Chat',
+          ), // New chat tab
           BottomNavigationBarItem(icon: Icon(Icons.person), label: 'User'),
         ],
         currentIndex: _selectedIndex,
         selectedItemColor: Colors.blue,
         onTap: _onItemTapped,
+        type:
+            BottomNavigationBarType
+                .fixed, // Add this to support more than 3 items
       ),
       bottomSheet: Container(height: 1, color: Colors.grey),
     );

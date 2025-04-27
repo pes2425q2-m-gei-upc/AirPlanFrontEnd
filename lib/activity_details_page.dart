@@ -6,6 +6,8 @@ import 'package:flutter/material.dart';
 import 'package:flutter_rating_bar/flutter_rating_bar.dart';
 import 'package:http/http.dart' as http;
 import 'package:airplan/air_quality.dart';
+import 'package:airplan/chat_detail_page.dart';
+
 
 class Valoracio {
   final String username;
@@ -42,8 +44,8 @@ class ActivityDetailsPage extends StatelessWidget {
   final String startDate;
   final String endDate;
   final bool isEditable;
-  final VoidCallback onEdit;
-  final VoidCallback onDelete;
+  final VoidCallback onEdit; // Función para editar
+  final VoidCallback onDelete; // Función para eliminar
 
   const ActivityDetailsPage({
     super.key,
@@ -55,8 +57,8 @@ class ActivityDetailsPage extends StatelessWidget {
     required this.startDate,
     required this.endDate,
     required this.isEditable,
-    required this.onEdit,
-    required this.onDelete,
+    required this.onEdit, // Añadimos el parámetro onEdit
+    required this.onDelete, // Añadimos el parámetro onDelete
   });
 
   Future<List<Valoracio>> fetchValoracions(String activityId) async {
@@ -264,123 +266,135 @@ class ActivityDetailsPage extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final String? currentUser = FirebaseAuth.instance.currentUser?.displayName;
-    final bool isCurrentUserCreator = currentUser != null && creator == currentUser;
+    final bool isCurrentUserCreator =
+        currentUser != null && creator == currentUser;
+
+    // Don't show message button if the user is the creator
+    final bool canSendMessage = !isCurrentUserCreator && currentUser != null;
     final bool isActivityFinished = DateTime.now().isAfter(DateTime.parse(endDate));
 
     return Scaffold(
-      appBar: AppBar(
-        title: Text('Activity Details'),
-      ),
+      appBar: AppBar(title: Text('Activity Details')),
       body: SingleChildScrollView(
-        child: Padding(
-          padding: const EdgeInsets.all(16.0),
-          child: Column(
-            crossAxisAlignment: CrossAxisAlignment.start,
-            children: [
-              Text(
-                'ID: $id',
-                style: TextStyle(
-                  fontWeight: FontWeight.bold,
-                  fontSize: 18,
-                ),
-              ),
+        child:Padding(
+        padding: const EdgeInsets.all(16.0),
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            Text(
+              'ID: $id',
+              style: TextStyle(fontWeight: FontWeight.bold, fontSize: 18),
+            ),
+            SizedBox(height: 16),
+            Text(
+              title,
+              style: TextStyle(fontWeight: FontWeight.bold, fontSize: 24),
+            ),
+            SizedBox(height: 16),
+            Image.network('https://via.placeholder.com/150'),
+            SizedBox(height: 16),
+            Text(description, style: TextStyle(fontSize: 16)),
               SizedBox(height: 16),
-              Text(
-                title,
-                style: TextStyle(
-                  fontWeight: FontWeight.bold,
-                  fontSize: 24,
-                ),
-              ),
-              SizedBox(height: 16),
-              Image.network('https://via.placeholder.com/150'),
-              SizedBox(height: 16),
-              Text(
-                description,
-                style: TextStyle(fontSize: 16),
-              ),
-              SizedBox(height: 16),
-              Column(
-                children: airQualityData.map((data) {
-                  return Row(
-                    children: [
-                      Icon(Icons.air),
-                      SizedBox(width: 8),
-                      Text(
-                        '${traduirContaminant(data.contaminant)}: ${traduirAQI(data.aqi)} (${data.value} ${data.units})',
-                        style: TextStyle(
-                          color: getColorForAirQuality(data.aqi),
-                          fontWeight: FontWeight.bold,
-                          fontSize: 16,
+            Column(
+              children:
+                  airQualityData.map((data) {
+                    return Row(
+                      children: [
+                        Icon(Icons.air),
+                        SizedBox(width: 8),
+                        Text(
+                          '${traduirContaminant(data.contaminant)}: ${traduirAQI(data.aqi)} (${data.value} ${data.units})',
+                          style: TextStyle(
+                            color: getColorForAirQuality(data.aqi),
+                            fontWeight: FontWeight.bold,
+                            fontSize: 16,
+                          ),
                         ),
-                      ),
-                    ],
-                  );
-                }).toList(),
-              ),
-              SizedBox(height: 16),
-              Row(
-                children: [
-                  Icon(Icons.calendar_today),
-                  SizedBox(width: 8),
-                  Text(
-                    'Start: $startDate',
-                    style: TextStyle(fontSize: 16),
-                  ),
-                ],
-              ),
+                      ],
+                    );
+                  }).toList(),
+            ),
+            SizedBox(height: 16),
+            Row(
+              children: [
+                Icon(Icons.calendar_today),
+                SizedBox(width: 8),
+                Text('Start: $startDate', style: TextStyle(fontSize: 16)),
+              ],
+            ),
               SizedBox(height: 8),
-              Row(
-                children: [
-                  Icon(Icons.calendar_today),
-                  SizedBox(width: 8),
-                  Text(
-                    'End: $endDate',
-                    style: TextStyle(fontSize: 16),
-                  ),
-                ],
-              ),
+            Row(
+              children: [
+                Icon(Icons.calendar_today),
+                SizedBox(width: 8),
+                Text('End: $endDate', style: TextStyle(fontSize: 16)),
+              ],
+            ),
               SizedBox(height: 16),
-              ElevatedButton(
-                onPressed: () {
-                  // Handle registration request
-                },
-                child: Text('Request Registration'),
-              ),
-              SizedBox(height: 16),
-              Row(
-                children: [
-                  Icon(Icons.person),
-                  SizedBox(width: 8),
-                  Text(
-                    creator,
-                    style: TextStyle(
-                      color: Colors.purple,
-                      fontSize: 16,
+            ElevatedButton(
+              onPressed: () {
+                // Handle registration request
+              },
+              child: Text('Request Registration'),
+            ),
+            SizedBox(height: 16),
+            Row(
+              mainAxisAlignment: MainAxisAlignment.spaceBetween,
+              children: [
+                Row(
+                  children: [
+                    Icon(Icons.person),
+                    SizedBox(width: 8),
+                    Text(
+                      creator,
+                      style: TextStyle(color: Colors.purple, fontSize: 16),
+                    ),
+                  ],
+                ),
+                if (canSendMessage)
+                  ElevatedButton.icon(
+                    onPressed: () {
+                      Navigator.push(
+                        context,
+                        MaterialPageRoute(
+                          builder:
+                              (context) => ChatDetailPage(username: creator),
+                        ),
+                      );
+                    },
+                    icon: Icon(Icons.message),
+                    label: Text('Enviar mensaje'),
+                    style: ElevatedButton.styleFrom(
+                      backgroundColor: Colors.green,
                     ),
                   ),
-                ],
-              ),
+              ],
+            ),
+            SizedBox(height: 16),
+            Row(
+              children: [
+                Icon(Icons.share),
+                SizedBox(width: 8),
+                Text('Share', style: TextStyle(fontSize: 16)),
+              ],
+            ),
+              if (isCurrentUserCreator) ...[
               SizedBox(height: 16),
               Row(
+                mainAxisAlignment: MainAxisAlignment.spaceEvenly,
                 children: [
-                  Icon(Icons.share),
-                  SizedBox(width: 8),
-                  Text(
-                    'Share',
-                    style: TextStyle(fontSize: 16),
+                  ElevatedButton(
+                    onPressed: onEdit,
+                    child: Text('Edit Activity'),
+                  ),
+                  ElevatedButton(
+                    onPressed: onDelete,
+                    style: ElevatedButton.styleFrom(
+                      backgroundColor: Colors.red,
+                    ),
+                    child: Text('Delete Activity'),
                   ),
                 ],
-              ),
-              if (isCurrentUserCreator) ...[
-                SizedBox(height: 16),
-                ElevatedButton(
-                  onPressed: onEdit,
-                  child: Text('Edit Activity'),
-                ),
-                ElevatedButton(
-                  onPressed: onDelete,
-                  child: Text('Delete Activity'),
                 ),
               ],
               if (isActivityFinished)
