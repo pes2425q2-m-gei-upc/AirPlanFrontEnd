@@ -52,9 +52,28 @@ class ChatDetailPageState extends State<ChatDetailPage> {
         // Solo procesamos mensajes que pertenecen a esta conversación
         if ((sender == _currentUsername && receiver == widget.username) ||
             (sender == widget.username && receiver == _currentUsername)) {
-          // Recargar los mensajes para mostrar el nuevo mensaje
-          // Esto incluirá tanto los mensajes del servidor como los de la caché local
-          _loadMessages();
+          // Crear un nuevo objeto Message directamente a partir de los datos recibidos
+          final newMessage = Message(
+            senderUsername: messageData['usernameSender'],
+            receiverUsername: messageData['usernameReceiver'],
+            content: messageData['missatge'],
+            // Si el mensaje tiene timestamp, lo usamos; de lo contrario, usamos la fecha actual
+            timestamp:
+                messageData.containsKey('dataEnviament')
+                    ? DateTime.parse(messageData['dataEnviament'])
+                    : DateTime.now(),
+          );
+
+          // Añadimos directamente el mensaje sin verificar duplicados,
+          // permitiendo así mensajes con contenido idéntico consecutivos
+          setState(() {
+            _messages.add(newMessage);
+            // Asegurarnos de que los mensajes están ordenados por fecha
+            _messages.sort((a, b) => a.timestamp.compareTo(b.timestamp));
+          });
+
+          // Hacer scroll hacia el último mensaje
+          _scrollToBottom();
         }
       }
     });
@@ -133,8 +152,25 @@ class ChatDetailPageState extends State<ChatDetailPage> {
       final success = await _chatService.sendMessage(widget.username, message);
 
       if (success) {
-        _messageController.clear();
-        _loadMessages(); // Recargar mensajes para mostrar el mensaje enviado
+        // Crear un objeto Message localmente para añadirlo inmediatamente a la UI
+        final newMessage = Message(
+          senderUsername: _currentUsername!,
+          receiverUsername: widget.username,
+          content: message,
+          timestamp: DateTime.now(),
+        );
+
+        setState(() {
+          // Añadir el mensaje directamente a la lista local sin verificar duplicados
+          _messages.add(newMessage);
+          // Ordenar por fecha
+          _messages.sort((a, b) => a.timestamp.compareTo(b.timestamp));
+          // Limpiar el campo de texto
+          _messageController.clear();
+        });
+
+        // Scroll al final para ver el nuevo mensaje
+        _scrollToBottom();
       } else {
         if (mounted) {
           NotificationService.showError(

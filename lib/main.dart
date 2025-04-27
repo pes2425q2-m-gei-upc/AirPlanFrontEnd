@@ -7,6 +7,8 @@ import 'package:http/http.dart' as http;
 import 'package:flutter/foundation.dart' show kIsWeb;
 import 'package:airplan/user_page.dart';
 import 'package:airplan/utils/web_utils_stub.dart';
+import 'package:intl/intl.dart';
+import 'package:intl/date_symbol_data_local.dart';
 import 'calendar_page.dart';
 import 'login_page.dart';
 import 'map_page.dart';
@@ -167,6 +169,10 @@ class GlobalNotificationService {
 
 void main() async {
   WidgetsFlutterBinding.ensureInitialized();
+
+  // Inicializar datos de formateo para español y otros idiomas que puedas necesitar
+  await initializeDateFormatting('es', null);
+
   await Firebase.initializeApp(
     options: FirebaseOptions(
       apiKey: "AIzaSyDjyHcnvD1JTfN7xpkRMD-S_qDMSnvbZII",
