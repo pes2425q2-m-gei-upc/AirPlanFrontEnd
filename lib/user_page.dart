@@ -3,11 +3,105 @@ import 'package:firebase_auth/firebase_auth.dart';
 import 'package:airplan/user_services.dart';
 import 'package:airplan/services/websocket_service.dart';
 import 'dart:convert';
+import 'activity_details_page.dart';
 import 'login_page.dart';
 import 'edit_profile_page.dart';
 import 'dart:async';
 import 'main.dart';
 import 'rating_page.dart';
+import 'package:airplan/solicituds_service.dart';
+
+class UserRequestsPage extends StatefulWidget {
+  final String username;
+
+  const UserRequestsPage({super.key, required this.username});
+
+  @override
+  UserRequestsPageState createState() => UserRequestsPageState();
+}
+
+class UserRequestsPageState extends State<UserRequestsPage> {
+  late Future<List<Map<String, dynamic>>> _requestsFuture;
+
+  @override
+  void initState() {
+    super.initState();
+    _requestsFuture = SolicitudsService().fetchUserRequests(widget.username);
+  }
+
+  Future<void> _cancelSolicitud(String activityId) async {
+    try {
+      await SolicitudsService().cancelarSolicitud(int.parse(activityId), widget.username);
+      if (!mounted) return;
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(content: Text('Solicitud eliminada correctamente.')),
+      );
+      setState(() {
+        _requestsFuture = SolicitudsService().fetchUserRequests(widget.username);
+      });
+    } catch (e) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(content: Text('Error al eliminar la solicitud: ${e.toString()}')),
+      );
+    }
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    return Scaffold(
+      appBar: AppBar(
+        title: const Text("Mis Solicitudes"),
+      ),
+      body: FutureBuilder<List<Map<String, dynamic>>>(
+        future: _requestsFuture,
+        builder: (context, snapshot) {
+          if (snapshot.connectionState == ConnectionState.waiting) {
+            return const Center(child: CircularProgressIndicator());
+          } else if (snapshot.hasError) {
+            return Center(child: Text('Error: ${snapshot.error}'));
+          } else if (!snapshot.hasData || snapshot.data!.isEmpty) {
+            return const Center(child: Text('No has realizado solicitudes.'));
+          }
+
+          final requests = snapshot.data!;
+          return ListView.builder(
+            itemCount: requests.length,
+            itemBuilder: (context, index) {
+              final request = requests[index];
+              return ListTile(
+                title: Text(request['nom'] ?? 'Actividad sin nombre'),
+                subtitle: Text('Creador: ${request['creador'] ?? 'Desconocido'}'),
+                trailing: IconButton(
+                  icon: const Icon(Icons.close, color: Colors.red),
+                  onPressed: () => _cancelSolicitud(request['id'].toString()),
+                ),
+                onTap: () {
+                  Navigator.push(
+                    context,
+                    MaterialPageRoute(
+                      builder: (context) => ActivityDetailsPage(
+                        id: request['id'].toString(),
+                        title: request['nom'] ?? '',
+                        creator: request['creador'] ?? '',
+                        description: request['descripcio'] ?? '',
+                        startDate: request['dataInici'] ?? '',
+                        endDate: request['dataFi'] ?? '',
+                        airQualityData: [],
+                        isEditable: false,
+                        onEdit: () {},
+                        onDelete: () {},
+                      ),
+                    ),
+                  );
+                },
+              );
+            },
+          );
+        },
+      ),
+    );
+  }
+}
 
 /// Widget para mostrar la información del usuario
 class UserInfoCard extends StatelessWidget {
@@ -735,6 +829,25 @@ class _UserPageState extends State<UserPage> {
                   label: const Text('Ver Mis Valoraciones'),
                   style: ElevatedButton.styleFrom(
                     backgroundColor: Colors.amber,
+                    foregroundColor: Colors.white,
+                    minimumSize: const Size(double.infinity, 50),
+                    padding: const EdgeInsets.symmetric(vertical: 12),
+                  ),
+                ),
+                // Add this button after the "Ver Mis Valoraciones" button
+                const SizedBox(height: 16),
+                ElevatedButton.icon(
+                  onPressed: () {
+                    Navigator.of(context).push(
+                      MaterialPageRoute(
+                        builder: (context) => UserRequestsPage(username: _username),
+                      ),
+                    );
+                  },
+                  icon: const Icon(Icons.list_alt),
+                  label: const Text('Mis Solicitudes'),
+                  style: ElevatedButton.styleFrom(
+                    backgroundColor: Colors.blueAccent,
                     foregroundColor: Colors.white,
                     minimumSize: const Size(double.infinity, 50),
                     padding: const EdgeInsets.symmetric(vertical: 12),

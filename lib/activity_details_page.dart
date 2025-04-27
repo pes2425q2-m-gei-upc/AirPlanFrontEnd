@@ -1,13 +1,13 @@
 import 'dart:convert';
-import 'package:airplan/services/api_config.dart';
-import 'package:airplan/services/notification_service.dart';
 import 'package:firebase_auth/firebase_auth.dart';
 import 'package:flutter/material.dart';
+import 'package:airplan/air_quality.dart';
+import 'package:airplan/solicituds_service.dart';
+import 'package:airplan/services/api_config.dart';
+import 'package:airplan/services/notification_service.dart';
 import 'package:flutter_rating_bar/flutter_rating_bar.dart';
 import 'package:http/http.dart' as http;
-import 'package:airplan/air_quality.dart';
 import 'package:airplan/chat_detail_page.dart';
-
 
 class Valoracio {
   final String username;
@@ -35,7 +35,7 @@ class Valoracio {
   }
 }
 
-class ActivityDetailsPage extends StatelessWidget {
+class ActivityDetailsPage extends StatefulWidget {
   final String id;
   final String title;
   final String creator;
@@ -44,8 +44,8 @@ class ActivityDetailsPage extends StatelessWidget {
   final String startDate;
   final String endDate;
   final bool isEditable;
-  final VoidCallback onEdit; // Función para editar
-  final VoidCallback onDelete; // Función para eliminar
+  final VoidCallback onEdit;
+  final VoidCallback onDelete;
 
   const ActivityDetailsPage({
     super.key,
@@ -57,10 +57,64 @@ class ActivityDetailsPage extends StatelessWidget {
     required this.startDate,
     required this.endDate,
     required this.isEditable,
-    required this.onEdit, // Añadimos el parámetro onEdit
-    required this.onDelete, // Añadimos el parámetro onDelete
+    required this.onEdit,
+    required this.onDelete,
   });
 
+  @override
+  ActivityDetailsPageState createState() => ActivityDetailsPageState();
+}
+
+class ActivityDetailsPageState extends State<ActivityDetailsPage> {
+  late Future<bool> _solicitudExistente;
+
+  @override
+  void initState() {
+    super.initState();
+    _solicitudExistente = _checkSolicitudExistente();
+  }
+
+  Future<bool> _checkSolicitudExistente() async {
+    final String? currentUser = FirebaseAuth.instance.currentUser?.displayName;
+    if (currentUser == null) return false;
+    return await SolicitudsService().jaExisteixSolicitud(
+      int.parse(widget.id),
+      currentUser,
+      widget.creator,
+    );
+  }
+
+  Future<void> _handleSolicitudAction(bool solicitudExistente) async {
+    final String? currentUser = FirebaseAuth.instance.currentUser?.displayName;
+    if (currentUser == null) return;
+
+    if (solicitudExistente) {
+      // Cancelar solicitud
+      await SolicitudsService().cancelarSolicitud(int.parse(widget.id), currentUser);
+      if (!mounted) return;
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(content: Text('Solicitud cancelada correctamente.')),
+      );
+    } else {
+      // Enviar solicitud
+      await SolicitudsService().sendSolicitud(
+        int.parse(widget.id),
+        currentUser,
+        widget.creator,
+      );
+      if (!mounted) return;
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(content: Text('Solicitud enviada correctamente.')),
+      );
+    }
+
+    // Refresh the button state
+    setState(() {
+      _solicitudExistente = _checkSolicitudExistente();
+    });
+  }
+
+  // Rating functionality methods
   Future<List<Valoracio>> fetchValoracions(String activityId) async {
     final backendUrl = Uri.parse(ApiConfig().buildUrl('valoracions/activitat/$activityId'));
 
@@ -70,7 +124,7 @@ class ActivityDetailsPage extends StatelessWidget {
       if (response.statusCode == 200) {
         final List<dynamic> data = jsonDecode(response.body);
         final List<Valoracio> valoracions = data.map((json) => Valoracio.fromJson(json)).toList();
-        // Ordenar de más nuevo a más antiguo
+        // Sort from newest to oldest
         valoracions.sort((a, b) => b.fecha.compareTo(a.fecha));
         return valoracions;
       } else {
@@ -81,7 +135,6 @@ class ActivityDetailsPage extends StatelessWidget {
     }
   }
 
-  // New method to check if a user has already rated an activity
   Future<bool> checkUserHasRated(String activityId, String userId) async {
     final backendUrl = Uri.parse(ApiConfig().buildUrl('valoracions/usuario/$userId/activitat/$activityId'));
 
@@ -90,6 +143,45 @@ class ActivityDetailsPage extends StatelessWidget {
       return response.statusCode == 200 && jsonDecode(response.body) != null;
     } catch (e) {
       return false;
+    }
+  }
+
+  void saveRating({
+    required String activityId,
+    required String userId,
+    required double rating,
+    String? comment,
+    required BuildContext context,
+  }) async {
+    final backendUrl = Uri.parse(ApiConfig().buildUrl('valoracions'));
+
+    try {
+      final response = await http.post(
+        backendUrl,
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: jsonEncode({
+          'username': userId,
+          'idActivitat': activityId,
+          'valoracion': rating,
+          'comentario': comment,
+        }),
+      );
+
+      if (response.statusCode >= 200 && response.statusCode < 300) {
+        final String message = 'Valoración guardada con éxito';
+        if(!context.mounted) return;
+        NotificationService.showSuccess(context, message);
+      } else {
+        final String message = 'Error al guardar la valoración';
+        if(!context.mounted) return;
+        NotificationService.showError(context, message);
+      }
+    } catch (e) {
+      final String message = 'Error al conectar con el backend';
+      if(!context.mounted) return;
+      NotificationService.showError(context, message);
     }
   }
 
@@ -185,46 +277,6 @@ class ActivityDetailsPage extends StatelessWidget {
     );
   }
 
-  void saveRating({
-    required String activityId,
-    required String userId,
-    required double rating,
-    String? comment,
-    required BuildContext context,
-  }) async {
-    final backendUrl = Uri.parse(ApiConfig().buildUrl('valoracions'));
-
-
-    try {
-      final response = await http.post(
-        backendUrl,
-        headers: {
-          'Content-Type': 'application/json',
-        },
-        body: jsonEncode({
-          'username': userId,
-          'idActivitat': activityId,
-          'valoracion': rating,
-          'comentario': comment,
-        }),
-      );
-
-      if (response.statusCode >= 200 && response.statusCode < 300) {
-        final String message = 'Valoración guardada con éxito';
-        if(!context.mounted) return;
-        NotificationService.showSuccess(context, message);
-      } else {
-        final String message = 'Error al guardar la valoración';
-        if(!context.mounted) return;
-        NotificationService.showError(context, message);
-      }
-    } catch (e) {
-      final String message = 'Error al conectar con el backend';
-      if(!context.mounted) return;
-      NotificationService.showError(context, message);
-    }
-  }
-
   String traduirContaminant(Contaminant contaminant) {
     switch (contaminant) {
       case Contaminant.so2:
@@ -266,227 +318,246 @@ class ActivityDetailsPage extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final String? currentUser = FirebaseAuth.instance.currentUser?.displayName;
-    final bool isCurrentUserCreator =
-        currentUser != null && creator == currentUser;
-
-    // Don't show message button if the user is the creator
+    final bool isCurrentUserCreator = currentUser != null && widget.creator == currentUser;
     final bool canSendMessage = !isCurrentUserCreator && currentUser != null;
-    final bool isActivityFinished = DateTime.now().isAfter(DateTime.parse(endDate));
+    final bool isActivityFinished = DateTime.now().isAfter(DateTime.parse(widget.endDate));
 
     return Scaffold(
       appBar: AppBar(title: Text('Activity Details')),
       body: SingleChildScrollView(
-        child:Padding(
-        padding: const EdgeInsets.all(16.0),
-        child: Column(
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-            Text(
-              'ID: $id',
-              style: TextStyle(fontWeight: FontWeight.bold, fontSize: 18),
-            ),
-            SizedBox(height: 16),
-            Text(
-              title,
-              style: TextStyle(fontWeight: FontWeight.bold, fontSize: 24),
-            ),
-            SizedBox(height: 16),
-            Image.network('https://via.placeholder.com/150'),
-            SizedBox(height: 16),
-            Text(description, style: TextStyle(fontSize: 16)),
+        child: Padding(
+          padding: const EdgeInsets.all(16.0),
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              Text(
+                'ID: ${widget.id}',
+                style: TextStyle(fontWeight: FontWeight.bold, fontSize: 18),
+              ),
               SizedBox(height: 16),
-            Column(
-              children:
-                  airQualityData.map((data) {
-                    return Row(
-                      children: [
-                        Icon(Icons.air),
-                        SizedBox(width: 8),
-                        Text(
-                          '${traduirContaminant(data.contaminant)}: ${traduirAQI(data.aqi)} (${data.value} ${data.units})',
-                          style: TextStyle(
-                            color: getColorForAirQuality(data.aqi),
-                            fontWeight: FontWeight.bold,
-                            fontSize: 16,
-                          ),
+              Text(
+                widget.title,
+                style: TextStyle(fontWeight: FontWeight.bold, fontSize: 24),
+              ),
+              SizedBox(height: 16),
+              Image.network('https://via.placeholder.com/150'),
+              SizedBox(height: 16),
+              Text(widget.description, style: TextStyle(fontSize: 16)),
+              SizedBox(height: 16),
+              Column(
+                children: widget.airQualityData.map((data) {
+                  return Row(
+                    children: [
+                      Icon(Icons.air),
+                      SizedBox(width: 8),
+                      Text(
+                        '${traduirContaminant(data.contaminant)}: ${traduirAQI(data.aqi)} (${data.value} ${data.units})',
+                        style: TextStyle(
+                          color: getColorForAirQuality(data.aqi),
+                          fontWeight: FontWeight.bold,
+                          fontSize: 16,
                         ),
-                      ],
-                    );
-                  }).toList(),
-            ),
-            SizedBox(height: 16),
-            Row(
-              children: [
-                Icon(Icons.calendar_today),
-                SizedBox(width: 8),
-                Text('Start: $startDate', style: TextStyle(fontSize: 16)),
-              ],
-            ),
-              SizedBox(height: 8),
-            Row(
-              children: [
-                Icon(Icons.calendar_today),
-                SizedBox(width: 8),
-                Text('End: $endDate', style: TextStyle(fontSize: 16)),
-              ],
-            ),
+                      ),
+                    ],
+                  );
+                }).toList(),
+              ),
               SizedBox(height: 16),
-            ElevatedButton(
-              onPressed: () {
-                // Handle registration request
-              },
-              child: Text('Request Registration'),
-            ),
-            SizedBox(height: 16),
-            Row(
-              mainAxisAlignment: MainAxisAlignment.spaceBetween,
-              children: [
+              Row(
+                children: [
+                  Icon(Icons.calendar_today),
+                  SizedBox(width: 8),
+                  Text('Start: ${widget.startDate}', style: TextStyle(fontSize: 16)),
+                ],
+              ),
+              SizedBox(height: 8),
+              Row(
+                children: [
+                  Icon(Icons.calendar_today),
+                  SizedBox(width: 8),
+                  Text('End: ${widget.endDate}', style: TextStyle(fontSize: 16)),
+                ],
+              ),
+              SizedBox(height: 16),
+              Row(
+                mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                children: [
+                  Row(
+                    children: [
+                      Icon(Icons.person),
+                      SizedBox(width: 8),
+                      Text(
+                        widget.creator,
+                        style: TextStyle(color: Colors.purple, fontSize: 16),
+                      ),
+                    ],
+                  ),
+                  if (canSendMessage)
+                    ElevatedButton.icon(
+                      onPressed: () {
+                        Navigator.push(
+                          context,
+                          MaterialPageRoute(
+                            builder: (context) => ChatDetailPage(username: widget.creator),
+                          ),
+                        );
+                      },
+                      icon: Icon(Icons.message),
+                      label: Text('Enviar mensaje'),
+                      style: ElevatedButton.styleFrom(
+                        backgroundColor: Colors.green,
+                      ),
+                    ),
+                ],
+              ),
+              SizedBox(height: 16),
+              Row(
+                children: [
+                  Icon(Icons.share),
+                  SizedBox(width: 8),
+                  Text('Share', style: TextStyle(fontSize: 16)),
+                ],
+              ),
+              SizedBox(height: 16),
+              if (!isCurrentUserCreator)
+                FutureBuilder<bool>(
+                  future: _solicitudExistente,
+                  builder: (context, snapshot) {
+                    if (snapshot.connectionState == ConnectionState.waiting) {
+                      return const CircularProgressIndicator();
+                    } else if (snapshot.hasError) {
+                      return const Text('Error al cargar el estado de la solicitud.');
+                    }
+
+                    final solicitudExistente = snapshot.data ?? false;
+                    return ElevatedButton(
+                      onPressed: () => _handleSolicitudAction(solicitudExistente),
+                      child: Text(solicitudExistente ? 'Cancelar solicitud' : 'Solicitar unirse'),
+                    );
+                  },
+                ),
+              if (isCurrentUserCreator) ...[
+                SizedBox(height: 16),
                 Row(
+                  mainAxisAlignment: MainAxisAlignment.spaceEvenly,
                   children: [
-                    Icon(Icons.person),
-                    SizedBox(width: 8),
-                    Text(
-                      creator,
-                      style: TextStyle(color: Colors.purple, fontSize: 16),
+                    ElevatedButton(
+                      onPressed: widget.onEdit,
+                      child: Text('Edit Activity'),
+                    ),
+                    ElevatedButton(
+                      onPressed: widget.onDelete,
+                      style: ElevatedButton.styleFrom(
+                        backgroundColor: Colors.red,
+                      ),
+                      child: Text('Delete Activity'),
                     ),
                   ],
                 ),
-                if (canSendMessage)
-                  ElevatedButton.icon(
-                    onPressed: () {
-                      Navigator.push(
-                        context,
-                        MaterialPageRoute(
-                          builder:
-                              (context) => ChatDetailPage(username: creator),
+              ],
+
+              // Rating functionality
+              if (isActivityFinished) ...[
+                SizedBox(height: 16),
+                FutureBuilder<bool>(
+                  future: currentUser != null ? checkUserHasRated(widget.id, currentUser) : Future.value(false),
+                  builder: (context, snapshot) {
+                    if (snapshot.connectionState == ConnectionState.waiting) {
+                      return Center(child: CircularProgressIndicator());
+                    }
+
+                    final bool hasRated = snapshot.data ?? false;
+
+                    if (hasRated) {
+                      return Padding(
+                        padding: const EdgeInsets.symmetric(vertical: 8.0),
+                        child: Text(
+                          'Ya has valorado esta actividad',
+                          style: TextStyle(
+                            fontStyle: FontStyle.italic,
+                            color: Colors.grey[600],
+                          ),
                         ),
                       );
-                    },
-                    icon: Icon(Icons.message),
-                    label: Text('Enviar mensaje'),
-                    style: ElevatedButton.styleFrom(
-                      backgroundColor: Colors.green,
-                    ),
-                  ),
-              ],
-            ),
-            SizedBox(height: 16),
-            Row(
-              children: [
-                Icon(Icons.share),
-                SizedBox(width: 8),
-                Text('Share', style: TextStyle(fontSize: 16)),
-              ],
-            ),
-              if (isCurrentUserCreator) ...[
-              SizedBox(height: 16),
-              Row(
-                mainAxisAlignment: MainAxisAlignment.spaceEvenly,
-                children: [
-                  ElevatedButton(
-                    onPressed: onEdit,
-                    child: Text('Edit Activity'),
-                  ),
-                  ElevatedButton(
-                    onPressed: onDelete,
-                    style: ElevatedButton.styleFrom(
-                      backgroundColor: Colors.red,
-                    ),
-                    child: Text('Delete Activity'),
-                  ),
-                ],
-                ),
-              ],
-              if (isActivityFinished)
-                ElevatedButton(
-                  onPressed: () async {
-                    if (currentUser == null) {
-                      if (context.mounted) {
-                        ScaffoldMessenger.of(context).showSnackBar(
-                          SnackBar(content: Text('Usuario no autenticado')),
-                        );
-                      }
-                      return;
                     }
-                    bool hasRated = await checkUserHasRated(id, currentUser);
-                    if (hasRated) {
-                      if (context.mounted) {
-                        ScaffoldMessenger.of(context).showSnackBar(
-                          SnackBar(
-                              content: Text('Ya has valorado esta actividad')),
-                        );
-                      }
-                      return;
-                    }
-                    if (context.mounted) {
-                      showDialog(
-                        context: context,
-                        builder: (BuildContext context) {
-                          double rating = 0;
-                          TextEditingController commentController = TextEditingController();
 
-                          return AlertDialog(
-                            title: Text('Rate Activity'),
-                            content: Column(
-                              mainAxisSize: MainAxisSize.min,
-                              children: [
-                                RatingBar.builder(
-                                  initialRating: 0,
-                                  minRating: 1,
-                                  direction: Axis.horizontal,
-                                  allowHalfRating: false,
-                                  itemCount: 5,
-                                  itemBuilder: (context, _) =>
-                                      Icon(
-                                        Icons.star,
-                                        color: Colors.amber,
-                                      ),
-                                  onRatingUpdate: (value) {
-                                    rating = value;
-                                  },
-                                ),
-                                SizedBox(height: 16),
-                                TextField(
-                                  controller: commentController,
-                                  decoration: InputDecoration(
-                                    labelText: 'Optional Comment',
-                                    border: OutlineInputBorder(),
+                    return ElevatedButton(
+                      onPressed: () async {
+                        if (currentUser == null) {
+                          ScaffoldMessenger.of(context).showSnackBar(
+                            SnackBar(content: Text('Usuario no autenticado')),
+                          );
+                          return;
+                        }
+
+                        showDialog(
+                          context: context,
+                          builder: (BuildContext context) {
+                            double rating = 0;
+                            TextEditingController commentController = TextEditingController();
+
+                            return AlertDialog(
+                              title: Text('Rate Activity'),
+                              content: Column(
+                                mainAxisSize: MainAxisSize.min,
+                                children: [
+                                  RatingBar.builder(
+                                    initialRating: 0,
+                                    minRating: 1,
+                                    direction: Axis.horizontal,
+                                    allowHalfRating: false,
+                                    itemCount: 5,
+                                    itemBuilder: (context, _) => Icon(
+                                      Icons.star,
+                                      color: Colors.amber,
+                                    ),
+                                    onRatingUpdate: (value) {
+                                      rating = value;
+                                    },
                                   ),
-                                  maxLines: 3,
+                                  SizedBox(height: 16),
+                                  TextField(
+                                    controller: commentController,
+                                    decoration: InputDecoration(
+                                      labelText: 'Optional Comment',
+                                      border: OutlineInputBorder(),
+                                    ),
+                                    maxLines: 3,
+                                  ),
+                                ],
+                              ),
+                              actions: [
+                                TextButton(
+                                  onPressed: () => Navigator.of(context).pop(),
+                                  child: Text('Cancel'),
+                                ),
+                                ElevatedButton(
+                                  onPressed: () {
+                                    saveRating(
+                                      activityId: widget.id,
+                                      userId: currentUser,
+                                      rating: rating,
+                                      comment: commentController.text,
+                                      context: context,
+                                    );
+                                    Navigator.of(context).pop();
+                                    // Refresh the page
+                                    setState(() {});
+                                  },
+                                  child: Text('Submit'),
                                 ),
                               ],
-                            ),
-                            actions: [
-                              TextButton(
-                                onPressed: () {
-                                  Navigator.of(context).pop();
-                                },
-                                child: Text('Cancel'),
-                              ),
-                              ElevatedButton(
-                                onPressed: () {
-                                  saveRating(
-                                    activityId: id,
-                                    userId: currentUser,
-                                    rating: rating,
-                                    comment: commentController.text,
-                                    context: context,
-                                  );
-                                  Navigator.of(context).pop();
-                                  Navigator.popUntil(context, (route) =>
-                                  route
-                                      .isFirst); // Vuelve a la pantalla principal
-                                },
-                                child: Text('Submit'),
-                              ),
-                            ],
-                          );
-                        },
-                      );
-                    }
+                            );
+                          },
+                        );
+                      },
+                      child: Text('Rate Activity'),
+                    );
                   },
-                  child: Text('Rate Activity'),
                 ),
+              ],
+
+              // Rating display section
               SizedBox(height: 24),
               Text(
                 'Valoraciones',
@@ -497,7 +568,7 @@ class ActivityDetailsPage extends StatelessWidget {
               ),
               Divider(),
               FutureBuilder<List<Valoracio>>(
-                future: fetchValoracions(id),
+                future: fetchValoracions(widget.id),
                 builder: (context, snapshot) {
                   if (snapshot.connectionState == ConnectionState.waiting) {
                     return Center(child: CircularProgressIndicator());
