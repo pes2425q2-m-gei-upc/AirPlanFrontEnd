@@ -7,6 +7,7 @@ import 'package:airplan/activity_service.dart';
 import 'package:airplan/services/notification_service.dart';
 import 'package:airplan/activity_details_page.dart';
 import 'package:airplan/air_quality.dart'; // Add this import for AirQualityData
+import 'package:airplan/services/api_config.dart';
 
 class Valoracio {
   final String username;
@@ -66,7 +67,7 @@ class _RatingsPageState extends State<RatingsPage> {
   Future<List<Valoracio>> _fetchUserRatings(String username) async {
     try {
       final response = await http.get(
-        Uri.parse('http://localhost:8080/valoracions/usuari/$username'),
+        Uri.parse(ApiConfig().buildUrl('valoracions/usuari/$username')),
         headers: {'Accept': 'application/json'},
       ).timeout(const Duration(seconds: 10));
 
