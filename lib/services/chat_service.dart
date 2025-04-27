@@ -48,6 +48,16 @@ class Chat {
     required this.lastMessageTime,
     this.isRead = false,
   });
+
+  factory Chat.fromMessage(Message message, String currentUsername) {
+    final isReceiver = message.receiverUsername == currentUsername;
+    return Chat(
+      otherUsername:
+          isReceiver ? message.senderUsername : message.receiverUsername,
+      lastMessage: message.content,
+      lastMessageTime: message.timestamp,
+    );
+  }
 }
 
 class ChatService {
@@ -267,8 +277,7 @@ class ChatService {
     }
   }
 
-  // Get all chats for the current user (this would require backend support)
-  // For now, we'll implement a simpler version that returns conversations from local storage
+  // Get all chats for the current user
   Future<List<Chat>> getAllChats() async {
     try {
       final currentUser = FirebaseAuth.instance.currentUser;
@@ -276,9 +285,41 @@ class ChatService {
         return [];
       }
 
-      // In a real implementation, you would have an endpoint to get all chats
-      // For now, we'll return an empty list
-      return [];
+      // Llamar al endpoint del backend para obtener todos los chats
+      final response = await http.get(
+        Uri.parse(
+          ApiConfig().buildUrl(
+            'chat/conversaciones/${currentUser.displayName}',
+          ),
+        ),
+      );
+
+      if (response.statusCode == 200) {
+        final List<dynamic> jsonData = jsonDecode(response.body);
+        // Convertir cada mensaje a un objeto Chat
+        final List<Chat> chats = [];
+        final Set<String> addedUsers = {};
+
+        // Convertir los mensajes en objetos Chat (uno por usuario)
+        for (var messageData in jsonData) {
+          final message = Message.fromJson(messageData);
+          final otherUsername =
+              message.senderUsername == currentUser.displayName
+                  ? message.receiverUsername
+                  : message.senderUsername;
+
+          // Evitar duplicados (un chat por usuario)
+          if (!addedUsers.contains(otherUsername)) {
+            chats.add(Chat.fromMessage(message, currentUser.displayName!));
+            addedUsers.add(otherUsername);
+          }
+        }
+
+        return chats;
+      } else {
+        print('Error getting chats: ${response.statusCode}');
+        return [];
+      }
     } catch (e) {
       print('Error getting all chats: $e');
       return [];
