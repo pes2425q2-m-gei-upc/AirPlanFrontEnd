@@ -1,4 +1,6 @@
 // map_page.dart
+import 'dart:async';
+
 import 'package:airplan/transit_service.dart';
 import 'package:firebase_auth/firebase_auth.dart';
 import 'package:flutter/material.dart';
@@ -45,6 +47,8 @@ class MapPageState extends State<MapPage> {
     destination: LatLng(0, 0),
     option: 0
   );
+  bool isNavigating = false;
+  StreamSubscription<Position>? _positionStreamSubscription;
 
   @override
   void initState() {
@@ -149,17 +153,9 @@ class MapPageState extends State<MapPage> {
       );
       setState(() {
         currentPosition = LatLng(position.latitude, position.longitude);
-        markers.add(Marker(
-          width: 80.0,
-          height: 80.0,
-          point: currentPosition,
-          child: const Icon(
-            Icons.my_location,
-            color: Colors.blue,
-            size: 40.0,
-          ),
-        ));
+        _updateUserMarker(currentPosition); // Use the helper method
       });
+      mapController.move(currentPosition, 15.0); // Move map initially
     } catch (e) {
       final actualContext = context;
       if (actualContext.mounted) {
@@ -229,9 +225,13 @@ class MapPageState extends State<MapPage> {
 
   Future<void> _onMapTapped(TapPosition tapPosition, LatLng position) async {
     setState(() {
+      // Remove previous tapped location marker if exists
+      markers.removeWhere((m) => m.key == const Key('tapped_location'));
+
       markers = [
-        // Current selected location marker
+        // Add new tapped location marker
         Marker(
+          key: const Key('tapped_location'), // Add a key
           width: 80.0,
           height: 80.0,
           point: position,
@@ -241,16 +241,8 @@ class MapPageState extends State<MapPage> {
             size: 40.0,
           ),
         ),
-        Marker(
-          width: 80.0,
-          height: 80.0,
-          point: currentPosition,
-          child: const Icon(
-            Icons.my_location,
-            color: Colors.blue,
-            size: 40.0,
-          ),
-        ),
+        // Keep the user marker (it will be updated by the stream if navigating)
+        ...markers.where((m) => m.key == const Key('user_location')),
         // Saved locations markers
         ...savedLocations.entries.map((entry) => Marker(
           width: 80.0,
@@ -1064,6 +1056,75 @@ class MapPageState extends State<MapPage> {
     }
   }
 
+  void _startNavigation() {
+    if (currentRoute.fullRoute.isEmpty) return;
+
+    setState(() {
+      isNavigating = true;
+    });
+
+    // Start listening to location updates
+    final LocationSettings locationSettings = LocationSettings(
+      accuracy: LocationAccuracy.high,
+      distanceFilter: 10, // Update every 10 meters
+    );
+    _positionStreamSubscription = Geolocator.getPositionStream(locationSettings: locationSettings).listen(
+            (Position position) {
+          setState(() {
+            currentPosition = LatLng(position.latitude, position.longitude);
+            // Update the user marker (ensure it's handled correctly in your marker list logic)
+            _updateUserMarker(currentPosition);
+          });
+          // Center map on user location
+          mapController.move(currentPosition, 17.0); // Adjust zoom level as needed
+
+          // --- Advanced Steps (To be implemented) ---
+          // 1. Determine current step based on user location
+          // 2. Display current/next instruction
+          // 3. Check if user is off-route
+          // 4. Optionally rotate map: mapController.rotate(position.heading);
+          // ---
+        },
+        onError: (error) {
+          if (mounted) {
+            ScaffoldMessenger.of(context).showSnackBar(
+              SnackBar(content: Text('Error getting location: $error')),
+            );
+          }
+          _stopNavigation();
+        }
+    );
+  }
+
+  void _stopNavigation() {
+    _positionStreamSubscription?.cancel();
+    _positionStreamSubscription = null;
+    setState(() {
+      isNavigating = false;
+    });
+    if (mounted) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(content: Text('Navigation stopped.')),
+      );
+    }
+  }
+
+  // Helper to update or add the user marker
+  void _updateUserMarker(LatLng position) {
+    markers.removeWhere((m) => m.key == const Key('user_location')); // Remove old marker if exists
+    markers.add(Marker(
+      key: const Key('user_location'), // Use a key to easily find/remove it
+      width: 80.0,
+      height: 80.0,
+      point: position,
+      child: const Icon(
+        Icons.navigation, // Use a navigation icon
+        color: Colors.blue,
+        size: 40.0,
+      ),
+    ));
+  }
+
   @override
   Widget build(BuildContext context) {
     return Scaffold(
@@ -1111,14 +1172,16 @@ class MapPageState extends State<MapPage> {
               child: Column(
                 children: [
                   FloatingActionButton(
-                    heroTag: "startRoute",
-                    backgroundColor: Colors.green,
+                    heroTag: "startStopRoute", // Changed heroTag
+                    backgroundColor: isNavigating ? Colors.red : Colors.green, // Change color
                     onPressed: () {
-                      ScaffoldMessenger.of(context).showSnackBar(
-                        const SnackBar(content: Text('Start route functionality coming soon')),
-                      );
+                      if (isNavigating) {
+                        _stopNavigation();
+                      } else {
+                        _startNavigation();
+                      }
                     },
-                    child: const Icon(Icons.play_arrow),
+                    child: Icon(isNavigating ? Icons.stop : Icons.play_arrow), // Change icon
                   ),
                   const SizedBox(height: 10),
                   FloatingActionButton(
@@ -1196,5 +1259,11 @@ class MapPageState extends State<MapPage> {
         child: Icon(Icons.add_location),
       ),
     );
+  }
+
+  @override
+  void dispose() {
+    _positionStreamSubscription?.cancel();
+    super.dispose();
   }
 }
