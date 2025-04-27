@@ -40,11 +40,11 @@ class MapPageState extends State<MapPage> {
 
   Future<void> fetchAirQualityData() async {
     try {
-    final circles = await mapService.fetchAirQualityData(
-        contaminantsPerLocation);
-    setState(() {
-      this.circles = circles;
-    });
+      final circles = await mapService.fetchAirQualityData(
+          contaminantsPerLocation);
+      setState(() {
+        this.circles = circles;
+      });
     } catch (e) {
       final actualContext = context;
       if (actualContext.mounted) {
@@ -514,7 +514,7 @@ class MapPageState extends State<MapPage> {
                   await activityService.deleteActivityFromBackend(activity['id'].toString());
                   if (context.mounted) {
                     ScaffoldMessenger.of(context).showSnackBar(SnackBar(
-                      content: Text("Actividad eliminada correctament."))
+                        content: Text("Actividad eliminada correctament."))
                     );
                   }
                 } catch (e) {
