@@ -7,6 +7,7 @@ import 'login_page.dart';
 import 'edit_profile_page.dart';
 import 'dart:async';
 import 'main.dart';
+import 'rating_page.dart';
 
 /// Widget para mostrar la información del usuario
 class UserInfoCard extends StatelessWidget {
@@ -49,7 +50,7 @@ class UserInfoCard extends StatelessWidget {
               title: 'Username',
               value: username,
               isLoading:
-                  false, // Username comes directly from Firebase Auth, not loaded async here
+              false, // Username comes directly from Firebase Auth, not loaded async here
             ),
             const Divider(),
             _buildInfoListTile(
@@ -87,21 +88,21 @@ class UserInfoCard extends StatelessWidget {
       leading: Icon(icon, color: iconColor),
       title: Text(title, style: const TextStyle(fontWeight: FontWeight.bold)),
       subtitle:
-          isLoading
-              ? const Center(
-                child: SizedBox(
-                  height: 20,
-                  width: 20,
-                  child: CircularProgressIndicator(strokeWidth: 2),
-                ),
-              )
-              : Text(
-                value,
-                style: TextStyle(
-                  fontSize: 16,
-                  fontWeight: isBold ? FontWeight.bold : FontWeight.normal,
-                ),
-              ),
+      isLoading
+          ? const Center(
+        child: SizedBox(
+          height: 20,
+          width: 20,
+          child: CircularProgressIndicator(strokeWidth: 2),
+        ),
+      )
+          : Text(
+        value,
+        style: TextStyle(
+          fontSize: 16,
+          fontWeight: isBold ? FontWeight.bold : FontWeight.normal,
+        ),
+      ),
     );
   }
 }
@@ -161,8 +162,8 @@ class _UserPageState extends State<UserPage> {
   // Método para suscribirse a eventos globales
   void _subscribeToGlobalUpdates() {
     _globalUpdateSubscription = profileUpdateStreamController.stream.listen((
-      data,
-    ) {
+        data,
+        ) {
       // Verificar si es un evento de reanudación de la app O inicio de la app
       if (data['type'] == 'app_resumed' || data['type'] == 'app_launched') {
         // Recargar datos cuando la app se reanuda desde segundo plano o cuando se inicia desde cero
@@ -198,7 +199,7 @@ class _UserPageState extends State<UserPage> {
 
     // Listen for profile update events
     _profileUpdateSubscription = WebSocketService().profileUpdates.listen(
-      (message) {
+          (message) {
         // Added mounted check at the beginning of the callback
         if (!mounted) return;
 
@@ -218,8 +219,8 @@ class _UserPageState extends State<UserPage> {
               final isPasswordUpdate = updatedFields.contains('password');
               final isNameUpdate =
                   updatedFields.contains('nom') ||
-                  updatedFields.contains('username') ||
-                  updatedFields.contains('displayName');
+                      updatedFields.contains('username') ||
+                      updatedFields.contains('displayName');
               final isPhotoUpdate = updatedFields.contains('photoURL');
 
               // Determine if it's a critical change requiring re-login
@@ -275,14 +276,14 @@ class _UserPageState extends State<UserPage> {
     String message = '';
     if (isEmailUpdate && isPasswordUpdate) {
       message =
-          'Se han detectado cambios en tu correo y contraseña en otro dispositivo. Es necesario volver a iniciar sesión.';
+      'Se han detectado cambios en tu correo y contraseña en otro dispositivo. Es necesario volver a iniciar sesión.';
     } else if (isEmailUpdate) {
       message =
-          'Se ha detectado un cambio de correo electrónico en otro dispositivo. Es necesario volver a iniciar sesión.';
+      'Se ha detectado un cambio de correo electrónico en otro dispositivo. Es necesario volver a iniciar sesión.';
     } else {
       // isPasswordUpdate
       message =
-          'Se ha detectado un cambio de contraseña en otro dispositivo. Es necesario volver a iniciar sesión.';
+      'Se ha detectado un cambio de contraseña en otro dispositivo. Es necesario volver a iniciar sesión.';
     }
 
     // Show info message and trigger logout/redirect
@@ -296,7 +297,7 @@ class _UserPageState extends State<UserPage> {
     String message = 'Tu perfil ha sido actualizado en otro dispositivo.';
     if (isNameUpdate && isPhotoUpdate) {
       message =
-          'Tu nombre y foto de perfil han sido actualizados en otro dispositivo.';
+      'Tu nombre y foto de perfil han sido actualizados en otro dispositivo.';
     } else if (isNameUpdate) {
       message = 'Tu nombre ha sido actualizado en otro dispositivo.';
     } else if (isPhotoUpdate) {
@@ -416,7 +417,7 @@ class _UserPageState extends State<UserPage> {
         _handleSessionClose(
           title: 'Sesión Expirada',
           message:
-              'Tu sesión ha expirado o no se pudo verificar. Por favor, inicia sesión nuevamente.',
+          'Tu sesión ha expirado o no se pudo verificar. Por favor, inicia sesión nuevamente.',
           redirectToLogin: true,
           isRemoteAction: false,
         );
@@ -464,24 +465,24 @@ class _UserPageState extends State<UserPage> {
       context: contextCaptured,
       builder:
           (dialogContext) => AlertDialog(
-            title: const Text("Eliminar cuenta"),
-            content: const Text(
-              "¿Estás seguro de que quieres eliminar tu cuenta? Esta acción no se puede deshacer.",
-            ),
-            actions: [
-              TextButton(
-                onPressed: () => Navigator.of(dialogContext).pop(false),
-                child: const Text("Cancelar"),
-              ),
-              TextButton(
-                onPressed: () => Navigator.of(dialogContext).pop(true),
-                child: const Text(
-                  "Eliminar",
-                  style: TextStyle(color: Colors.red),
-                ),
-              ),
-            ],
+        title: const Text("Eliminar cuenta"),
+        content: const Text(
+          "¿Estás seguro de que quieres eliminar tu cuenta? Esta acción no se puede deshacer.",
+        ),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.of(dialogContext).pop(false),
+            child: const Text("Cancelar"),
           ),
+          TextButton(
+            onPressed: () => Navigator.of(dialogContext).pop(true),
+            child: const Text(
+              "Eliminar",
+              style: TextStyle(color: Colors.red),
+            ),
+          ),
+        ],
+      ),
     );
 
     // Re-check mounted status after await
@@ -520,7 +521,7 @@ class _UserPageState extends State<UserPage> {
       // Redirect to login page
       Navigator.of(contextCaptured).pushAndRemoveUntil(
         MaterialPageRoute(builder: (context) => const LoginPage()),
-        (route) => false,
+            (route) => false,
       );
     } else {
       ScaffoldMessenger.of(contextCaptured).showSnackBar(
@@ -547,7 +548,7 @@ class _UserPageState extends State<UserPage> {
     String message = 'Tu sesión ha sido cerrada',
     bool redirectToLogin = true,
     bool isRemoteAction =
-        false, // Flag to indicate if triggered by remote event
+    false, // Flag to indicate if triggered by remote event
   }) async {
     // Capture context early
     final contextCaptured = context;
@@ -619,7 +620,7 @@ class _UserPageState extends State<UserPage> {
         if (contextCaptured.mounted) {
           Navigator.of(contextCaptured).pushAndRemoveUntil(
             MaterialPageRoute(builder: (context) => const LoginPage()),
-            (route) => false,
+                (route) => false,
           );
         }
       }
@@ -632,7 +633,7 @@ class _UserPageState extends State<UserPage> {
         );
         Navigator.of(contextCaptured).pushAndRemoveUntil(
           MaterialPageRoute(builder: (context) => const LoginPage()),
-          (route) => false,
+              (route) => false,
         );
       }
     }
@@ -648,22 +649,22 @@ class _UserPageState extends State<UserPage> {
       context: contextCaptured,
       builder:
           (dialogContext) => AlertDialog(
-            title: const Text("Cerrar Sesión"),
-            content: const Text("¿Estás seguro de que quieres cerrar sesión?"),
-            actions: [
-              TextButton(
-                onPressed: () => Navigator.of(dialogContext).pop(false),
-                child: const Text("Cancelar"),
-              ),
-              TextButton(
-                onPressed: () => Navigator.of(dialogContext).pop(true),
-                child: const Text(
-                  "Cerrar Sesión",
-                  style: TextStyle(color: Colors.red),
-                ),
-              ),
-            ],
+        title: const Text("Cerrar Sesión"),
+        content: const Text("¿Estás seguro de que quieres cerrar sesión?"),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.of(dialogContext).pop(false),
+            child: const Text("Cancelar"),
           ),
+          TextButton(
+            onPressed: () => Navigator.of(dialogContext).pop(true),
+            child: const Text(
+              "Cerrar Sesión",
+              style: TextStyle(color: Colors.red),
+            ),
+          ),
+        ],
+      ),
     );
 
     // Re-check mounted status and confirmation
@@ -701,15 +702,15 @@ class _UserPageState extends State<UserPage> {
                   backgroundColor: Colors.grey[300],
                   // Use local _photoURL
                   backgroundImage:
-                      _photoURL != null ? NetworkImage(_photoURL!) : null,
+                  _photoURL != null ? NetworkImage(_photoURL!) : null,
                   child:
-                      _photoURL == null
-                          ? const Icon(
-                            Icons.person,
-                            size: 60,
-                            color: Colors.grey,
-                          )
-                          : null,
+                  _photoURL == null
+                      ? const Icon(
+                    Icons.person,
+                    size: 60,
+                    color: Colors.grey,
+                  )
+                      : null,
                 ),
                 const SizedBox(height: 30),
                 // Información del usuario
@@ -721,7 +722,25 @@ class _UserPageState extends State<UserPage> {
                   userLevel: _userLevel,
                   isLoading: _isLoading,
                 ),
-                const SizedBox(height: 30),
+                const SizedBox(height: 16),
+                ElevatedButton.icon(
+                  onPressed: () {
+                    Navigator.of(context).push(
+                      MaterialPageRoute(
+                        builder: (context) => RatingsPage(username: _username),
+                      ),
+                    );
+                  },
+                  icon: const Icon(Icons.star),
+                  label: const Text('Ver Mis Valoraciones'),
+                  style: ElevatedButton.styleFrom(
+                    backgroundColor: Colors.amber,
+                    foregroundColor: Colors.white,
+                    minimumSize: const Size(double.infinity, 50),
+                    padding: const EdgeInsets.symmetric(vertical: 12),
+                  ),
+                ),
+                const SizedBox(height: 20),
                 // Botones de acción
                 Row(
                   mainAxisAlignment: MainAxisAlignment.spaceEvenly,

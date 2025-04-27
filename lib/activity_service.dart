@@ -18,6 +18,9 @@ class ActivityService {
   }
 
   Future<void> sendActivityToBackend(Map<String, String> activityData) async {
+    // Validate dates first
+    validateActivityDates(activityData);
+
     final url = Uri.parse(ApiConfig().buildUrl('api/activitats/crear'));
     final dateFormat = DateFormat("yyyy-MM-dd'T'HH:mm:ss");
     final ubicacioParts = activityData['location']!.split(',');
@@ -51,6 +54,47 @@ class ActivityService {
     }
   }
 
+  void validateActivityDates(Map<String, String> activityData) {
+
+
+    final String? startDateString = activityData['startDate'];
+    final String? endDateString = activityData['endDate'];
+
+    if (startDateString == null || startDateString.isEmpty) {
+      throw Exception('La fecha de inicio es obligatoria');
+    }
+
+    if (endDateString == null || endDateString.isEmpty) {
+      throw Exception('La fecha de fin es obligatoria');
+    }
+
+    DateTime startDate;
+    DateTime endDate;
+
+    try {
+      startDate = DateTime.parse(startDateString);
+    } catch (e) {
+      throw Exception('El formato de la fecha de inicio no es válido');
+    }
+
+    try {
+      endDate = DateTime.parse(endDateString);
+    } catch (e) {
+      throw Exception('El formato de la fecha de fin no es válido');
+    }
+
+    // Check if start date is after end date
+    if (startDate.isAfter(endDate)) {
+      throw Exception('La fecha de inicio no puede ser posterior a la fecha de fin');
+    }
+
+    // Optional: Check if dates are in the past
+    final now = DateTime.now();
+    if (startDate.isBefore(now)) {
+      throw Exception('La fecha de inicio no puede ser en el pasado');
+    }
+  }
+
   Future<void> deleteActivityFromBackend(String activityId) async {
     final url = Uri.parse(ApiConfig().buildUrl('api/activitats/$activityId'));
     final response = await http.delete(url);
@@ -61,9 +105,12 @@ class ActivityService {
   }
 
   Future<void> updateActivityInBackend(
-    String activityId,
-    Map<String, String> activityData,
-  ) async {
+      String activityId,
+      Map<String, String> activityData,
+      ) async {
+    // Validate dates first
+    validateActivityDates(activityData);
+
     final url = Uri.parse(
       ApiConfig().buildUrl('api/activitats/editar/$activityId'),
     );
@@ -95,6 +142,7 @@ class ActivityService {
     );
 
     if (response.statusCode != 200) {
+      // Fixed the context retrieval
       throw Exception('Error al actualizar la actividad: ${response.body}');
     }
   }
