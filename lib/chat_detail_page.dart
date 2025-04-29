@@ -43,6 +43,30 @@ class ChatDetailPageState extends State<ChatDetailPage> {
     ) {
       if (!mounted) return;
 
+      if (messageData.containsKey('type') && messageData['type'] == 'EDIT') {
+        final sender = messageData['usernameSender'];
+        final originalTimestamp = messageData['originalTimestamp'];
+        final newContent = messageData['newContent'];
+
+        setState(() {
+          for (int i = 0; i < _messages.length; i++) {
+            // Compare the timestamp strings to avoid precision issues
+            if (_messages[i].senderUsername == sender &&
+                _messages[i].timestamp.toIso8601String() == originalTimestamp) {
+              _messages[i] = Message(
+                  senderUsername: _messages[i].senderUsername,
+                  receiverUsername: _messages[i].receiverUsername,
+                  timestamp: _messages[i].timestamp,
+                  content: newContent,
+                  isEdited: true
+              );
+              break;
+            }
+          }
+        });
+        return;
+      }
+
       if (messageData.containsKey('usernameSender') &&
           messageData.containsKey('usernameReceiver') &&
           messageData.containsKey('missatge')) {
@@ -57,6 +81,7 @@ class ChatDetailPageState extends State<ChatDetailPage> {
             senderUsername: messageData['usernameSender'],
             receiverUsername: messageData['usernameReceiver'],
             content: messageData['missatge'],
+            isEdited: messageData['isEdited'],
             // Si el mensaje tiene timestamp, lo usamos; de lo contrario, usamos la fecha actual
             timestamp:
                 messageData.containsKey('dataEnviament')
@@ -158,6 +183,7 @@ class ChatDetailPageState extends State<ChatDetailPage> {
           receiverUsername: widget.username,
           content: message,
           timestamp: DateTime.now(),
+          isEdited: false,
         );
 
         setState(() {
@@ -214,6 +240,101 @@ class ChatDetailPageState extends State<ChatDetailPage> {
     }
   }
 
+  bool _isMessageEditable(Message message) {
+    // Only allow editing of own messages that are less than 20 minutes old
+    if (message.senderUsername != _currentUsername) return false;
+
+    final now = DateTime.now();
+    final differenceInMinutes = now.difference(message.timestamp).inMinutes;
+    return differenceInMinutes < 20;
+  }
+
+  void _showEditDialog(Message message) {
+    final editingController = TextEditingController(text: message.content);
+
+    showDialog(
+      context: context,
+      builder: (context) => AlertDialog(
+        title: const Text('Editar mensaje'),
+        content: TextField(
+          controller: editingController,
+          decoration: const InputDecoration(
+            hintText: 'Edita tu mensaje...',
+          ),
+          autofocus: true,
+          maxLines: null,
+        ),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.of(context).pop(),
+            child: const Text('Cancelar'),
+          ),
+          TextButton(
+            onPressed: () {
+              Navigator.of(context).pop();
+              _updateMessage(message, editingController.text.trim());
+            },
+            child: const Text('Guardar'),
+          ),
+        ],
+      ),
+    );
+  }
+
+  Future<void> _updateMessage(Message message, String newContent) async {
+    if (newContent.isEmpty || newContent == message.content) return;
+
+    setState(() {
+      _isSending = true;
+    });
+
+    try {
+      // Send the edited message through the ChatService
+      final success = await _chatService.editMessage(
+          widget.username,
+          message.timestamp.toIso8601String(),
+          newContent
+      );
+
+      if (success) {
+        setState(() {
+          // Update the message locally
+          final index = _messages.indexWhere((m) =>
+          m.senderUsername == message.senderUsername &&
+              m.timestamp == message.timestamp);
+
+          if (index != -1) {
+            _messages[index] = Message(
+              senderUsername: message.senderUsername,
+              receiverUsername: message.receiverUsername,
+              content: newContent,
+              timestamp: message.timestamp,
+              isEdited: true,
+            );
+          }
+        });
+      } else {
+        if (mounted) {
+          NotificationService.showError(
+            context,
+            'Error al editar el mensaje. Inténtalo de nuevo.',
+          );
+        }
+      }
+    } catch (e) {
+      if (mounted) {
+        NotificationService.showError(
+          context,
+          'Error al editar el mensaje: ${e.toString()}',
+        );
+      }
+    } finally {
+      setState(() {
+        _isSending = false;
+      });
+    }
+  }
+
   @override
   void dispose() {
     // Cancelar la suscripción al WebSocket
@@ -250,6 +371,7 @@ class ChatDetailPageState extends State<ChatDetailPage> {
                       itemCount: _messages.length,
                       itemBuilder: (context, index) {
                         final message = _messages[index];
+                        // print ('Mensaje: ${message.content}, Enviado por: ${message.senderUsername}, Recibido por: ${message.receiverUsername}, Timestamp: ${message.timestamp}, IsEdited: ${message.isEdited}',);
                         final isMe = message.senderUsername == _currentUsername;
 
                         return _buildMessageBubble(message, isMe);
@@ -318,36 +440,54 @@ class ChatDetailPageState extends State<ChatDetailPage> {
   Widget _buildMessageBubble(Message message, bool isMe) {
     return Align(
       alignment: isMe ? Alignment.centerRight : Alignment.centerLeft,
-      child: Container(
-        margin: const EdgeInsets.symmetric(vertical: 4, horizontal: 8),
-        padding: const EdgeInsets.symmetric(vertical: 8, horizontal: 16),
-        decoration: BoxDecoration(
-          color: isMe ? Colors.blue : Colors.grey.shade200,
-          borderRadius: BorderRadius.circular(20),
-        ),
-        constraints: BoxConstraints(
-          maxWidth: MediaQuery.of(context).size.width * 0.7,
-        ),
-        child: Column(
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-            Text(
-              message.content,
-              style: TextStyle(
-                color: isMe ? Colors.white : Colors.black,
-                fontSize: 16,
+      child: GestureDetector(
+        onLongPress: isMe && _isMessageEditable(message)
+            ? () => _showEditDialog(message)
+            : null,
+        child: Container(
+          margin: const EdgeInsets.symmetric(vertical: 4, horizontal: 8),
+          padding: const EdgeInsets.symmetric(vertical: 8, horizontal: 16),
+          decoration: BoxDecoration(
+            color: isMe ? Colors.blue : Colors.grey.shade200,
+            borderRadius: BorderRadius.circular(20),
+          ),
+          constraints: BoxConstraints(
+            maxWidth: MediaQuery.of(context).size.width * 0.7,
+          ),
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              Text(
+                message.content,
+                style: TextStyle(
+                  color: isMe ? Colors.white : Colors.black,
+                  fontSize: 16,
+                ),
               ),
-            ),
-            const SizedBox(height: 4),
-            Text(
-              _formatTimestamp(message.timestamp),
-              style: TextStyle(
-                color: isMe ? Colors.white.withAlpha(204) : Colors.black54,
-                fontSize: 12,
+              const SizedBox(height: 4),
+              Row(
+                mainAxisSize: MainAxisSize.min,
+                children: [
+                  Text(
+                    _formatTimestamp(message.timestamp),
+                    style: TextStyle(
+                      color: isMe ? Colors.white.withAlpha(204) : Colors.black54,
+                      fontSize: 12,
+                    ),
+                  ),
+                  if (message.isEdited)
+                    Text(
+                      " · Editado",
+                      style: TextStyle(
+                        color: isMe ? Colors.white.withAlpha(204) : Colors.black54,
+                        fontSize: 12,
+                        fontStyle: FontStyle.italic,
+                      ),
+                    ),
+                ],
               ),
-              textAlign: TextAlign.right,
-            ),
-          ],
+            ],
+          ),
         ),
       ),
     );

@@ -145,16 +145,33 @@ class ChatWebSocketService {
               msg.containsKey('usernameSender') &&
               msg.containsKey('usernameReceiver') &&
               msg.containsKey('dataEnviament') &&
-              msg.containsKey('missatge')) {
+              msg.containsKey('missatge') &&
+              msg.containsKey('isEdited')) {
             _chatMessageController.add({
               'usernameSender': msg['usernameSender'],
               'usernameReceiver': msg['usernameReceiver'],
               'dataEnviament': msg['dataEnviament'],
               'missatge': msg['missatge'],
+              'isEdited': msg['isEdited'] ?? false,
               'fromHistory': true, // Marcamos que viene del historial
             });
           }
         }
+        return;
+      }
+
+      if (messageData is Map && messageData['type'] == 'EDIT') {
+        debugPrint('Received edit notification');
+
+        final editData = {
+          'type': 'EDIT',
+          'usernameSender': messageData['usernameSender'],
+          'originalTimestamp': messageData['originalTimestamp'],
+          'newContent': messageData['newContent'],
+          'isEdited': messageData['isEdited'] ?? true
+        };
+
+        _chatMessageController.add(editData);
         return;
       }
 
@@ -170,6 +187,7 @@ class ChatWebSocketService {
           'usernameReceiver': messageData['usernameReceiver'],
           'dataEnviament': messageData['dataEnviament'],
           'missatge': messageData['missatge'],
+          'isEdited': messageData['isEdited'] ?? false,
         });
         return;
       }
@@ -278,5 +296,40 @@ class ChatWebSocketService {
   void dispose() {
     disconnectChat();
     _chatMessageController.close();
+  }
+
+  Future<bool> sendEditMessage(
+      String receiverUsername,
+      String originalTimestamp,
+      String newContent
+      ) async {
+    if (!_isChatConnected || _chatChannel == null) {
+      // If no active connection, try to connect first
+      connectToChat(receiverUsername);
+      // Wait a bit for the connection to establish
+      await Future.delayed(const Duration(milliseconds: 500));
+
+      if (!_isChatConnected || _chatChannel == null) {
+        debugPrint('No se pudo establecer conexión WebSocket para editar el mensaje');
+        return false;
+      }
+    }
+
+    try {
+      final message = {
+        'type': 'EDIT',
+        'usernameSender': _currentUsername,
+        'usernameReceiver': receiverUsername,
+        'originalTimestamp': originalTimestamp,
+        'newContent': newContent,
+        'editTimestamp': DateTime.now().toIso8601String(),
+      };
+
+      _chatChannel!.sink.add(jsonEncode(message));
+      return true;
+    } catch (e) {
+      debugPrint('Error al enviar edición por WebSocket: $e');
+      return false;
+    }
   }
 }

@@ -10,12 +10,14 @@ class Message {
   final String receiverUsername;
   final DateTime timestamp;
   final String content;
+  final bool isEdited;
 
   Message({
     required this.senderUsername,
     required this.receiverUsername,
     required this.timestamp,
     required this.content,
+    required this.isEdited,
   });
 
   factory Message.fromJson(Map<String, dynamic> json) {
@@ -24,6 +26,7 @@ class Message {
       receiverUsername: json['usernameReceiver'],
       timestamp: DateTime.parse(json['dataEnviament']),
       content: json['missatge'],
+      isEdited: json['isEdited'] ?? false,
     );
   }
 
@@ -81,6 +84,27 @@ class ChatService {
   void _setupWebSocketListeners() {
     _chatWebSocketService.chatMessages.listen((messageData) {
       // Si el mensaje tiene la marca 'fromHistory', significa que viene del historial inicial
+      if (messageData.containsKey('type') && messageData['type'] == 'EDIT') {
+        final sender = messageData['usernameSender'];
+        final originalTimestamp = messageData['originalTimestamp'];
+        final newContent = messageData['newContent'];
+
+        // Find and update the message in cache
+        for (int i = 0; i < _messageCache.length; i++) {
+          if (_messageCache[i].senderUsername == sender &&
+              _messageCache[i].timestamp.toIso8601String() == originalTimestamp) {
+            _messageCache[i] = Message(
+                senderUsername: _messageCache[i].senderUsername,
+                receiverUsername: _messageCache[i].receiverUsername,
+                timestamp: _messageCache[i].timestamp,
+                content: newContent,
+                isEdited: true
+            );
+            break;
+          }
+        }
+        return;
+      }
       bool isFromHistory =
           messageData.containsKey('fromHistory') &&
           messageData['fromHistory'] == true;
@@ -95,6 +119,7 @@ class ChatService {
           receiverUsername: messageData['usernameReceiver'],
           timestamp: DateTime.parse(messageData['dataEnviament']),
           content: messageData['missatge'],
+          isEdited: messageData['isEdited'] ?? false,
         );
 
         // Para mensajes del historial, solo verificamos si ya existe un duplicado exacto
@@ -142,6 +167,7 @@ class ChatService {
         receiverUsername: receiverUsername,
         timestamp: DateTime.now(),
         content: content,
+        isEdited: false,
       );
 
       // Verificar si el mensaje ya existe en la caché antes de añadirlo
@@ -201,25 +227,6 @@ class ChatService {
       }
 
       // Añadimos los mensajes de la caché que pertenecen a esta conversación
-      for (var message in _messageCache) {
-        if ((message.senderUsername == currentUser.displayName &&
-                message.receiverUsername == otherUsername) ||
-            (message.senderUsername == otherUsername &&
-                message.receiverUsername == currentUser.displayName)) {
-          // Verificación más robusta de duplicados con tolerancia de tiempo
-          bool isDuplicate = allMessages.any(
-            (m) =>
-                m.senderUsername == message.senderUsername &&
-                m.receiverUsername == message.receiverUsername &&
-                m.content == message.content &&
-                (m.timestamp.difference(message.timestamp).inSeconds.abs() < 5),
-          ); // Tolerancia de 5 segundos
-
-          if (!isDuplicate) {
-            allMessages.add(message);
-          }
-        }
-      }
 
       // Normalizar formato de fechas
       _normalizeMessageDates(allMessages);
@@ -267,6 +274,7 @@ class ChatService {
         messages[i].timestamp.hour,
         messages[i].timestamp.minute,
         messages[i].timestamp.second,
+        messages[i].timestamp.millisecond,
       );
 
       messages[i] = Message(
@@ -274,6 +282,7 @@ class ChatService {
         receiverUsername: messages[i].receiverUsername,
         content: messages[i].content,
         timestamp: normalizedDate,
+        isEdited: messages[i].isEdited,
       );
     }
   }
@@ -325,6 +334,19 @@ class ChatService {
       debugPrint('Error getting all chats: $e');
       return [];
     }
+  }
+
+  Future<bool> editMessage(
+      String receiverUsername,
+      String originalTimestamp,
+      String newContent,
+      ) async {
+    // Use the WebSocket service to send the edited message
+    return _chatWebSocketService.sendEditMessage(
+        receiverUsername,
+        originalTimestamp,
+        newContent
+    );
   }
 
   // Método para limpiar la conexión del WebSocket cuando el usuario sale de la pantalla de chat
