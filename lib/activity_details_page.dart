@@ -1,6 +1,8 @@
 import 'package:firebase_auth/firebase_auth.dart';
 import 'package:flutter/material.dart';
 import 'package:airplan/air_quality.dart';
+import 'invite_users_dialog.dart';
+
 class ActivityDetailsPage extends StatelessWidget {
   final String id;
   final String title;
@@ -140,9 +142,20 @@ class ActivityDetailsPage extends StatelessWidget {
             if (isCurrentUserCreator ) ...[
               SizedBox(height: 16),
               ElevatedButton(
+                onPressed: () {
+                  showDialog(
+                    context: context,
+                    builder: (context) => InviteUsersDialog(activityId: id, creator: creator),
+                  );
+                },
+                child: const Text('Invitar Usuarios'),
+              ),
+              SizedBox(height: 16),
+              ElevatedButton(
                 onPressed: onEdit, // Usamos la función onEdit
                 child: Text('Edit Activity'),
               ),
+              SizedBox(height: 16),
               ElevatedButton(
                 onPressed: onDelete, // Usamos la función onDelete
                 child: Text('Delete Activity'),
