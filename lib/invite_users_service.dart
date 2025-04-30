@@ -3,14 +3,21 @@ import 'package:http/http.dart' as http;
 
 class InviteUsersService {
   static const String baseUrl = 'http://127.0.0.1:8080/api/invitacions';
+  //static const String baseUrl = 'http://nattech.fib.upc.edu:40350/api/invitacions';
 
   // Buscar usuarios por nombre
-  static Future<List<Map<String, dynamic>>> searchUsers(String query) async {
+  static Future<List<Map<String, dynamic>>> searchUsers(String query, String creator) async {
     final response = await http.get(Uri.parse('$baseUrl/search?query=$query'));
 
     if (response.statusCode == 200) {
       final body = json.decode(response.body);
-      return List<Map<String, dynamic>>.from(body);
+
+      // Filtrar los resultados para excluir al creador
+      final filteredUsers = List<Map<String, dynamic>>.from(body)
+          .where((user) => user['username'] != creator)
+          .toList();
+
+      return filteredUsers;
     } else {
       throw Exception('Error fetching users');
     }

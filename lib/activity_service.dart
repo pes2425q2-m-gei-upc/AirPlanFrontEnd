@@ -17,7 +17,8 @@ class ActivityService {
   }
 
   Future<void> sendActivityToBackend(Map<String, String> activityData) async {
-    final url = Uri.parse('http://nattech.fib.upc.edu:40350/api/activitats/crear');
+    //final url = Uri.parse('http://nattech.fib.upc.edu:40350/api/activitats/crear');
+    final url = Uri.parse('http://127.0.0.1:8080/api/activitats/crear');
     final dateFormat = DateFormat("yyyy-MM-dd'T'HH:mm:ss");
     final ubicacioParts = activityData['location']!.split(',');
     final ubicacio = <String, double>{
@@ -43,6 +44,8 @@ class ActivityService {
       body: jsonEncode(body),
     );
 
+    print('Response status: ${response.statusCode}');
+    
     if (response.statusCode != 201) {
       throw Exception('Error al crear la actividad: ${response.body}');
     }

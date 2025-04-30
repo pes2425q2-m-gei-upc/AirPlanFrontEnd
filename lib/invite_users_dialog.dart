@@ -41,7 +41,7 @@ class _InviteUsersDialogState extends State<InviteUsersDialog> {
     });
 
     try {
-      final fetchedUsers = await InviteUsersService.searchUsers(query);
+      final fetchedUsers = await InviteUsersService.searchUsers(query, widget.creator);
       final usersWithInvitationStatus = await Future.wait(fetchedUsers.map((user) async {
         final hasInvitation = await InviteUsersService.checkInvitation(user['username'], widget.activityId);
         return {
