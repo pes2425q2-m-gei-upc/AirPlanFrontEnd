@@ -173,8 +173,9 @@ class ChatDetailPageState extends State<ChatDetailPage> {
     });
 
     try {
+      DateTime timestamp = DateTime.now();
       // Enviar el mensaje usando el WebSocket a través del ChatService
-      final success = await _chatService.sendMessage(widget.username, message);
+      final success = await _chatService.sendMessage(widget.username, message, timestamp);
 
       if (success) {
         // Crear un objeto Message localmente para añadirlo inmediatamente a la UI
@@ -182,9 +183,11 @@ class ChatDetailPageState extends State<ChatDetailPage> {
           senderUsername: _currentUsername!,
           receiverUsername: widget.username,
           content: message,
-          timestamp: DateTime.now(),
+          timestamp: timestamp,
           isEdited: false,
         );
+
+        print("Mensaje enviado: ${newMessage.content}, Enviado por: ${newMessage.senderUsername}, Recibido por: ${newMessage.receiverUsername}, Timestamp: ${newMessage.timestamp}, IsEdited: ${newMessage.isEdited}");
 
         setState(() {
           // Añadir el mensaje directamente a la lista local sin verificar duplicados
@@ -197,6 +200,7 @@ class ChatDetailPageState extends State<ChatDetailPage> {
 
         // Scroll al final para ver el nuevo mensaje
         _scrollToBottom();
+
       } else {
         if (mounted) {
           NotificationService.showError(

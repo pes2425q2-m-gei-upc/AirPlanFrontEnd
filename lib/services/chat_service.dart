@@ -1,3 +1,4 @@
+import 'dart:async';
 import 'dart:convert';
 import 'package:http/http.dart' as http;
 import 'package:firebase_auth/firebase_auth.dart';
@@ -81,13 +82,21 @@ class ChatService {
   final List<Message> _messageCache = [];
 
   // Configura los escuchadores para el WebSocket
+  final _messageUpdateController = StreamController<List<Message>>.broadcast();
+
+  // Expose a stream that UI can subscribe to
+  Stream<List<Message>> get onMessageUpdate => _messageUpdateController.stream;
+
   void _setupWebSocketListeners() {
+    final processedMessageIds = <String>{};
+
     _chatWebSocketService.chatMessages.listen((messageData) {
-      // Si el mensaje tiene la marca 'fromHistory', significa que viene del historial inicial
+      // Handle EDIT messages
       if (messageData.containsKey('type') && messageData['type'] == 'EDIT') {
         final sender = messageData['usernameSender'];
         final originalTimestamp = messageData['originalTimestamp'];
         final newContent = messageData['newContent'];
+        bool wasUpdated = false;
 
         // Find and update the message in cache
         for (int i = 0; i < _messageCache.length; i++) {
@@ -100,20 +109,35 @@ class ChatService {
                 content: newContent,
                 isEdited: true
             );
+            wasUpdated = true;
             break;
           }
         }
+
+        // Notify listeners that messages were updated
+        if (wasUpdated) {
+          _messageUpdateController.add(_messageCache.toList());
+        }
         return;
       }
-      bool isFromHistory =
-          messageData.containsKey('fromHistory') &&
-          messageData['fromHistory'] == true;
 
-      // Añadimos el mensaje recibido a la caché
+      // For regular messages
       if (messageData.containsKey('usernameSender') &&
           messageData.containsKey('usernameReceiver') &&
           messageData.containsKey('missatge') &&
           messageData.containsKey('dataEnviament')) {
+
+        // Create unique identifier for this message
+        final String messageId = '${messageData['usernameSender']}_${messageData['dataEnviament']}_${messageData['missatge']}';
+
+        // Skip if we've already processed this message
+        if (processedMessageIds.contains(messageId)) {
+          return;
+        }
+
+        // Mark as processed
+        processedMessageIds.add(messageId);
+
         final message = Message(
           senderUsername: messageData['usernameSender'],
           receiverUsername: messageData['usernameReceiver'],
@@ -122,29 +146,14 @@ class ChatService {
           isEdited: messageData['isEdited'] ?? false,
         );
 
-        // Para mensajes del historial, solo verificamos si ya existe un duplicado exacto
-        // Para mensajes nuevos, aplicamos la verificación con tolerancia de tiempo
-        bool isDuplicate;
-
-        if (isFromHistory) {
-          // Verificación estricta para mensajes históricos (solo duplicados exactos)
-          isDuplicate = _messageCache.any(
-            (m) =>
-                m.senderUsername == message.senderUsername &&
-                m.receiverUsername == message.receiverUsername &&
-                m.content == message.content &&
-                m.timestamp.isAtSameMomentAs(message.timestamp),
-          );
-        } else {
-          // Verificación con tolerancia para mensajes nuevos
-          isDuplicate = _messageCache.any(
-            (m) =>
-                m.senderUsername == message.senderUsername &&
-                m.receiverUsername == message.receiverUsername &&
-                m.content == message.content &&
-                (m.timestamp.difference(message.timestamp).inSeconds.abs() < 5),
-          ); // Tolerancia de 5 segundos
-        }
+        // Existing duplicate check for historical messages
+        bool isDuplicate = _messageCache.any(
+              (m) =>
+          m.senderUsername == message.senderUsername &&
+              m.receiverUsername == message.receiverUsername &&
+              m.content == message.content &&
+              m.timestamp.isAtSameMomentAs(message.timestamp),
+        );
 
         if (!isDuplicate) {
           _messageCache.add(message);
@@ -154,7 +163,7 @@ class ChatService {
   }
 
   // Send a message to another user using WebSocket
-  Future<bool> sendMessage(String receiverUsername, String content) async {
+  Future<bool> sendMessage(String receiverUsername, String content, DateTime creationTime) async {
     try {
       final currentUser = FirebaseAuth.instance.currentUser;
       if (currentUser == null || currentUser.displayName == null) {
@@ -165,7 +174,7 @@ class ChatService {
       final message = Message(
         senderUsername: currentUser.displayName!,
         receiverUsername: receiverUsername,
-        timestamp: DateTime.now(),
+        timestamp: creationTime,
         content: content,
         isEdited: false,
       );
@@ -188,6 +197,7 @@ class ChatService {
       return await _chatWebSocketService.sendChatMessage(
         receiverUsername,
         content,
+        creationTime,
       );
     } catch (e) {
       debugPrint('Error sending message: $e');
@@ -203,45 +213,54 @@ class ChatService {
         return [];
       }
 
-      // Limpiar la caché específica para esta conversación para evitar acumulación de mensajes
+      // Clear any existing cache for this conversation
       _cleanCacheForConversation(currentUser.displayName!, otherUsername);
 
-      // Primero intentamos conectar al chat WebSocket para empezar a recibir mensajes en tiempo real
+      // Connect to WebSocket first - this will start receiving history
       _chatWebSocketService.connectToChat(otherUsername);
 
-      // Luego obtenemos el historial de mensajes desde el backend
-      final response = await http.get(
-        Uri.parse(
-          ApiConfig().buildUrl(
-            'chat/${currentUser.displayName}/$otherUsername',
+      // Wait a moment to ensure the WebSocket has time to receive the history
+      await Future.delayed(const Duration(milliseconds: 500));
+
+      // If we already have messages in the cache for this conversation, use them
+      // This way we avoid duplicating what the WebSocket already provided
+      List<Message> conversationMessages = _messageCache
+          .where((message) =>
+      (message.senderUsername == currentUser.displayName! &&
+          message.receiverUsername == otherUsername) ||
+          (message.senderUsername == otherUsername &&
+              message.receiverUsername == currentUser.displayName!))
+          .toList();
+
+      // Only fetch from API if we don't have messages from WebSocket
+      if (conversationMessages.isEmpty) {
+        final response = await http.get(
+          Uri.parse(
+            ApiConfig().buildUrl(
+              'chat/${currentUser.displayName}/$otherUsername',
+            ),
           ),
-        ),
-      );
+        );
 
-      // Lista para almacenar todos los mensajes
-      List<Message> allMessages = [];
-
-      if (response.statusCode == 200) {
-        final List<dynamic> jsonData = jsonDecode(response.body);
-        allMessages = jsonData.map((data) => Message.fromJson(data)).toList();
+        if (response.statusCode == 200) {
+          final List<dynamic> jsonData = jsonDecode(response.body);
+          conversationMessages = jsonData
+              .map((data) => Message.fromJson(data))
+              .toList();
+        }
       }
 
-      // Añadimos los mensajes de la caché que pertenecen a esta conversación
-
-      // Normalizar formato de fechas
-      _normalizeMessageDates(allMessages);
-
-      // Ordenar por fecha de forma estable
-      allMessages.sort((a, b) {
+      // Normalize message dates and sort
+      _normalizeMessageDates(conversationMessages);
+      conversationMessages.sort((a, b) {
         int dateCompare = a.timestamp.compareTo(b.timestamp);
         if (dateCompare == 0) {
-          // Si las fechas son iguales, ordenar por contenido para estabilidad
           return a.content.compareTo(b.content);
         }
         return dateCompare;
       });
 
-      return allMessages;
+      return conversationMessages;
     } catch (e) {
       debugPrint('Error getting conversation: $e');
       return [];

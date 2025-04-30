@@ -95,7 +95,7 @@ class ChatWebSocketService {
   }
 
   // Enviar un mensaje a través del WebSocket de chat
-  Future<bool> sendChatMessage(String receiverUsername, String content) async {
+  Future<bool> sendChatMessage(String receiverUsername, String content, DateTime timestamp) async {
     if (!_isChatConnected || _chatChannel == null) {
       // Si no hay conexión activa, intentar conectar primero
       connectToChat(receiverUsername);
@@ -112,7 +112,7 @@ class ChatWebSocketService {
       final message = {
         'usernameSender': _currentUsername,
         'usernameReceiver': receiverUsername,
-        'dataEnviament': DateTime.now().toIso8601String(),
+        'dataEnviament': timestamp.toIso8601String(),
         'missatge': content,
       };
 
@@ -139,27 +139,27 @@ class ChatWebSocketService {
         final List<dynamic> messages = messageData['messages'];
         debugPrint('Recibido historial de ${messages.length} mensajes');
 
-        // Procesar cada mensaje del historial
+        // Process each message from history exactly once, preserving isEdited flag
         for (var msg in messages) {
           if (msg is Map &&
               msg.containsKey('usernameSender') &&
               msg.containsKey('usernameReceiver') &&
               msg.containsKey('dataEnviament') &&
-              msg.containsKey('missatge') &&
-              msg.containsKey('isEdited')) {
+              msg.containsKey('missatge')) {
             _chatMessageController.add({
               'usernameSender': msg['usernameSender'],
               'usernameReceiver': msg['usernameReceiver'],
               'dataEnviament': msg['dataEnviament'],
               'missatge': msg['missatge'],
-              'isEdited': msg['isEdited'] ?? false,
-              'fromHistory': true, // Marcamos que viene del historial
+              'isEdited': msg['isEdited'] ?? false, // Preserve edited flag
+              'fromHistory': true, // Mark as from history
             });
           }
         }
         return;
       }
 
+      // Handle real-time edit notifications
       if (messageData is Map && messageData['type'] == 'EDIT') {
         debugPrint('Received edit notification');
 
