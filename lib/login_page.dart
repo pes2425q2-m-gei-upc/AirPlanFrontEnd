@@ -113,6 +113,7 @@ class LoginPageState extends State<LoginPage> {
                 labelText: "Correu electrònic",
                 border: OutlineInputBorder(),
               ),
+              onSubmitted: (_) => _signIn(), // Añadir esta línea
             ),
             const SizedBox(height: 12),
             TextField(
@@ -122,6 +123,7 @@ class LoginPageState extends State<LoginPage> {
                 labelText: "Contrasenya",
                 border: OutlineInputBorder(),
               ),
+              onSubmitted: (_) => _signIn(), // Añadir esta línea
             ),
             const SizedBox(height: 12),
             ElevatedButton(

@@ -396,14 +396,6 @@ class _FormContentRegisterState extends State<FormContentRegister> {
                 ),
                 _gap(),
 
-                TextButton(
-                  onPressed: () => Navigator.pop(context),
-                  child: const Text(
-                    "Ja tens un compte? Inicia sessió",
-                    style: TextStyle(fontSize: 14),
-                  ),
-                ),
-
                 // Botón de Registro
                 SizedBox(
                   width: double.infinity,

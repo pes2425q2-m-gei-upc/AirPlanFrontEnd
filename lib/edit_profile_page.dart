@@ -1,6 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:firebase_auth/firebase_auth.dart';
-import 'dart:io';
+import 'dart:io'; // Keep for File type
 import 'package:image_picker/image_picker.dart';
 import 'package:http/http.dart' as http;
 import 'dart:typed_data';
@@ -220,90 +220,6 @@ class EditProfilePageState extends State<EditProfilePage> {
     }
   }
 
-  Future<String?> _uploadImage() async {
-    String? imageUrl;
-    http.MultipartRequest request;
-
-    // Store current BuildContext before async operations
-    final currentContext = context;
-
-    if (kIsWeb) {
-      if (_webImage == null) return null;
-      request = http.MultipartRequest(
-        'POST',
-        Uri.parse(ApiConfig().buildUrl('api/uploadImage')),
-      );
-      request.files.add(
-        http.MultipartFile.fromBytes(
-          'image',
-          _webImage!,
-          filename: 'web_image_${DateTime.now().millisecondsSinceEpoch}.jpg',
-        ),
-      );
-    } else {
-      if (_selectedImage == null) return null;
-      request = http.MultipartRequest(
-        'POST',
-        Uri.parse(ApiConfig().buildUrl('api/uploadImage')),
-      );
-      request.files.add(
-        await http.MultipartFile.fromPath('image', _selectedImage!.path),
-      );
-    }
-
-    try {
-      final response = await request.send();
-      // Verify that context is still valid after await
-      if (!currentContext.mounted) return null;
-
-      if (response.statusCode == 200) {
-        // Parse the JSON response to extract the actual URL
-        final responseString = await response.stream.bytesToString();
-        // Verify that context is still valid after await
-        if (!currentContext.mounted) return null;
-
-        try {
-          final jsonResponse = json.decode(responseString);
-          if (jsonResponse.containsKey('imageUrl')) {
-            // Get the base URL from ApiConfig
-            final baseUrl = ApiConfig().buildUrl('').replaceAll('/api/', '');
-            // Combine base URL with the relative path
-            imageUrl = baseUrl + jsonResponse['imageUrl'];
-          } else {
-            // Verify context is mounted before using it
-            if (!currentContext.mounted) return null;
-            NotificationService.showError(
-              currentContext,
-              'Error: La respuesta del servidor no contiene una URL de imagen',
-            );
-          }
-        } catch (e) {
-          // Verify context is mounted before using it
-          if (!currentContext.mounted) return null;
-          NotificationService.showError(
-            currentContext,
-            'Error al procesar la respuesta del servidor: ${e.toString()}',
-          );
-        }
-      } else {
-        // Verify context is mounted before using it
-        if (!currentContext.mounted) return null;
-        NotificationService.showError(
-          currentContext,
-          'Error al subir la imagen: ${response.statusCode}',
-        );
-      }
-    } catch (e) {
-      // Verify context is mounted before using it
-      if (!currentContext.mounted) return null;
-      NotificationService.showError(
-        currentContext,
-        'Error de red al subir la imagen: ${_getFriendlyErrorMessage(e.toString())}',
-      );
-    }
-    return imageUrl;
-  }
-
   // --- Refactored _saveProfile ---
 
   void _saveProfile() async {
@@ -425,43 +341,6 @@ class EditProfilePageState extends State<EditProfilePage> {
     );
   }
 
-  Future<String?> _uploadImageIfNeeded() async {
-    if (_selectedImage != null || _webImage != null) {
-      return await _uploadImage();
-    }
-    return null;
-  }
-
-  Map<String, dynamic> _prepareUpdateData(
-    String currentEmail,
-    String newEmail,
-    String currentUsername,
-    String newUsername,
-    String? imageUrl,
-    String? password,
-  ) {
-    final clientId = WebSocketService().clientId;
-    final updateData = {
-      'currentEmail': currentEmail,
-      'clientId': clientId,
-      'username': newUsername,
-      'oldUsername': currentUsername,
-      'nom': _nameController.text.trim(),
-      'idioma': _selectedLanguage,
-    };
-
-    if (newEmail != currentEmail) {
-      updateData['newEmail'] = newEmail;
-      if (password != null) {
-        updateData['password'] = password; // Password for re-authentication
-      }
-    }
-    if (imageUrl != null) {
-      updateData['photoURL'] = imageUrl;
-    }
-    return updateData;
-  }
-
   Future<Map<String, dynamic>> _prepareUpdateDataWithImage(
     String currentEmail,
     String newEmail,
@@ -472,8 +351,8 @@ class EditProfilePageState extends State<EditProfilePage> {
     final updateData = {
       'currentEmail': currentEmail,
       'clientId': WebSocketService().clientId,
-      'username': newUsername,
-      'oldUsername': currentUsername,
+      'username':
+          currentUsername, // Solo enviar el username actual para identificar al usuario
       'nom': _nameController.text.trim(),
       'idioma': _selectedLanguage,
     };
@@ -508,9 +387,6 @@ class EditProfilePageState extends State<EditProfilePage> {
 
       updateData['imageData'] = base64Image;
       updateData['fileName'] = fileName;
-    } else {
-      // No se seleccionó ninguna imagen - omitimos estos campos en lugar de asignarles null
-      // No asignar null a imageData y fileName
     }
 
     return updateData;
@@ -522,7 +398,8 @@ class EditProfilePageState extends State<EditProfilePage> {
     String newEmail,
     String currentUsername,
     String newUsername,
-    String? imageUrl,
+    String?
+    imageUrl, // This imageUrl is from the potential separate upload, now unused here
     bool emailChanged,
   ) async {
     final currentUser =
@@ -553,7 +430,8 @@ class EditProfilePageState extends State<EditProfilePage> {
         // Obtener la URL de la imagen desde la respuesta si se subió una imagen
         final String? imageUrlFromResponse =
             responseData['imageUrl'] as String?;
-        final String? photoURL = imageUrlFromResponse ?? imageUrl;
+        // Use the URL from the response if available
+        final String? photoURL = imageUrlFromResponse;
 
         if (success) {
           // Pass necessary variables to _handleSuccessfulUpdate
@@ -607,7 +485,7 @@ class EditProfilePageState extends State<EditProfilePage> {
     String message,
     String? customToken,
     bool emailChanged,
-    String? imageUrl,
+    String? imageUrl, // This is the URL from the backend response
     String newUsername,
     String currentUsername,
     Map<String, dynamic> updateData,
@@ -655,7 +533,7 @@ class EditProfilePageState extends State<EditProfilePage> {
   Future<void> _handleEmailChangeWithToken(
     String message,
     String customToken,
-    String? imageUrl,
+    String? imageUrl, // This is the URL from the backend response
     String newUsername,
     String currentUsername,
   ) async {
@@ -666,10 +544,11 @@ class EditProfilePageState extends State<EditProfilePage> {
 
       final updatedUser = FirebaseAuth.instance.currentUser;
       if (updatedUser != null) {
+        // Solo actualizar la foto de perfil si se proporciona una URL de imagen
         if (imageUrl != null) await updatedUser.updatePhotoURL(imageUrl);
-        if (newUsername != currentUsername) {
-          await updatedUser.updateDisplayName(newUsername);
-        }
+
+        // Ya no actualizamos el nombre de usuario
+        // Se ha eliminado: await updatedUser.updateDisplayName(newUsername);
       }
       // Added mounted check
       if (!mounted) return;
@@ -696,28 +575,20 @@ class EditProfilePageState extends State<EditProfilePage> {
   Future<void> _handleProfileUpdateWithoutEmailChange(
     User currentUser,
     String message,
-    String? imageUrl,
+    String? imageUrl, // This is the URL from the backend response
     String newUsername,
     String currentUsername,
   ) async {
     try {
-      // Asegurarnos de actualizar la foto de perfil en Firebase si tenemos una URL de imagen nueva
-      if (imageUrl != null) {
-        // Corregir la URL añadiendo la base URL correctamente si la URL es relativa
-        String fullImageUrl = imageUrl;
-        if (!imageUrl.startsWith('http')) {
-          final baseUrl = ApiConfig().buildUrl('').replaceAll('/api/', '');
-          fullImageUrl =
-              '$baseUrl/$imageUrl'; // Asegurarnos que no haya doble barra
-        }
-
-        print("Actualizando photoURL en Firebase: $fullImageUrl");
-        await currentUser.updatePhotoURL(fullImageUrl);
+      // Update Firebase profile picture if a new image URL was provided by the backend
+      if (imageUrl != null && imageUrl.isNotEmpty) {
+        // Assume imageUrl from backend is the correct one to use
+        print("Actualizando photoURL en Firebase: $imageUrl");
+        await currentUser.updatePhotoURL(imageUrl);
       }
 
-      if (newUsername != currentUsername) {
-        await currentUser.updateDisplayName(newUsername);
-      }
+      // Ya no actualizamos el username en Firebase Auth
+      // Se ha eliminado: await currentUser.updateDisplayName(newUsername);
 
       // Added mounted check
       if (!mounted) return;
@@ -741,19 +612,28 @@ class EditProfilePageState extends State<EditProfilePage> {
     required bool emailChanged,
   }) async {
     try {
-      await http.post(
-        Uri.parse(ApiConfig().buildUrl('api/notifications/profile-updated')),
-        headers: {'Content-Type': 'application/json'},
-        body: json.encode({
-          'username':
-              currentUsername, // Send original username for identification
-          'newUsername': newUsername,
-          'email':
-              currentEmail, // Send the final email associated with the account
-          'updatedFields': updateData.keys.toList(),
-          'clientId': WebSocketService().clientId, // Exclude current device
-        }),
+      // Filtrar 'username' y 'oldUsername' de updatedFields para no notificar cambios de username
+      List<String> updatedFields = updateData.keys.toList();
+      updatedFields.removeWhere(
+        (field) => field == 'username' || field == 'oldUsername',
       );
+
+      // Solo enviar notificación si hay campos actualizados o si cambió el email
+      if (updatedFields.isNotEmpty || emailChanged) {
+        await http.post(
+          Uri.parse(ApiConfig().buildUrl('api/notifications/profile-updated')),
+          headers: {'Content-Type': 'application/json'},
+          body: json.encode({
+            'username':
+                currentUsername, // Solo usar el username actual para identificar al usuario
+            // Ya no enviamos 'newUsername' para evitar notificaciones de cambio de username
+            'email': currentEmail,
+            'updatedFields':
+                updatedFields, // Lista filtrada sin 'username' ni 'oldUsername'
+            'clientId': WebSocketService().clientId, // Exclude current device
+          }),
+        );
+      }
     } catch (e) {
       // Ignore errors here, main update was successful
     }
@@ -1090,7 +970,6 @@ class EditProfilePageState extends State<EditProfilePage> {
 
   @override
   Widget build(BuildContext context) {
-    // ... (build method remains largely the same, ensure const where possible)
     return Scaffold(
       appBar: AppBar(title: const Text('Edit Profile')),
       body: SingleChildScrollView(
@@ -1098,49 +977,88 @@ class EditProfilePageState extends State<EditProfilePage> {
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.stretch,
           children: [
-            // ... (Image preview)
-            if (_selectedImage != null && !kIsWeb)
-              Image.file(
-                _selectedImage!,
-                height: 100,
-                width: 100,
-                fit: BoxFit.cover,
+            // Image preview section
+            Center(
+              // Center the image preview and button
+              child: Column(
+                children: [
+                  const SizedBox(height: 20), // Add some top spacing
+                  // Display existing profile picture if available and no new one selected
+                  if (_selectedImage == null && _webImage == null)
+                    CircleAvatar(
+                      radius: 50,
+                      backgroundImage: NetworkImage(
+                        FirebaseAuth.instance.currentUser?.photoURL ?? '',
+                      ),
+                      // Fallback icon if no photoURL
+                      child:
+                          FirebaseAuth.instance.currentUser?.photoURL == null
+                              ? const Icon(Icons.person, size: 50)
+                              : null,
+                    ),
+                  // Display selected image preview
+                  if (_selectedImage != null && !kIsWeb)
+                    ClipOval(
+                      // Make preview circular
+                      child: Image.file(
+                        _selectedImage!,
+                        height: 100,
+                        width: 100,
+                        fit: BoxFit.cover,
+                      ),
+                    ),
+                  if (_webImage != null && kIsWeb)
+                    ClipOval(
+                      // Make preview circular
+                      child: Image.memory(
+                        _webImage!,
+                        height: 100,
+                        width: 100,
+                        fit: BoxFit.cover,
+                      ),
+                    ),
+                  const SizedBox(height: 10),
+                  TextButton.icon(
+                    // Use icon button for better UX
+                    onPressed: _pickImage,
+                    icon: const Icon(Icons.camera_alt),
+                    label: const Text('Cambiar Foto de Perfil'),
+                  ),
+                ],
               ),
-            if (_webImage != null && kIsWeb)
-              Image.memory(
-                _webImage!,
-                height: 100,
-                width: 100,
-                fit: BoxFit.cover,
-              ),
-            TextButton(
-              onPressed: _pickImage,
-              child: const Text('Select Profile Image'),
             ),
-            const SizedBox(height: 16), // Added space before first field
+            const SizedBox(height: 24), // Increased space after image section
             TextField(
               controller: _nameController,
               decoration: const InputDecoration(
-                labelText: 'Name',
+                labelText: 'Nombre', // Translate labels
                 border: OutlineInputBorder(),
+                prefixIcon: Icon(Icons.person_outline), // Add icon
               ),
             ),
             const SizedBox(height: 16),
             TextField(
               controller: _usernameController,
+              enabled: false, // Deshabilitar la edición del username
               decoration: const InputDecoration(
-                labelText: 'Username',
+                labelText: 'Nombre de Usuario', // Translate labels
                 border: OutlineInputBorder(),
+                prefixIcon: Icon(Icons.account_circle_outlined), // Add icon
+                hintText:
+                    'No se puede modificar', // Agregar indicación de que no se puede modificar
+                helperText:
+                    'El nombre de usuario no se puede modificar', // Ayuda adicional
               ),
             ),
             const SizedBox(height: 16),
             TextField(
               controller: _emailController,
               decoration: const InputDecoration(
-                labelText: 'Email',
+                labelText: 'Correo Electrónico', // Translate labels
                 border: OutlineInputBorder(),
+                prefixIcon: Icon(Icons.email_outlined), // Add icon
               ),
-              keyboardType: TextInputType.emailAddress, // Added keyboard type
+              keyboardType: TextInputType.emailAddress,
             ),
             const SizedBox(height: 16),
             DropdownButtonFormField<String>(
@@ -1158,14 +1076,22 @@ class EditProfilePageState extends State<EditProfilePage> {
                 });
               },
               decoration: const InputDecoration(
-                labelText: 'Language',
+                labelText: 'Idioma', // Translate labels
                 border: OutlineInputBorder(),
+                prefixIcon: Icon(Icons.language), // Add icon
               ),
             ),
             const SizedBox(height: 32),
-            ElevatedButton(
+            ElevatedButton.icon(
+              // Add icon to save button
               onPressed: _saveProfile,
-              child: const Text('Save Changes'),
+              icon: const Icon(Icons.save),
+              label: const Text('Guardar Cambios'),
+              style: ElevatedButton.styleFrom(
+                padding: const EdgeInsets.symmetric(
+                  vertical: 12,
+                ), // Adjust padding
+              ),
             ),
 
             // Sección de cambio de contraseña
@@ -1176,6 +1102,7 @@ class EditProfilePageState extends State<EditProfilePage> {
               child: Text(
                 'Cambiar Contraseña',
                 style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold),
+                textAlign: TextAlign.center, // Center title
               ),
             ),
 
@@ -1186,6 +1113,7 @@ class EditProfilePageState extends State<EditProfilePage> {
               decoration: InputDecoration(
                 labelText: 'Contraseña Actual',
                 border: const OutlineInputBorder(),
+                prefixIcon: const Icon(Icons.lock_outline), // Add icon
                 suffixIcon: IconButton(
                   icon: Icon(
                     _isCurrentPasswordVisible
@@ -1209,7 +1137,8 @@ class EditProfilePageState extends State<EditProfilePage> {
               decoration: InputDecoration(
                 labelText: 'Nueva Contraseña',
                 border: const OutlineInputBorder(),
-                helperText: 'Mínimo 8 caracteres', // Added helper text
+                prefixIcon: const Icon(Icons.lock_outline), // Add icon
+                helperText: 'Mínimo 8 caracteres',
                 suffixIcon: IconButton(
                   icon: Icon(
                     _isNewPasswordVisible
@@ -1233,6 +1162,7 @@ class EditProfilePageState extends State<EditProfilePage> {
               decoration: InputDecoration(
                 labelText: 'Confirmar Nueva Contraseña',
                 border: const OutlineInputBorder(),
+                prefixIcon: const Icon(Icons.lock_outline), // Add icon
                 suffixIcon: IconButton(
                   icon: Icon(
                     _isConfirmPasswordVisible
@@ -1249,15 +1179,20 @@ class EditProfilePageState extends State<EditProfilePage> {
             ),
             const SizedBox(height: 24),
 
-            ElevatedButton(
+            ElevatedButton.icon(
+              // Add icon to change password button
               onPressed: _changePassword,
+              icon: const Icon(Icons.sync_lock),
+              label: const Text('Actualizar Contraseña'),
               style: ElevatedButton.styleFrom(
                 backgroundColor: Colors.blue, // Consider using Theme colors
                 foregroundColor: Colors.white,
+                padding: const EdgeInsets.symmetric(
+                  vertical: 12,
+                ), // Adjust padding
               ),
-              child: const Text('Actualizar Contraseña'),
             ),
-            const SizedBox(height: 20), // Added space at the bottom
+            const SizedBox(height: 40), // Increased space at the bottom
           ],
         ),
       ),
