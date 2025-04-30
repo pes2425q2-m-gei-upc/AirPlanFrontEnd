@@ -300,7 +300,13 @@ class ChatListPageState extends State<ChatListPage> {
                 // Usar la imagen de perfil si está disponible, de lo contrario mostrar la inicial
                 backgroundImage:
                     chat.photoURL != null && chat.photoURL!.isNotEmpty
-                        ? NetworkImage(ApiConfig().buildUrl(chat.photoURL!))
+                        ? (chat.photoURL!.startsWith('http')
+                            ? NetworkImage(
+                              chat.photoURL!,
+                            ) // URL completa (Cloudinary)
+                            : NetworkImage(
+                              ApiConfig().buildUrl(chat.photoURL!),
+                            )) // URL relativa (backend)
                         : null,
                 child:
                     chat.photoURL != null && chat.photoURL!.isNotEmpty
