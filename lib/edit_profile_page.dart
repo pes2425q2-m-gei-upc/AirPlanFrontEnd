@@ -198,7 +198,13 @@ class EditProfilePageState extends State<EditProfilePage> {
 
   Future<void> _pickImage() async {
     final picker = ImagePicker();
-    final pickedFile = await picker.pickImage(source: ImageSource.gallery);
+    // Configurar para seleccionar una sola imagen con opciones de calidad y tamaño
+    final pickedFile = await picker.pickImage(
+      source: ImageSource.gallery,
+      imageQuality: 85, // Calidad de imagen (0-100)
+      maxHeight: 800, // Limitar altura máxima
+      maxWidth: 800, // Limitar anchura máxima
+    );
 
     if (pickedFile != null && mounted) {
       if (kIsWeb) {
@@ -332,33 +338,29 @@ class EditProfilePageState extends State<EditProfilePage> {
     // Added mounted check
     if (!mounted) return;
 
-    // 3. Upload Image if selected
-    String? imageUrl = await _uploadImageIfNeeded();
-    // Added mounted check after potential async gap
-    if (!mounted) return;
-
-    // 4. Prepare Update Data
-    final updateData = _prepareUpdateData(
+    // 3. Prepare Update Data, incluyendo la imagen directamente en la petición
+    final updateData = await _prepareUpdateDataWithImage(
       currentEmail,
       newEmail,
       currentUsername,
       newUsername,
-      imageUrl,
       password,
     );
 
-    // 5. Perform Backend Update
+    if (!mounted) return;
+
+    // 4. Perform Backend Update
     await _performBackendUpdate(
       updateData,
       currentEmail,
       newEmail,
       currentUsername,
       newUsername,
-      imageUrl,
+      updateData['photoURL'] as String?,
       emailChanged,
     );
 
-    // 6. Hide Loading Indicator (regardless of success/failure)
+    // 5. Hide Loading Indicator (regardless of success/failure)
     if (mounted) {
       ScaffoldMessenger.of(context).hideCurrentSnackBar();
     }
@@ -460,6 +462,60 @@ class EditProfilePageState extends State<EditProfilePage> {
     return updateData;
   }
 
+  Future<Map<String, dynamic>> _prepareUpdateDataWithImage(
+    String currentEmail,
+    String newEmail,
+    String currentUsername,
+    String newUsername,
+    String? password,
+  ) async {
+    final updateData = {
+      'currentEmail': currentEmail,
+      'clientId': WebSocketService().clientId,
+      'username': newUsername,
+      'oldUsername': currentUsername,
+      'nom': _nameController.text.trim(),
+      'idioma': _selectedLanguage,
+    };
+
+    if (newEmail != currentEmail) {
+      updateData['newEmail'] = newEmail;
+      if (password != null) {
+        updateData['password'] = password; // Password for re-authentication
+      }
+    }
+
+    // Incluir la imagen si se ha seleccionado una
+    if (_selectedImage != null || _webImage != null) {
+      // Convertir la imagen a base64 para incluirla en la petición JSON
+      String base64Image;
+
+      if (kIsWeb && _webImage != null) {
+        // Para web, ya tenemos los bytes
+        base64Image = base64Encode(_webImage!);
+      } else if (_selectedImage != null) {
+        // Para móvil, leemos los bytes del archivo
+        List<int> imageBytes = await _selectedImage!.readAsBytes();
+        base64Image = base64Encode(imageBytes);
+      } else {
+        return updateData; // No hay imagen para incluir
+      }
+
+      String fileName =
+          kIsWeb
+              ? 'web_image_${DateTime.now().millisecondsSinceEpoch}.jpg'
+              : _selectedImage!.path.split('/').last;
+
+      updateData['imageData'] = base64Image;
+      updateData['fileName'] = fileName;
+    } else {
+      // No se seleccionó ninguna imagen - omitimos estos campos en lugar de asignarles null
+      // No asignar null a imageData y fileName
+    }
+
+    return updateData;
+  }
+
   Future<void> _performBackendUpdate(
     Map<String, dynamic> updateData,
     String currentEmail,
@@ -494,6 +550,10 @@ class EditProfilePageState extends State<EditProfilePage> {
         final String message =
             responseData['message'] ?? 'Perfil actualizado correctamente';
         final String? customToken = responseData['customToken'] as String?;
+        // Obtener la URL de la imagen desde la respuesta si se subió una imagen
+        final String? imageUrlFromResponse =
+            responseData['imageUrl'] as String?;
+        final String? photoURL = imageUrlFromResponse ?? imageUrl;
 
         if (success) {
           // Pass necessary variables to _handleSuccessfulUpdate
@@ -502,7 +562,7 @@ class EditProfilePageState extends State<EditProfilePage> {
             message,
             customToken,
             emailChanged,
-            imageUrl,
+            photoURL, // Usar la URL de la imagen devuelta por el servidor
             newUsername,
             currentUsername,
             updateData,
@@ -641,22 +701,35 @@ class EditProfilePageState extends State<EditProfilePage> {
     String currentUsername,
   ) async {
     try {
-      if (imageUrl != null) await currentUser.updatePhotoURL(imageUrl);
+      // Asegurarnos de actualizar la foto de perfil en Firebase si tenemos una URL de imagen nueva
+      if (imageUrl != null) {
+        // Corregir la URL añadiendo la base URL correctamente si la URL es relativa
+        String fullImageUrl = imageUrl;
+        if (!imageUrl.startsWith('http')) {
+          final baseUrl = ApiConfig().buildUrl('').replaceAll('/api/', '');
+          fullImageUrl =
+              '$baseUrl/$imageUrl'; // Asegurarnos que no haya doble barra
+        }
+
+        print("Actualizando photoURL en Firebase: $fullImageUrl");
+        await currentUser.updatePhotoURL(fullImageUrl);
+      }
+
       if (newUsername != currentUsername) {
         await currentUser.updateDisplayName(newUsername);
       }
+
       // Added mounted check
       if (!mounted) return;
       NotificationService.showSuccess(context, message);
-      // _loadUserData(); // Moved to the end of _handleSuccessfulUpdate
     } catch (e) {
+      print("Error actualizando perfil en Firebase: ${e.toString()}");
       // Added mounted check
       if (!mounted) return;
       NotificationService.showInfo(
         context,
         '$message\nAlgunos cambios podrían no verse reflejados inmediatamente.',
       );
-      // _loadUserData(); // Moved to the end of _handleSuccessfulUpdate
     }
   }
 

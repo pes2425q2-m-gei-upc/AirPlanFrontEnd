@@ -5,6 +5,7 @@ import 'package:airplan/services/chat_websocket_service.dart';
 import 'package:airplan/services/notification_service.dart';
 import 'package:airplan/user_services.dart';
 import 'package:airplan/chat_detail_page.dart';
+import 'package:airplan/services/api_config.dart'; // Añadido para construir URLs
 import 'package:intl/intl.dart';
 
 class ChatListPage extends StatefulWidget {
@@ -296,13 +297,23 @@ class ChatListPageState extends State<ChatListPage> {
                     chat.isRead
                         ? Colors.blue.shade700
                         : Theme.of(context).primaryColor,
-                child: Text(
-                  _getUserDisplayName(chat.otherUsername)[0].toUpperCase(),
-                  style: const TextStyle(
-                    color: Colors.white,
-                    fontWeight: FontWeight.bold,
-                  ),
-                ),
+                // Usar la imagen de perfil si está disponible, de lo contrario mostrar la inicial
+                backgroundImage:
+                    chat.photoURL != null && chat.photoURL!.isNotEmpty
+                        ? NetworkImage(ApiConfig().buildUrl(chat.photoURL!))
+                        : null,
+                child:
+                    chat.photoURL != null && chat.photoURL!.isNotEmpty
+                        ? null // No mostrar texto si hay imagen
+                        : Text(
+                          _getUserDisplayName(
+                            chat.otherUsername,
+                          )[0].toUpperCase(),
+                          style: const TextStyle(
+                            color: Colors.white,
+                            fontWeight: FontWeight.bold,
+                          ),
+                        ),
               ),
               title: Text(
                 _getUserDisplayName(chat.otherUsername),
