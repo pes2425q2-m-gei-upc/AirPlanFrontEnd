@@ -371,8 +371,13 @@ class ChatListPageState extends State<ChatListPage> {
                   context,
                   MaterialPageRoute(
                     builder:
-                        (context) =>
-                            ChatDetailPage(username: chat.otherUsername),
+                        (context) => ChatDetailPage(
+                          username:
+                              chat.otherUsername, // Use username for backend calls
+                          name: _getUserDisplayName(
+                            chat.otherUsername,
+                          ), // Use real name for display
+                        ),
                   ),
                 ).then((_) => _loadChats());
               },

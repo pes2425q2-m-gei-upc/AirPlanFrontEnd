@@ -8,9 +8,14 @@ import 'dart:async';
 import 'package:airplan/services/user_block_service.dart';
 
 class ChatDetailPage extends StatefulWidget {
-  final String username;
+  final String username; // Used for backend calls
+  final String? name; // Used for UI display
 
-  const ChatDetailPage({super.key, required this.username});
+  const ChatDetailPage({
+    super.key,
+    required this.username,
+    this.name, // Optional to avoid breaking existing code
+  });
 
   @override
   ChatDetailPageState createState() => ChatDetailPageState();
@@ -430,7 +435,9 @@ class ChatDetailPageState extends State<ChatDetailPage> {
   // Métodos de construcción de UI separados para mejorar la legibilidad
   PreferredSizeWidget _buildAppBar() {
     return AppBar(
-      title: Text(widget.username),
+      title: Text(
+        widget.name ?? widget.username,
+      ), // Use name if available, otherwise username
       elevation: 1,
       actions: [
         PopupMenuButton<String>(
