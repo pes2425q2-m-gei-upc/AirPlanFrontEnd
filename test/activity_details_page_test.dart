@@ -68,6 +68,18 @@ void main() {
     expect(find.byIcon(Icons.delete), findsNothing);
   });
 
+  testWidgets('Creator should not see remove button for themselves in participant list', (WidgetTester tester) async {
+    // El creador no debe ver el botón de eliminar para sí mismo
+    await tester.pumpWidget(createActivityDetailsTestWidget(
+      isCreator: true,
+      showParticipantRemove: true,
+      showParticipants: true,
+    ));
+
+    // Verificar que el creador no vea el botón de eliminar para sí mismo
+    expect(find.byIcon(Icons.delete), findsNWidgets(2)); // Solo debe ver el ícono para los demás participantes
+  });
+
   testWidgets('Creator can see and remove participants', (WidgetTester tester) async {
     await tester.pumpWidget(createActivityDetailsTestWidget(
       isCreator: true,

@@ -135,58 +135,62 @@ class _ActivityDetailsPageState extends State<ActivityDetailsPage> {
               child: Text(showParticipants ? 'Hide Participants' : 'Show Participants'),
             ),
             if (showParticipants)
-              ...participants.map((p) => ListTile(
-                title: Text(p),
-                trailing: isCurrentUserCreator
-                    ? IconButton(
-                  icon: Icon(Icons.delete, color: Colors.red),
-                  onPressed: () async {
-                    final confirm = await showDialog<bool>(
-                      context: context,
-                      builder: (context) => AlertDialog(
-                        title: Text('Eliminar participante'),
-                        content: Text('¿Estás seguro de que quieres eliminar a $p de la actividad?'),
-                        actions: [
-                          TextButton(
-                            onPressed: () => Navigator.pop(context, false),
-                            child: Text('No'),
-                          ),
-                          TextButton(
-                            onPressed: () => Navigator.pop(context, true),
-                            child: Text('Sí'),
-                          ),
-                        ],
-                      ),
-                    );
+              ...participants.map((p) {
+                bool isCurrentUser = p == currentUser; // Verificamos si el participante es el usuario actual
+                return ListTile(
+                  dense: true,
+                  title: Text(p),
+                  trailing: isCurrentUserCreator && !isCurrentUser
+                      ? IconButton(
+                    icon: Icon(Icons.delete, color: Colors.red),
+                    onPressed: () async {
+                      final confirm = await showDialog<bool>(
+                        context: context,
+                        builder: (context) => AlertDialog(
+                          title: Text('Eliminar participante'),
+                          content: Text('¿Estás seguro de que quieres eliminar a $p de la actividad?'),
+                          actions: [
+                            TextButton(
+                              onPressed: () => Navigator.pop(context, false),
+                              child: Text('No'),
+                            ),
+                            TextButton(
+                              onPressed: () => Navigator.pop(context, true),
+                              child: Text('Sí'),
+                            ),
+                          ],
+                        ),
+                      );
 
-                    if (confirm == true) {
-                      final url = Uri.parse(
-                          'http://10.0.2.2:8080/api/activitats/${widget.id}/participants/$p');
+                      if (confirm == true) {
+                        final url = Uri.parse(
+                            'http://localhost:8080/api/activitats/${widget.id}/participants/$p');
 
-                      try {
-                        final response = await http.delete(url);
-                        if (response.statusCode == 200) {
-                          setState(() {
-                            participants.remove(p);
-                          });
+                        try {
+                          final response = await http.delete(url);
+                          if (response.statusCode == 200) {
+                            setState(() {
+                              participants.remove(p);
+                            });
+                            ScaffoldMessenger.of(context).showSnackBar(
+                              SnackBar(content: Text('$p eliminado correctamente')),
+                            );
+                          } else {
+                            ScaffoldMessenger.of(context).showSnackBar(
+                              SnackBar(content: Text('Error al eliminar $p')),
+                            );
+                          }
+                        } catch (e) {
                           ScaffoldMessenger.of(context).showSnackBar(
-                            SnackBar(content: Text('$p eliminado correctamente')),
-                          );
-                        } else {
-                          ScaffoldMessenger.of(context).showSnackBar(
-                            SnackBar(content: Text('Error al eliminar $p')),
+                            SnackBar(content: Text('Error de red al eliminar $p')),
                           );
                         }
-                      } catch (e) {
-                        ScaffoldMessenger.of(context).showSnackBar(
-                          SnackBar(content: Text('Error de red al eliminar $p')),
-                        );
                       }
-                    }
-                  },
-                )
-                    : null,
-              )),
+                    },
+                  )
+                      : null,
+                );
+              }).toList(),
 
             SizedBox(height: 16),
             Row(children: [
