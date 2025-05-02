@@ -37,6 +37,7 @@ class ChatDetailPageState extends State<ChatDetailPage> {
   final TextEditingController _messageController = TextEditingController();
   final ScrollController _scrollController = ScrollController();
   late final AuthService _authService;
+  final NotificationService _notificationService = NotificationService();
   List<Message> _messages = [];
   String? _currentUsername;
 
@@ -389,14 +390,14 @@ class ChatDetailPageState extends State<ChatDetailPage> {
 
         _scrollToBottom();
       } else if (mounted) {
-        NotificationService.showError(
+        _notificationService.showError(
           context,
           'Error al enviar el mensaje. Inténtalo de nuevo.',
         );
       }
     } catch (e) {
       if (mounted) {
-        NotificationService.showError(
+        _notificationService.showError(
           context,
           'Error al enviar el mensaje: ${e.toString()}',
         );
@@ -700,7 +701,7 @@ class ChatDetailPageState extends State<ChatDetailPage> {
     final user = _authService.getCurrentUser();
 
     if (user == null || user.displayName == null) {
-      NotificationService.showError(
+      _notificationService.showError(
         context,
         'No se pudo identificar tu usuario. Por favor, inicia sesión nuevamente.',
       );
@@ -726,12 +727,12 @@ class ChatDetailPageState extends State<ChatDetailPage> {
           // Ya no es necesario enviar otra notificación por WebSocket aquí
           // porque UserBlockService ya lo hizo internamente
 
-          NotificationService.showSuccess(
+          _notificationService.showSuccess(
             context,
             'Has bloqueado a ${widget.username}',
           );
         } else {
-          NotificationService.showError(
+          _notificationService.showError(
             context,
             'No se pudo bloquear al usuario. Inténtalo de nuevo más tarde.',
           );
@@ -740,7 +741,7 @@ class ChatDetailPageState extends State<ChatDetailPage> {
     } catch (e) {
       if (mounted) {
         ScaffoldMessenger.of(context).hideCurrentSnackBar();
-        NotificationService.showError(
+        _notificationService.showError(
           context,
           'Error al bloquear usuario: ${e.toString()}',
         );
@@ -780,7 +781,7 @@ class ChatDetailPageState extends State<ChatDetailPage> {
     final user = _authService.getCurrentUser();
 
     if (user == null || user.displayName == null) {
-      NotificationService.showError(
+      _notificationService.showError(
         context,
         'No se pudo identificar tu usuario. Por favor, inicia sesión nuevamente.',
       );
@@ -810,12 +811,12 @@ class ChatDetailPageState extends State<ChatDetailPage> {
           // Ya no es necesario enviar otra notificación por WebSocket aquí
           // porque UserBlockService ya lo hizo internamente
 
-          NotificationService.showSuccess(
+          _notificationService.showSuccess(
             context,
             'Has desbloqueado a ${widget.username}',
           );
         } else {
-          NotificationService.showError(
+          _notificationService.showError(
             context,
             'No se pudo desbloquear al usuario. Inténtalo de nuevo más tarde.',
           );
@@ -825,7 +826,7 @@ class ChatDetailPageState extends State<ChatDetailPage> {
       print('❌ ERROR durante el proceso de desbloqueo: $e');
       if (mounted) {
         ScaffoldMessenger.of(context).hideCurrentSnackBar();
-        NotificationService.showError(
+        _notificationService.showError(
           context,
           'Error al desbloquear usuario: ${e.toString()}',
         );

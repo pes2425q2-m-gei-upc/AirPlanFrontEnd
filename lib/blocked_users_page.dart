@@ -7,13 +7,15 @@ class BlockedUsersPage extends StatefulWidget {
   final String username;
   final AuthService? authService;
   final UserBlockService? blockService;
-  // For testing only - if true, don't show notifications to avoid timer issues
+  final NotificationService?
+  notificationService; // Add NotificationService as a dependency
 
   const BlockedUsersPage({
     super.key,
     required this.username,
     this.authService,
     this.blockService,
+    this.notificationService, // Initialize NotificationService
   });
 
   @override
@@ -23,6 +25,8 @@ class BlockedUsersPage extends StatefulWidget {
 class _BlockedUsersPageState extends State<BlockedUsersPage> {
   late final UserBlockService _blockService;
   late final AuthService _authService;
+  late final NotificationService
+  _notificationService; // Add NotificationService
   bool _isLoading = true;
   List<dynamic> _blockedUsers = [];
   String? _error;
@@ -32,6 +36,9 @@ class _BlockedUsersPageState extends State<BlockedUsersPage> {
     super.initState();
     _blockService = widget.blockService ?? UserBlockService();
     _authService = widget.authService ?? AuthService();
+    _notificationService =
+        widget.notificationService ??
+        NotificationService(); // Initialize NotificationService
     _loadBlockedUsers();
   }
 
@@ -59,17 +66,13 @@ class _BlockedUsersPageState extends State<BlockedUsersPage> {
   Future<void> _unblockUser(String blockedUsername) async {
     final user = _authService.getCurrentUser();
     if (user == null || user.displayName == null) {
-      // Skip notification in test mode
-
-      NotificationService.showError(
+      _notificationService.showError(
         context,
         'No se pudo identificar tu usuario. Por favor, inicia sesión nuevamente.',
       );
-
       return;
     }
 
-    // Confirmar antes de desbloquear
     final confirm = await showDialog<bool>(
       context: context,
       builder:
@@ -99,39 +102,31 @@ class _BlockedUsersPageState extends State<BlockedUsersPage> {
     });
 
     try {
-      // Llamar al servicio para desbloquear
       final success = await _blockService.unblockUser(
         user.displayName!,
         blockedUsername,
       );
 
       if (success) {
-        // Skip notification in test mode
-        NotificationService.showSuccess(
+        _notificationService.showSuccess(
           context,
           'Has desbloqueado a $blockedUsername',
         );
-
-        // Refrescar la lista
         await _loadBlockedUsers();
       } else {
-        // Skip notification in test mode
-        NotificationService.showError(
+        _notificationService.showError(
           context,
           'No se pudo desbloquear al usuario. Inténtalo de nuevo.',
         );
-
         setState(() {
           _isLoading = false;
         });
       }
     } catch (e) {
-      // Skip notification in test mode
-      NotificationService.showError(
+      _notificationService.showError(
         context,
         'Error al desbloquear usuario: ${e.toString()}',
       );
-
       setState(() {
         _isLoading = false;
       });

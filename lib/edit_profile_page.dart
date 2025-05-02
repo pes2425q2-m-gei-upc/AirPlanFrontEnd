@@ -53,6 +53,9 @@ class EditProfilePageState extends State<EditProfilePage> {
 
   final List<String> _languages = ['Castellano', 'Catalan', 'English'];
 
+  // Notification service instance
+  final NotificationService _notificationService = NotificationService();
+
   @override
   void initState() {
     super.initState();
@@ -186,7 +189,7 @@ class EditProfilePageState extends State<EditProfilePage> {
           _usernameController.text = username;
         });
         // Optionally show an error message
-        // NotificationService.showError(context, 'Error al cargar datos del perfil.');
+        // _notificationService.showError(context, 'Error al cargar datos del perfil.');
       }
     }
   }
@@ -239,7 +242,7 @@ class EditProfilePageState extends State<EditProfilePage> {
 
     final currentUser = _authService.getCurrentUser();
     if (currentUser == null) {
-      NotificationService.showError(
+      _notificationService.showError(
         context,
         'No hay ningún usuario con sesión iniciada.',
       );
@@ -339,7 +342,7 @@ class EditProfilePageState extends State<EditProfilePage> {
     // Added mounted check
     if (!mounted) return null;
     if (password == null || password.isEmpty) {
-      NotificationService.showInfo(context, 'Cambio de perfil cancelado.');
+      _notificationService.showInfo(context, 'Cambio de perfil cancelado.');
       return null;
     }
     final reauthSuccess = await _reauthenticateUser(password);
@@ -473,7 +476,7 @@ class EditProfilePageState extends State<EditProfilePage> {
             newEmail,
           );
         } else {
-          NotificationService.showError(
+          _notificationService.showError(
             context,
             responseData['error'] ?? 'Error al actualizar el perfil',
           );
@@ -490,7 +493,7 @@ class EditProfilePageState extends State<EditProfilePage> {
           errorMessage =
               'Error de comunicación con el servidor (${response.statusCode})';
         }
-        NotificationService.showError(context, errorMessage);
+        _notificationService.showError(context, errorMessage);
       }
     } catch (e) {
       // Added mounted check
@@ -498,7 +501,7 @@ class EditProfilePageState extends State<EditProfilePage> {
       ScaffoldMessenger.of(
         context,
       ).hideCurrentSnackBar(); // Ensure hidden on exception
-      NotificationService.showError(
+      _notificationService.showError(
         context,
         _getFriendlyErrorMessage(e.toString()),
       );
@@ -578,12 +581,12 @@ class EditProfilePageState extends State<EditProfilePage> {
       }
       // Added mounted check
       if (!mounted) return;
-      NotificationService.showSuccess(context, message);
+      _notificationService.showSuccess(context, message);
       // _loadUserData(); // Moved to the end of _handleSuccessfulUpdate
     } catch (e) {
       // Added mounted check
       if (!mounted) return;
-      NotificationService.showInfo(
+      _notificationService.showInfo(
         context,
         '$message\nPero hubo un problema con tu sesión. Puede que tengas que iniciar sesión nuevamente.',
       );
@@ -591,7 +594,7 @@ class EditProfilePageState extends State<EditProfilePage> {
   }
 
   void _handleEmailChangeWithoutToken(String message) {
-    NotificationService.showInfo(
+    _notificationService.showInfo(
       context,
       '$message\nPor favor, inicia sesión nuevamente con tu nuevo correo.',
     );
@@ -618,12 +621,12 @@ class EditProfilePageState extends State<EditProfilePage> {
 
       // Added mounted check
       if (!mounted) return;
-      NotificationService.showSuccess(context, message);
+      _notificationService.showSuccess(context, message);
     } catch (e) {
       print("Error actualizando perfil en Firebase: ${e.toString()}");
       // Added mounted check
       if (!mounted) return;
-      NotificationService.showInfo(
+      _notificationService.showInfo(
         context,
         '$message\nAlgunos cambios podrían no verse reflejados inmediatamente.',
       );
@@ -718,12 +721,12 @@ class EditProfilePageState extends State<EditProfilePage> {
           errorMessage = 'Error en la autenticación: ${e.message}';
           break;
       }
-      NotificationService.showError(context, errorMessage);
+      _notificationService.showError(context, errorMessage);
       return false;
     } catch (e) {
       // Added mounted check
       if (!mounted) return false;
-      NotificationService.showError(
+      _notificationService.showError(
         context,
         _getFriendlyErrorMessage(e.toString()),
       );
@@ -867,7 +870,7 @@ class EditProfilePageState extends State<EditProfilePage> {
       _currentPasswordController.clear();
       _newPasswordController.clear();
       _confirmPasswordController.clear();
-      NotificationService.showSuccess(
+      _notificationService.showSuccess(
         context,
         'Contraseña actualizada correctamente',
       );
@@ -900,12 +903,12 @@ class EditProfilePageState extends State<EditProfilePage> {
         default:
           errorMessage = 'Error al cambiar la contraseña: ${e.message}';
       }
-      NotificationService.showError(context, errorMessage);
+      _notificationService.showError(context, errorMessage);
     } catch (e) {
       // Added mounted check
       if (!mounted) return;
       ScaffoldMessenger.of(context).hideCurrentSnackBar();
-      NotificationService.showError(
+      _notificationService.showError(
         context,
         'Error al cambiar la contraseña: ${_getFriendlyErrorMessage(e.toString())}',
       );

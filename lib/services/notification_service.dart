@@ -5,7 +5,7 @@ import 'dart:async';
 /// sin desplazar la pantalla usando Overlay
 class NotificationService {
   /// Muestra una notificación de éxito (verde)
-  static void showSuccess(BuildContext context, String message) {
+  void showSuccess(BuildContext context, String message) {
     _showNotification(
       context: context,
       message: message,
@@ -15,7 +15,7 @@ class NotificationService {
   }
 
   /// Muestra una notificación de error (roja)
-  static void showError(BuildContext context, String message) {
+  void showError(BuildContext context, String message) {
     _showNotification(
       context: context,
       message: message,
@@ -25,7 +25,7 @@ class NotificationService {
   }
 
   /// Muestra una notificación de información (azul)
-  static void showInfo(BuildContext context, String message) {
+  void showInfo(BuildContext context, String message) {
     _showNotification(
       context: context,
       message: message,
@@ -65,6 +65,7 @@ class NotificationService {
             icon: icon,
             onDismiss: () {
               overlayEntry.remove();
+              print('Notification dismissed manually.'); // Debug print
             },
           ),
     );
@@ -73,10 +74,14 @@ class NotificationService {
 
     // Automatically remove the notification after the specified duration
     Timer(duration, () {
+      print('Timer triggered for notification removal.'); // Debug print
       if (overlayKey.currentState != null && overlayKey.currentState!.mounted) {
         overlayKey.currentState!._controller.reverse().then((_) {
           overlayEntry.remove();
+          print('Notification removed after timer.'); // Debug print
         });
+      } else {
+        print('Notification already removed or not mounted.'); // Debug print
       }
     });
   }

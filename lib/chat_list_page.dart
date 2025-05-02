@@ -30,6 +30,7 @@ class ChatListPageState extends State<ChatListPage> {
   late final ChatService _chatService;
   late final ChatWebSocketService _chatWebSocketService;
   late final AuthService _authService;
+  final NotificationService _notificationService = NotificationService();
   List<Chat> _chats = [];
   List<Chat> _filteredChats = [];
   bool _isLoading = true;
@@ -142,7 +143,7 @@ class ChatListPageState extends State<ChatListPage> {
         setState(() {
           _isLoading = false;
         });
-        NotificationService.showError(
+        _notificationService.showError(
           context,
           'Error al cargar los chats: ${e.toString()}',
         );

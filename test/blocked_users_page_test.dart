@@ -65,6 +65,8 @@ void main() {
         username: 'testuser',
         authService: mockAuthService,
         blockService: mockBlockService,
+        notificationService:
+            mockNotificationService, // Pass mock NotificationService
       ),
     );
   }

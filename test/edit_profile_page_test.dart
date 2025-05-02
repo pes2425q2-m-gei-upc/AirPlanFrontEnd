@@ -57,29 +57,19 @@ class MockFirebasePlatform extends FirebasePlatform
 
 // Mock notification service para tests
 class MockNotificationService extends NotificationService {
-  static String? lastErrorMessage;
-  static String? lastInfoMessage;
-  static String? lastSuccessMessage;
-
   @override
-  static void showError(BuildContext context, String message) {
-    lastErrorMessage = message;
+  void showError(BuildContext context, String message) {
+    // Mock implementation: Do nothing
   }
 
   @override
-  static void showInfo(BuildContext context, String message) {
-    lastInfoMessage = message;
+  void showInfo(BuildContext context, String message) {
+    // Mock implementation: Do nothing
   }
 
   @override
-  static void showSuccess(BuildContext context, String message) {
-    lastSuccessMessage = message;
-  }
-
-  static void reset() {
-    lastErrorMessage = null;
-    lastInfoMessage = null;
-    lastSuccessMessage = null;
+  void showSuccess(BuildContext context, String message) {
+    // Mock implementation: Do nothing
   }
 }
 
@@ -132,9 +122,6 @@ void main() {
     // Initialize global controller para tests
     profileUpdateStreamController =
         StreamController<Map<String, dynamic>>.broadcast();
-
-    // Reset notification mock
-    MockNotificationService.reset();
   });
 
   tearDown(() {
