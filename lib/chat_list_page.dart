@@ -5,32 +5,48 @@ import 'package:airplan/services/chat_websocket_service.dart';
 import 'package:airplan/services/notification_service.dart';
 import 'package:airplan/user_services.dart';
 import 'package:airplan/chat_detail_page.dart';
-import 'package:airplan/services/api_config.dart'; // Añadido para construir URLs
+import 'package:airplan/services/api_config.dart';
+import 'package:airplan/services/auth_service.dart'; // Importar AuthService
 import 'package:intl/intl.dart';
 
 class ChatListPage extends StatefulWidget {
-  const ChatListPage({super.key});
+  // Inyectamos los servicios para facilitar pruebas
+  final ChatService? chatService;
+  final ChatWebSocketService? chatWebSocketService;
+  final AuthService? authService;
+
+  const ChatListPage({
+    super.key,
+    this.chatService,
+    this.chatWebSocketService,
+    this.authService,
+  });
 
   @override
   ChatListPageState createState() => ChatListPageState();
 }
 
 class ChatListPageState extends State<ChatListPage> {
-  final ChatService _chatService = ChatService();
-  final ChatWebSocketService _chatWebSocketService = ChatWebSocketService();
+  late final ChatService _chatService;
+  late final ChatWebSocketService _chatWebSocketService;
+  late final AuthService _authService;
   List<Chat> _chats = [];
-  List<Chat> _filteredChats = []; // Lista filtrada para búsqueda
+  List<Chat> _filteredChats = [];
   bool _isLoading = true;
-  final Map<String, String> _userNames =
-      {}; // Almacenar nombres reales de los usuarios
+  final Map<String, String> _userNames = {};
   Timer? _refreshTimer;
   StreamSubscription? _chatMessageSubscription;
-  final TextEditingController _searchController =
-      TextEditingController(); // Controlador para búsqueda
+  final TextEditingController _searchController = TextEditingController();
 
   @override
   void initState() {
     super.initState();
+    // Inicializar servicios con inyección de dependencias o valores por defecto
+    _chatService = widget.chatService ?? ChatService();
+    _chatWebSocketService =
+        widget.chatWebSocketService ?? ChatWebSocketService();
+    _authService = widget.authService ?? AuthService();
+
     _loadChats();
     _setupMessageListener();
 

@@ -1,52 +1,64 @@
-import 'package:firebase_auth/firebase_auth.dart';
 import 'package:flutter/material.dart';
+import 'package:airplan/services/auth_service.dart';
 import 'login_page.dart';
 
 class DeleteAccountPage extends StatefulWidget {
-  const DeleteAccountPage({super.key});
+  // Add support for dependency injection
+  final AuthService? authService;
+
+  const DeleteAccountPage({super.key, this.authService});
 
   @override
   DeleteAccountPageState createState() => DeleteAccountPageState();
 }
 
 class DeleteAccountPageState extends State<DeleteAccountPage> {
-  final FirebaseAuth _auth = FirebaseAuth.instance;
+  late final AuthService _authService;
+
+  @override
+  void initState() {
+    super.initState();
+    // Initialize auth service with injected or default instance
+    _authService = widget.authService ?? AuthService();
+  }
 
   Future<void> _deleteAccount() async {
-    User? user = _auth.currentUser;
+    try {
+      // Use AuthService instead of direct Firebase call
+      await _authService.deleteCurrentUser();
 
-    if (user != null) {
-      try {
-        await user.delete(); // Elimina l'usuari de Firebase Authentication
-        final actualContext = context;
-        if (actualContext.mounted) {
+      final actualContext = context;
+      if (actualContext.mounted) {
+        ScaffoldMessenger.of(actualContext).showSnackBar(
+          const SnackBar(content: Text('Compte eliminat correctament')),
+        );
+
+        // Tornar a la pantalla d'inici de sessió
+        Navigator.pushAndRemoveUntil(
+          actualContext,
+          MaterialPageRoute(
+            builder: (context) => LoginPage(authService: _authService),
+          ),
+          (Route<dynamic> route) => false,
+        );
+      }
+    } catch (e) {
+      final actualContext = context;
+      if (actualContext.mounted) {
+        // Check for requires-recent-login error
+        String errorMessage = e.toString();
+        if (errorMessage.contains('requires-recent-login')) {
           ScaffoldMessenger.of(actualContext).showSnackBar(
-            const SnackBar(content: Text('Compte eliminat correctament')),
-          );
-
-          // Tornar a la pantalla d'inici de sessió
-          Navigator.pushAndRemoveUntil(
-            actualContext,
-            MaterialPageRoute(builder: (context) => const LoginPage()),
-                (Route<dynamic> route) => false,
-          );
-        }
-      } on FirebaseAuthException catch (e) {
-        final actualContext = context;
-        if (actualContext.mounted) {
-          if (e.code == 'requires-recent-login') {
-            ScaffoldMessenger.of(actualContext).showSnackBar(
-              const SnackBar(
-                content: Text(
-                  'Has de tornar a iniciar sessió per esborrar el compte',
-                ),
+            const SnackBar(
+              content: Text(
+                'Has de tornar a iniciar sessió per esborrar el compte',
               ),
-            );
-          } else {
-            ScaffoldMessenger.of(actualContext).showSnackBar(
-              SnackBar(content: Text('Error: ${e.message}')),
-            );
-          }
+            ),
+          );
+        } else {
+          ScaffoldMessenger.of(
+            actualContext,
+          ).showSnackBar(SnackBar(content: Text('Error: $errorMessage')));
         }
       }
     }
@@ -55,23 +67,26 @@ class DeleteAccountPageState extends State<DeleteAccountPage> {
   void _confirmDelete() {
     showDialog(
       context: context,
-      builder: (context) => AlertDialog(
-        title: const Text('Confirmació'),
-        content: const Text('Segur que vols esborrar el teu compte? Aquesta acció és irreversible.'),
-        actions: [
-          TextButton(
-            onPressed: () => Navigator.pop(context),
-            child: const Text('Cancel·lar'),
+      builder:
+          (context) => AlertDialog(
+            title: const Text('Confirmació'),
+            content: const Text(
+              'Segur que vols esborrar el teu compte? Aquesta acció és irreversible.',
+            ),
+            actions: [
+              TextButton(
+                onPressed: () => Navigator.pop(context),
+                child: const Text('Cancel·lar'),
+              ),
+              ElevatedButton(
+                onPressed: () {
+                  Navigator.pop(context);
+                  _deleteAccount();
+                },
+                child: const Text('Esborrar'),
+              ),
+            ],
           ),
-          ElevatedButton(
-            onPressed: () {
-              Navigator.pop(context);
-              _deleteAccount();
-            },
-            child: const Text('Esborrar'),
-          ),
-        ],
-      ),
     );
   }
 

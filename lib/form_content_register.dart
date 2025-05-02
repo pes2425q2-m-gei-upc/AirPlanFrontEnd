@@ -1,23 +1,32 @@
 import 'package:flutter/material.dart';
-import 'package:firebase_auth/firebase_auth.dart';
+import 'package:firebase_auth/firebase_auth.dart'; // Importación necesaria para FirebaseAuthException
 import 'package:flutter/services.dart';
 import 'dart:convert';
 import 'package:http/http.dart' as http;
-import 'services/api_config.dart'; // Importar la configuración de API
+import 'services/api_config.dart';
 import 'package:airplan/terms_page.dart';
 import 'package:airplan/user_services.dart';
 import 'rive_controller.dart';
+import 'services/auth_service.dart';
 
 class FormContentRegister extends StatefulWidget {
   final RiveAnimationControllerHelper riveHelper;
+  final AuthService? authService;
 
-  const FormContentRegister({super.key, required this.riveHelper});
+  const FormContentRegister({
+    super.key,
+    required this.riveHelper,
+    this.authService,
+  });
 
   @override
   State<FormContentRegister> createState() => _FormContentRegisterState();
 }
 
 class _FormContentRegisterState extends State<FormContentRegister> {
+  // Usamos late para inicializar en initState
+  late final AuthService _authService;
+
   bool _isPasswordVisible = false;
   bool _isConfirmPasswordVisible = false;
   bool _agreeToTerms = false;
@@ -42,6 +51,8 @@ class _FormContentRegisterState extends State<FormContentRegister> {
   @override
   void initState() {
     super.initState();
+    // Inicializamos el servicio auth usando el proporcionado o creando uno nuevo
+    _authService = widget.authService ?? AuthService();
     _setupPasswordFocusListeners();
   }
 
@@ -106,27 +117,34 @@ class _FormContentRegisterState extends State<FormContentRegister> {
       } else {
         _handleBackendError(response.body);
       }
-    } on FirebaseAuthException catch (e) {
-      _handleFirebaseError(e);
-    } on PlatformException catch (e) {
-      _handlePlatformError(e);
     } catch (e) {
-      _handleGenericError();
+      if (e is FirebaseAuthException) {
+        _handleFirebaseError(e);
+      } else if (e is PlatformException) {
+        _handlePlatformError(e);
+      } else {
+        _handleGenericError();
+      }
     }
   }
 
   void _handleRegistrationSuccess() async {
     widget.riveHelper.addSuccessController();
     try {
-      final userCredential = await FirebaseAuth.instance
-          .createUserWithEmailAndPassword(
-            email: _emailController.text.trim(),
-            password: _passwordController.text.trim(),
-          );
-      await userCredential.user?.updateProfile(
-        displayName: _usernameController.text.trim(),
+      // Usar AuthService en lugar de Firebase directamente
+      final userCredential = await _authService.createUserWithEmailAndPassword(
+        _emailController.text.trim(),
+        _passwordController.text.trim(),
       );
-      await userCredential.user?.sendEmailVerification();
+
+      // Actualizar el nombre de usuario con AuthService
+      await _authService.updateDisplayName(_usernameController.text.trim());
+
+      // Enviar verificación de email
+      if (userCredential.user != null) {
+        await _authService.sendEmailVerification();
+      }
+
       if (!mounted) return;
 
       // Regresar a la pantalla anterior
@@ -150,7 +168,6 @@ class _FormContentRegisterState extends State<FormContentRegister> {
     _formKey.currentState?.validate();
   }
 
-  // En el método _handleFirebaseError
   void _handleFirebaseError(FirebaseAuthException e) async {
     widget.riveHelper.addFailController();
 

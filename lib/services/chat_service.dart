@@ -3,6 +3,7 @@ import 'package:http/http.dart' as http;
 import 'package:firebase_auth/firebase_auth.dart';
 import 'package:airplan/services/api_config.dart';
 import 'package:airplan/services/chat_websocket_service.dart';
+import 'package:airplan/services/auth_service.dart'; // Importar AuthService
 import 'package:flutter/foundation.dart';
 
 class Message {
@@ -73,14 +74,32 @@ class Chat {
 class ChatService {
   // Singleton instance
   static final ChatService _instance = ChatService._internal();
-  factory ChatService() => _instance;
-  ChatService._internal() {
-    // Initialize the WebSocket service reference
-    _chatWebSocketService = ChatWebSocketService();
+
+  // Constructor factory con posibilidad de inyectar dependencias
+  factory ChatService({
+    ChatWebSocketService? chatWebSocketService,
+    AuthService? authService,
+  }) {
+    // Si se proporcionan servicios, actualizar las instancias en el singleton
+    if (chatWebSocketService != null) {
+      _instance._chatWebSocketService = chatWebSocketService;
+    }
+    if (authService != null) {
+      _instance._authService = authService;
+    }
+    return _instance;
   }
 
-  // Reference to the WebSocket service specific for chat
-  late final ChatWebSocketService _chatWebSocketService;
+  // Constructor interno privado
+  ChatService._internal() {
+    // Inicializar servicios con valores por defecto
+    _chatWebSocketService = ChatWebSocketService();
+    _authService = AuthService();
+  }
+
+  // Referencias a servicios
+  late ChatWebSocketService _chatWebSocketService;
+  late AuthService _authService;
 
   // Send a message to another user using WebSocket
   Future<bool> sendMessage(String receiverUsername, String content) async {
@@ -99,7 +118,8 @@ class ChatService {
   // Get conversation history between current user and another user via HTTP
   Future<List<Message>> getConversation(String otherUsername) async {
     try {
-      final currentUser = FirebaseAuth.instance.currentUser;
+      // Usar AuthService en lugar de Firebase Auth directamente
+      final currentUser = _authService.getCurrentUser();
       if (currentUser == null || currentUser.displayName == null) {
         debugPrint('User not logged in for getConversation');
         return [];
@@ -141,7 +161,8 @@ class ChatService {
   // Get all chats for the current user
   Future<List<Chat>> getAllChats() async {
     try {
-      final currentUser = FirebaseAuth.instance.currentUser;
+      // Usar AuthService en lugar de Firebase Auth directamente
+      final currentUser = _authService.getCurrentUser();
       if (currentUser == null || currentUser.displayName == null) {
         return [];
       }

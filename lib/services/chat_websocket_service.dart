@@ -4,6 +4,7 @@ import 'package:firebase_auth/firebase_auth.dart';
 import 'dart:convert';
 import 'package:flutter/material.dart';
 import 'package:airplan/services/api_config.dart';
+import 'package:airplan/services/auth_service.dart'; // Importamos el nuevo servicio
 
 /// Service to manage the chat WebSocket connection.
 class ChatWebSocketService {
@@ -19,9 +20,11 @@ class ChatWebSocketService {
   String _currentUsername = '';
   String? _currentChatPartner;
   Timer? _chatPingTimer;
+  final AuthService _authService; // Usamos AuthService
 
-  ChatWebSocketService._internal() {
-    FirebaseAuth.instance.authStateChanges().listen((User? user) {
+  ChatWebSocketService._internal({AuthService? authService})
+    : _authService = authService ?? AuthService() {
+    _authService.authStateChanges.listen((User? user) {
       if (user == null) {
         disconnectChat();
       } else {
@@ -29,7 +32,7 @@ class ChatWebSocketService {
       }
     });
     // Initialize username immediately if already logged in
-    final currentUser = FirebaseAuth.instance.currentUser;
+    final currentUser = _authService.getCurrentUser();
     if (currentUser != null) {
       _currentUsername = currentUser.displayName ?? '';
     }

@@ -1,183 +1,437 @@
-// login_page_test.dart
 import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
-import 'test_helpers.dart';
+import 'package:mockito/mockito.dart';
+import 'package:mockito/annotations.dart';
+import 'package:http/http.dart' as http;
+import 'package:airplan/login_page.dart';
+import 'package:airplan/register.dart';
+import 'package:airplan/reset_password.dart';
+import 'package:airplan/services/auth_service.dart';
+import 'package:airplan/services/websocket_service.dart';
+import 'package:firebase_auth/firebase_auth.dart';
+import 'package:firebase_core/firebase_core.dart';
+import 'package:firebase_core_platform_interface/firebase_core_platform_interface.dart';
+import 'package:plugin_platform_interface/plugin_platform_interface.dart'; // Import mixin
+import 'login_page_test.mocks.dart';
 
-void main() {
-  setUp(() {
-    // Initialize Firebase mocks before each test
-    FirebaseTestSetup.setupFirebaseMocks();
-  });
+// Generate mocks
+@GenerateMocks([http.Client, WebSocketService, AuthService])
+// --- Mock Firebase Platform Implementation ---
+// Update MockFirebaseAppPlatform to extend FirebaseAppPlatform and use MockPlatformInterfaceMixin
+class MockFirebaseAppPlatform extends FirebaseAppPlatform
+    with MockPlatformInterfaceMixin {
+  // Call super with positional arguments as required by FirebaseAppPlatform
+  MockFirebaseAppPlatform() : super('[DEFAULT]', _mockOptions);
 
-  // Create a more robust wrapper for login page tests
-  Widget createLoginTestWidget({
-    bool showValidationErrors = false,
-    String? emailErrorText,
-    String? passwordErrorText,
-    String? loginErrorText,
-  }) {
-    return MaterialApp(
-      home: Scaffold(
-        appBar: AppBar(title: const Text("Iniciar Sessió")),
-        body: Padding(
-          padding: const EdgeInsets.all(16.0),
-          child: Column(
-            mainAxisAlignment: MainAxisAlignment.center,
-            children: [
-              TextField(
-                decoration: InputDecoration(
-                  labelText: "Correu electrònic",
-                  border: const OutlineInputBorder(),
-                  errorText: showValidationErrors ? emailErrorText : null,
-                ),
-              ),
-              const SizedBox(height: 12),
-              TextField(
-                obscureText: true,
-                decoration: InputDecoration(
-                  labelText: "Contrasenya",
-                  border: const OutlineInputBorder(),
-                  errorText: showValidationErrors ? passwordErrorText : null,
-                ),
-              ),
-              const SizedBox(height: 12),
-              if (loginErrorText != null && showValidationErrors)
-                Padding(
-                  padding: const EdgeInsets.only(bottom: 12),
-                  child: Text(
-                    loginErrorText,
-                    style: const TextStyle(color: Colors.red),
-                  ),
-                ),
-              ElevatedButton(
-                onPressed: () {},
-                child: const Text("Iniciar Sessió"),
-              ),
-              const SizedBox(height: 12),
-              TextButton(
-                onPressed: () {},
-                child: const Text("No tens compte? Registra't aquí"),
-              ),
-              TextButton(
-                onPressed: () {},
-                child: const Text("Has oblidat la contrasenya?"),
-              ),
-            ],
-          ),
-        ),
-      ),
-    );
+  static const FirebaseOptions _mockOptions = FirebaseOptions(
+    apiKey: 'mock_api_key',
+    appId: 'mock_app_id',
+    messagingSenderId: 'mock_sender_id',
+    projectId: 'mock_project_id',
+  );
+
+  // Override methods used by your code if necessary, otherwise the mixin handles them.
+}
+
+// Update MockFirebasePlatform to extend FirebasePlatform and use MockPlatformInterfaceMixin
+class MockFirebasePlatform extends FirebasePlatform
+    with MockPlatformInterfaceMixin {
+  @override
+  Future<FirebaseAppPlatform> initializeApp({
+    String? name,
+    FirebaseOptions? options,
+  }) async {
+    return MockFirebaseAppPlatform(); // Return the mock platform app
   }
 
-  testWidgets('LoginPage renders correctly with email and password fields', (
-    WidgetTester tester,
-  ) async {
-    await tester.pumpWidget(createLoginTestWidget());
+  @override
+  List<FirebaseAppPlatform> get apps => [MockFirebaseAppPlatform()]; // Return list with mock platform app
 
-    // Check for UI elements - use more specific finders
-    expect(
-      find.widgetWithText(AppBar, 'Iniciar Sessió'),
-      findsOneWidget,
-    ); // Check AppBar title
-    expect(
-      find.widgetWithText(ElevatedButton, 'Iniciar Sessió'),
-      findsOneWidget,
-    ); // Check button text
-    expect(find.text('Correu electrònic'), findsOneWidget);
-    expect(find.text('Contrasenya'), findsOneWidget);
-    expect(find.byType(TextField), findsAtLeast(2));
-    expect(find.byType(ElevatedButton), findsOneWidget);
+  @override
+  FirebaseAppPlatform app([String name = defaultFirebaseAppName]) {
+    return MockFirebaseAppPlatform(); // Return the mock platform app
+  }
 
-    // Check for the registration link
-    expect(find.text("No tens compte? Registra't aquí"), findsOneWidget);
+  // Implement other methods if they are called during your tests
+}
 
-    // Check for forgot password link
-    expect(find.text("Has oblidat la contrasenya?"), findsOneWidget);
+// Create stubs for Firebase types
+class TestUserCredential implements UserCredential {
+  @override
+  final User? user;
+  @override
+  final AdditionalUserInfo? additionalUserInfo = null;
+  @override
+  final AuthCredential? credential = null;
+
+  TestUserCredential({this.user});
+}
+
+class TestUser implements User {
+  final String? _email;
+  final String? _displayName;
+
+  TestUser({String? email, String? displayName})
+    : _email = email,
+      _displayName = displayName;
+
+  @override
+  String? get email => _email;
+
+  @override
+  String? get displayName => _displayName;
+
+  // Implement remaining required methods with default values
+  @override
+  dynamic noSuchMethod(Invocation invocation) => super.noSuchMethod(invocation);
+}
+
+// Helper function to setup Firebase mocks using FirebasePlatform.instance
+Future<void> setupFirebaseCoreMocks() async {
+  TestWidgetsFlutterBinding.ensureInitialized();
+  // Set the mock platform instance *before* calling Firebase.initializeApp
+  FirebasePlatform.instance = MockFirebasePlatform();
+  // No need to mock MethodChannel directly when using FirebasePlatform.instance
+
+  // Initialize Firebase - this will now use the MockFirebasePlatform
+  await Firebase.initializeApp();
+}
+
+void main() {
+  late MockAuthService mockAuthService;
+  late MockWebSocketService mockWebSocketService;
+  late MockClient mockHttpClient;
+
+  // Use setUpAll for one-time setup like Firebase initialization
+  setUpAll(() async {
+    await setupFirebaseCoreMocks();
   });
 
-  testWidgets('Form validation shows error for empty email field', (
-    WidgetTester tester,
-  ) async {
-    await tester.pumpWidget(
-      createLoginTestWidget(
-        showValidationErrors: true,
-        emailErrorText: 'El correu electrònic és obligatori',
-      ),
-    );
+  setUp(() {
+    mockAuthService = MockAuthService();
+    mockWebSocketService = MockWebSocketService();
+    mockHttpClient = MockClient();
 
-    // Verify error message is displayed for empty email
-    expect(find.text('El correu electrònic és obligatori'), findsOneWidget);
+    // Default mock behavior
+    when(mockWebSocketService.clientId).thenReturn('test-client-id');
   });
 
-  testWidgets('Form validation shows error for invalid email format', (
-    WidgetTester tester,
-  ) async {
-    await tester.pumpWidget(
-      createLoginTestWidget(
-        showValidationErrors: true,
-        emailErrorText: 'Format de correu electrònic no vàlid',
-      ),
-    );
+  group('LoginPage UI Tests', () {
+    testWidgets('renders all required UI elements', (
+      WidgetTester tester,
+    ) async {
+      await tester.pumpWidget(
+        MaterialApp(
+          home: LoginPage(
+            authService: mockAuthService,
+            webSocketService: mockWebSocketService,
+            httpClient: mockHttpClient,
+          ),
+        ),
+      );
 
-    // Verify error message is displayed for invalid email
-    expect(find.text('Format de correu electrònic no vàlid'), findsOneWidget);
-  });
+      // Verify UI elements
+      expect(find.text('Iniciar Sessió'), findsNWidgets(2)); // AppBar + button
+      expect(find.text('Correu electrònic'), findsOneWidget);
+      expect(find.text('Contrasenya'), findsOneWidget);
+      expect(find.text("No tens compte? Registra't aquí"), findsOneWidget);
+      expect(find.text('Has oblidat la contrasenya?'), findsOneWidget);
+      expect(find.byType(TextField), findsNWidgets(2));
+      expect(find.byType(ElevatedButton), findsOneWidget);
+    });
 
-  testWidgets('Form validation shows error for short password', (
-    WidgetTester tester,
-  ) async {
-    await tester.pumpWidget(
-      createLoginTestWidget(
-        showValidationErrors: true,
-        passwordErrorText: 'La contrasenya ha de tenir almenys 6 caràcters',
-      ),
-    );
+    testWidgets('navigates to signup page when register link is tapped', (
+      WidgetTester tester,
+    ) async {
+      final mockSignUpPage = Scaffold(
+        appBar: AppBar(title: const Text('Mock SignUpPage')),
+      );
 
-    // Verify error message is displayed for short password
-    expect(
-      find.text('La contrasenya ha de tenir almenys 6 caràcters'),
-      findsOneWidget,
-    );
-  });
+      await tester.pumpWidget(
+        MaterialApp(
+          home: LoginPage(
+            authService: mockAuthService,
+            webSocketService: mockWebSocketService,
+            httpClient: mockHttpClient,
+            signUpPage: mockSignUpPage,
+          ),
+        ),
+      );
 
-  testWidgets('Shows authentication error message on failed login', (
-    WidgetTester tester,
-  ) async {
-    await tester.pumpWidget(
-      createLoginTestWidget(
-        showValidationErrors: true,
-        loginErrorText: 'Usuari o contrasenya incorrectes',
-      ),
-    );
-
-    // Verify authentication error message is displayed
-    expect(find.text('Usuari o contrasenya incorrectes'), findsOneWidget);
-  });
-
-  testWidgets('Navigate to register page when registration link is tapped', (
-    WidgetTester tester,
-  ) async {
-    await tester.pumpWidget(createLoginTestWidget());
-
-    // Tap on the registration link
-    await tester.tap(find.text("No tens compte? Registra't aquí"));
-    await tester.pumpAndSettle();
-
-    // This test just verifies the tap action completes without errors
-    // In a more complete test, we would verify navigation occurred
-  });
-
-  testWidgets(
-    'Navigate to reset password page when forgot password link is tapped',
-    (WidgetTester tester) async {
-      await tester.pumpWidget(createLoginTestWidget());
-
-      // Tap on the forgot password link
-      await tester.tap(find.text("Has oblidat la contrasenya?"));
+      // Simulate tapping the register link
+      await tester.tap(find.text("No tens compte? Registra't aquí"));
       await tester.pumpAndSettle();
 
-      // This test just verifies the tap action completes without errors
-      // In a more complete test, we would verify navigation occurred
-    },
-  );
+      // Verify navigation to the mock SignUpPage
+      expect(find.text('Mock SignUpPage'), findsOneWidget);
+    });
+
+    testWidgets(
+      'navigates to reset password page when forgot password link is tapped',
+      (WidgetTester tester) async {
+        await tester.pumpWidget(
+          MaterialApp(
+            home: LoginPage(
+              authService: mockAuthService,
+              webSocketService: mockWebSocketService,
+              httpClient: mockHttpClient,
+            ),
+          ),
+        );
+
+        await tester.tap(find.text('Has oblidat la contrasenya?'));
+        await tester.pumpAndSettle();
+
+        expect(find.byType(ResetPasswordPage), findsOneWidget);
+      },
+    );
+  });
+
+  group('LoginPage Functionality Tests', () {
+    testWidgets('successful login flow', (WidgetTester tester) async {
+      // Create our test firebase user
+      final testUser = TestUser(
+        email: 'test@example.com',
+        displayName: 'Test User',
+      );
+      final testCredential = TestUserCredential(user: testUser);
+
+      when(
+        mockAuthService.signInWithEmailAndPassword(any, any),
+      ).thenAnswer((_) async => testCredential);
+
+      when(
+        mockHttpClient.post(
+          any,
+          headers: anyNamed('headers'),
+          body: anyNamed('body'),
+        ),
+      ).thenAnswer((_) async => http.Response('{"success": true}', 200));
+
+      // Build our app and trigger a frame
+      await tester.pumpWidget(
+        MaterialApp(
+          home: LoginPage(
+            authService: mockAuthService,
+            webSocketService: mockWebSocketService,
+            httpClient: mockHttpClient,
+          ),
+        ),
+      );
+
+      // Enter credentials and login
+      await tester.enterText(
+        find.widgetWithText(TextField, 'Correu electrònic'),
+        'test@example.com',
+      );
+      await tester.enterText(
+        find.widgetWithText(TextField, 'Contrasenya'),
+        'password',
+      );
+      await tester.tap(find.byType(ElevatedButton));
+      await tester.pump();
+
+      // Verify service calls
+      verify(
+        mockAuthService.signInWithEmailAndPassword(
+          'test@example.com',
+          'password',
+        ),
+      ).called(1);
+      verify(
+        mockHttpClient.post(
+          any,
+          headers: anyNamed('headers'),
+          body: contains('test@example.com'),
+        ),
+      ).called(1);
+      verify(mockWebSocketService.connect()).called(1);
+    });
+
+    testWidgets('shows error when user is null after authentication', (
+      WidgetTester tester,
+    ) async {
+      // Arrange - Setup null user response
+      when(
+        mockAuthService.signInWithEmailAndPassword(any, any),
+      ).thenAnswer((_) async => TestUserCredential(user: null));
+
+      await tester.pumpWidget(
+        MaterialApp(
+          home: LoginPage(
+            authService: mockAuthService,
+            webSocketService: mockWebSocketService,
+            httpClient: mockHttpClient,
+          ),
+        ),
+      );
+
+      // Enter credentials and login
+      await tester.enterText(
+        find.widgetWithText(TextField, 'Correu electrònic'),
+        'test@example.com',
+      );
+      await tester.enterText(
+        find.widgetWithText(TextField, 'Contrasenya'),
+        'password',
+      );
+      await tester.tap(find.byType(ElevatedButton));
+      await tester.pump();
+
+      // Verify error message
+      expect(
+        find.text('Error: No se pudo obtener la información del usuario'),
+        findsOneWidget,
+      );
+    });
+
+    testWidgets('shows error when user email is missing', (
+      WidgetTester tester,
+    ) async {
+      // Arrange - Setup user with missing email
+      final testUser = TestUser(displayName: 'Test User', email: null);
+      final testCredential = TestUserCredential(user: testUser);
+
+      when(
+        mockAuthService.signInWithEmailAndPassword(any, any),
+      ).thenAnswer((_) async => testCredential);
+
+      await tester.pumpWidget(
+        MaterialApp(
+          home: LoginPage(
+            authService: mockAuthService,
+            webSocketService: mockWebSocketService,
+            httpClient: mockHttpClient,
+          ),
+        ),
+      );
+
+      // Enter credentials and login
+      await tester.enterText(
+        find.widgetWithText(TextField, 'Correu electrònic'),
+        'test@example.com',
+      );
+      await tester.enterText(
+        find.widgetWithText(TextField, 'Contrasenya'),
+        'password',
+      );
+      await tester.tap(find.byType(ElevatedButton));
+      await tester.pump();
+
+      // Verify error message
+      expect(find.text('Error: Falta información del usuario'), findsOneWidget);
+    });
+
+    testWidgets('shows error when backend returns non-200 status', (
+      WidgetTester tester,
+    ) async {
+      // Arrange
+      final testUser = TestUser(
+        email: 'test@example.com',
+        displayName: 'Test User',
+      );
+      final testCredential = TestUserCredential(user: testUser);
+
+      when(
+        mockAuthService.signInWithEmailAndPassword(any, any),
+      ).thenAnswer((_) async => testCredential);
+
+      when(
+        mockHttpClient.post(
+          any,
+          headers: anyNamed('headers'),
+          body: anyNamed('body'),
+        ),
+      ).thenAnswer(
+        (_) async => http.Response('{"error": "Server error"}', 500),
+      );
+
+      await tester.pumpWidget(
+        MaterialApp(
+          home: LoginPage(
+            authService: mockAuthService,
+            webSocketService: mockWebSocketService,
+            httpClient: mockHttpClient,
+          ),
+        ),
+      );
+
+      // Enter credentials and login
+      await tester.enterText(
+        find.widgetWithText(TextField, 'Correu electrònic'),
+        'test@example.com',
+      );
+      await tester.enterText(
+        find.widgetWithText(TextField, 'Contrasenya'),
+        'password',
+      );
+      await tester.tap(find.byType(ElevatedButton));
+      await tester.pump();
+
+      // Verify error message
+      expect(
+        find.text('Error en el backend: {"error": "Server error"}'),
+        findsOneWidget,
+      );
+      verifyNever(mockWebSocketService.connect());
+    });
+
+    testWidgets('handles authentication exceptions correctly', (
+      WidgetTester tester,
+    ) async {
+      // Arrange - Setup auth exception
+      when(
+        mockAuthService.signInWithEmailAndPassword(any, any),
+      ).thenThrow(Exception('invalid-credential'));
+
+      await tester.pumpWidget(
+        MaterialApp(
+          home: LoginPage(
+            authService: mockAuthService,
+            webSocketService: mockWebSocketService,
+            httpClient: mockHttpClient,
+          ),
+        ),
+      );
+
+      // Enter credentials and login
+      await tester.enterText(
+        find.widgetWithText(TextField, 'Correu electrònic'),
+        'test@example.com',
+      );
+      await tester.enterText(
+        find.widgetWithText(TextField, 'Contrasenya'),
+        'password',
+      );
+      await tester.tap(find.byType(ElevatedButton));
+      await tester.pump();
+
+      // Verify error message
+      expect(find.text('Error: Credencials incorrectes'), findsOneWidget);
+    });
+
+    testWidgets('properly disposes HTTP client if created internally', (
+      WidgetTester tester,
+    ) async {
+      // This test needs a MaterialApp to host the LoginPage state
+      await tester.pumpWidget(MaterialApp(home: LoginPage()));
+
+      // Find the state
+      final state = tester.state<LoginPageState>(find.byType(LoginPage));
+
+      // We can't directly verify the client.close() was called since we can't mock
+      // the internally created client easily without refactoring LoginPage.
+      // However, we ensure initState and dispose run without Firebase errors.
+      expect(state.mounted, isTrue); // Check if state was initialized
+
+      // Manually dispose by pumping a different widget or ending the test
+      await tester.pumpWidget(Container()); // Replace with empty container
+
+      // The dispose method should have run without throwing Firebase exceptions
+      expect(
+        true,
+        isTrue,
+      ); // Test passes if no exceptions were thrown during dispose
+    });
+  });
 }

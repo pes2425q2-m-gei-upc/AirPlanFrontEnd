@@ -52,16 +52,10 @@ class NotificationService {
     required IconData icon,
     Duration duration = const Duration(seconds: 3),
   }) {
-    // Crear una clave para el overlay
     final overlayKey = GlobalKey<_NotificationOverlayState>();
-
-    // Obtener el estado del overlay
     final overlay = Overlay.of(context);
-
-    // Declarar la variable overlayEntry primero
     late final OverlayEntry overlayEntry;
 
-    // Crear la entrada de overlay
     overlayEntry = OverlayEntry(
       builder:
           (context) => _NotificationOverlay(
@@ -75,13 +69,14 @@ class NotificationService {
           ),
     );
 
-    // Insertar la entrada de overlay
     overlay.insert(overlayEntry);
 
-    // Configura un temporizador para remover la notificación automáticamente
+    // Automatically remove the notification after the specified duration
     Timer(duration, () {
-      if (overlayEntry.mounted) {
-        overlayEntry.remove();
+      if (overlayKey.currentState != null && overlayKey.currentState!.mounted) {
+        overlayKey.currentState!._controller.reverse().then((_) {
+          overlayEntry.remove();
+        });
       }
     });
   }

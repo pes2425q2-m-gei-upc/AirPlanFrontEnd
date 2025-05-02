@@ -2,7 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:airplan/services/chat_service.dart';
 import 'package:airplan/services/notification_service.dart';
 import 'package:airplan/services/chat_websocket_service.dart';
-import 'package:firebase_auth/firebase_auth.dart';
+import 'package:airplan/services/auth_service.dart';
 import 'package:intl/intl.dart';
 import 'dart:async';
 import 'package:airplan/services/user_block_service.dart';
@@ -10,11 +10,20 @@ import 'package:airplan/services/user_block_service.dart';
 class ChatDetailPage extends StatefulWidget {
   final String username; // Used for backend calls
   final String? name; // Used for UI display
+  final AuthService? authService; // Inyección de servicio de autenticación
+  final ChatService? chatService; // Inyección de servicio de chat
+  final ChatWebSocketService?
+  webSocketService; // Inyección de servicio WebSocket
+  final UserBlockService? userBlockService; // Inyección de servicio de bloqueo
 
   const ChatDetailPage({
     super.key,
     required this.username,
-    this.name, // Optional to avoid breaking existing code
+    this.name,
+    this.authService,
+    this.chatService,
+    this.webSocketService,
+    this.userBlockService,
   });
 
   @override
@@ -22,10 +31,12 @@ class ChatDetailPage extends StatefulWidget {
 }
 
 class ChatDetailPageState extends State<ChatDetailPage> {
-  final ChatService _chatService = ChatService();
-  final ChatWebSocketService _chatWebSocketService = ChatWebSocketService();
+  late final ChatService _chatService;
+  late final ChatWebSocketService _chatWebSocketService;
+  late final UserBlockService _userBlockService;
   final TextEditingController _messageController = TextEditingController();
   final ScrollController _scrollController = ScrollController();
+  late final AuthService _authService;
   List<Message> _messages = [];
   String? _currentUsername;
 
@@ -46,6 +57,10 @@ class ChatDetailPageState extends State<ChatDetailPage> {
   @override
   void initState() {
     super.initState();
+    _authService = widget.authService ?? AuthService();
+    _chatService = widget.chatService ?? ChatService();
+    _chatWebSocketService = widget.webSocketService ?? ChatWebSocketService();
+    _userBlockService = widget.userBlockService ?? UserBlockService();
     _initializeChat();
   }
 
@@ -331,7 +346,7 @@ class ChatDetailPageState extends State<ChatDetailPage> {
   }
 
   void _getCurrentUsername() {
-    final user = FirebaseAuth.instance.currentUser;
+    final user = _authService.getCurrentUser();
     if (user != null && mounted) {
       setState(() => _currentUsername = user.displayName);
     }
@@ -448,12 +463,17 @@ class ChatDetailPageState extends State<ChatDetailPage> {
                   const PopupMenuItem<String>(
                     value: 'unblock',
                     child: Row(
+                      mainAxisSize: MainAxisSize.min, // Prevent overflow
                       children: [
                         Icon(Icons.lock_open, color: Colors.green),
                         SizedBox(width: 10),
-                        Text(
-                          'Desbloquear usuario',
-                          style: TextStyle(color: Colors.green),
+                        Flexible(
+                          child: Text(
+                            'Desbloquear usuario',
+                            style: TextStyle(color: Colors.green),
+                            overflow:
+                                TextOverflow.ellipsis, // Handle text overflow
+                          ),
                         ),
                       ],
                     ),
@@ -462,12 +482,17 @@ class ChatDetailPageState extends State<ChatDetailPage> {
                   const PopupMenuItem<String>(
                     value: 'block',
                     child: Row(
+                      mainAxisSize: MainAxisSize.min, // Prevent overflow
                       children: [
                         Icon(Icons.block, color: Colors.red),
                         SizedBox(width: 10),
-                        Text(
-                          'Bloquear usuario',
-                          style: TextStyle(color: Colors.red),
+                        Flexible(
+                          child: Text(
+                            'Bloquear usuario',
+                            style: TextStyle(color: Colors.red),
+                            overflow:
+                                TextOverflow.ellipsis, // Handle text overflow
+                          ),
                         ),
                       ],
                     ),
@@ -672,7 +697,7 @@ class ChatDetailPageState extends State<ChatDetailPage> {
   }
 
   Future<void> _blockUser() async {
-    final user = FirebaseAuth.instance.currentUser;
+    final user = _authService.getCurrentUser();
 
     if (user == null || user.displayName == null) {
       NotificationService.showError(
@@ -686,7 +711,7 @@ class ChatDetailPageState extends State<ChatDetailPage> {
 
     try {
       // Usar UserBlockService que ahora envía directamente por WebSocket
-      final result = await UserBlockService().blockUser(
+      final result = await _userBlockService.blockUser(
         user.displayName!,
         widget.username,
       );
@@ -752,7 +777,7 @@ class ChatDetailPageState extends State<ChatDetailPage> {
   }
 
   Future<void> _unblockUser() async {
-    final user = FirebaseAuth.instance.currentUser;
+    final user = _authService.getCurrentUser();
 
     if (user == null || user.displayName == null) {
       NotificationService.showError(
@@ -769,7 +794,7 @@ class ChatDetailPageState extends State<ChatDetailPage> {
 
     try {
       // Usar UserBlockService que ahora envía directamente por WebSocket
-      final result = await UserBlockService().unblockUser(
+      final result = await _userBlockService.unblockUser(
         user.displayName!,
         widget.username,
       );

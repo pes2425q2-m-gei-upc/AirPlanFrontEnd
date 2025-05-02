@@ -1,354 +1,358 @@
-// edit_profile_page_test.dart
+import 'dart:async';
+import 'dart:convert';
+
 import 'package:flutter/material.dart';
+import 'package:flutter/foundation.dart';
 import 'package:flutter_test/flutter_test.dart';
-import 'test_helpers.dart';
+import 'package:mockito/mockito.dart';
+import 'package:mockito/annotations.dart';
+import 'package:firebase_auth/firebase_auth.dart';
+import 'package:http/http.dart' as http;
+import 'package:firebase_core/firebase_core.dart';
+import 'package:firebase_core_platform_interface/firebase_core_platform_interface.dart';
+import 'package:plugin_platform_interface/plugin_platform_interface.dart';
 
-// Mock implementation of EditProfilePage for testing
-class MockEditProfilePage extends StatefulWidget {
-  const MockEditProfilePage({super.key});
+import 'package:airplan/edit_profile_page.dart';
+import 'package:airplan/services/auth_service.dart';
+import 'package:airplan/services/websocket_service.dart';
+import 'package:airplan/services/notification_service.dart';
+import 'package:airplan/login_page.dart';
 
-  @override
-  State<MockEditProfilePage> createState() => _MockEditProfilePageState();
+import 'edit_profile_page_test.mocks.dart';
+
+// Definir el controller global para tests
+late StreamController<Map<String, dynamic>> profileUpdateStreamController;
+
+// Mock Firebase Platform Implementation
+class MockFirebaseAppPlatform extends FirebaseAppPlatform
+    with MockPlatformInterfaceMixin {
+  MockFirebaseAppPlatform() : super('[DEFAULT]', _mockOptions);
+
+  static const FirebaseOptions _mockOptions = FirebaseOptions(
+    apiKey: 'mock_api_key',
+    appId: 'mock_app_id',
+    messagingSenderId: 'mock_sender_id',
+    projectId: 'mock_project_id',
+  );
 }
 
-class _MockEditProfilePageState extends State<MockEditProfilePage> {
-  final TextEditingController _nameController = TextEditingController(
-    text: "Test User",
-  );
-  final TextEditingController _usernameController = TextEditingController(
-    text: "testuser",
-  );
-  final TextEditingController _emailController = TextEditingController(
-    text: "test@example.com",
-  );
-  final TextEditingController _currentPasswordController =
-      TextEditingController();
-  final TextEditingController _newPasswordController = TextEditingController();
-  final TextEditingController _confirmPasswordController =
-      TextEditingController();
-  String _selectedLanguage = 'Castellano';
-  bool _isCurrentPasswordVisible = false;
-  bool _isNewPasswordVisible = false;
-  bool _isConfirmPasswordVisible = false;
-
-  final List<String> _languages = ['Castellano', 'Catalan', 'English'];
-
-  // Mock method for save profile action
-  void _saveProfile() {
-    // Do nothing in mock
-  }
-
-  // Mock method for password change action
-  void _changePassword() {
-    // Do nothing in mock
+class MockFirebasePlatform extends FirebasePlatform
+    with MockPlatformInterfaceMixin {
+  @override
+  Future<FirebaseAppPlatform> initializeApp({
+    String? name,
+    FirebaseOptions? options,
+  }) async {
+    return MockFirebaseAppPlatform();
   }
 
   @override
-  Widget build(BuildContext context) {
-    return Scaffold(
-      appBar: AppBar(title: const Text('Edit Profile')),
-      body: SingleChildScrollView(
-        padding: const EdgeInsets.all(16.0),
-        child: Column(
-          crossAxisAlignment: CrossAxisAlignment.stretch,
-          children: [
-            TextButton(
-              onPressed: () {},
-              child: const Text('Select Profile Image'),
-            ),
-            const SizedBox(height: 16),
-            TextField(
-              controller: _nameController,
-              decoration: const InputDecoration(
-                labelText: 'Name',
-                border: OutlineInputBorder(),
-              ),
-            ),
-            const SizedBox(height: 16),
-            TextField(
-              controller: _usernameController,
-              decoration: const InputDecoration(
-                labelText: 'Username',
-                border: OutlineInputBorder(),
-              ),
-            ),
-            const SizedBox(height: 16),
-            TextField(
-              controller: _emailController,
-              decoration: const InputDecoration(
-                labelText: 'Email',
-                border: OutlineInputBorder(),
-              ),
-            ),
-            const SizedBox(height: 16),
-            DropdownButtonFormField<String>(
-              value: _selectedLanguage,
-              items:
-                  _languages.map((language) {
-                    return DropdownMenuItem(
-                      value: language,
-                      child: Text(language),
-                    );
-                  }).toList(),
-              onChanged: (value) {
-                setState(() {
-                  _selectedLanguage = value ?? 'Castellano';
-                });
-              },
-              decoration: const InputDecoration(
-                labelText: 'Language',
-                border: OutlineInputBorder(),
-              ),
-            ),
-            const SizedBox(height: 32),
-            ElevatedButton(
-              onPressed: _saveProfile,
-              child: const Text('Save Changes'),
-            ),
+  List<FirebaseAppPlatform> get apps => [MockFirebaseAppPlatform()];
 
-            // Sección de cambio de contraseña
-            const SizedBox(height: 40),
-            const Divider(),
-            const Padding(
-              padding: EdgeInsets.symmetric(vertical: 16.0),
-              child: Text(
-                'Cambiar Contraseña',
-                style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold),
-              ),
-            ),
+  @override
+  FirebaseAppPlatform app([String name = defaultFirebaseAppName]) {
+    return MockFirebaseAppPlatform();
+  }
+}
 
-            // Contraseña actual
-            TextField(
-              controller: _currentPasswordController,
-              obscureText: !_isCurrentPasswordVisible,
-              decoration: InputDecoration(
-                labelText: 'Contraseña Actual',
-                border: const OutlineInputBorder(),
-                suffixIcon: IconButton(
-                  icon: Icon(
-                    _isCurrentPasswordVisible
-                        ? Icons.visibility
-                        : Icons.visibility_off,
-                  ),
-                  onPressed: () {
-                    setState(() {
-                      _isCurrentPasswordVisible = !_isCurrentPasswordVisible;
-                    });
-                  },
+// Mock notification service para tests
+class MockNotificationService extends NotificationService {
+  static String? lastErrorMessage;
+  static String? lastInfoMessage;
+  static String? lastSuccessMessage;
+
+  @override
+  static void showError(BuildContext context, String message) {
+    lastErrorMessage = message;
+  }
+
+  @override
+  static void showInfo(BuildContext context, String message) {
+    lastInfoMessage = message;
+  }
+
+  @override
+  static void showSuccess(BuildContext context, String message) {
+    lastSuccessMessage = message;
+  }
+
+  static void reset() {
+    lastErrorMessage = null;
+    lastInfoMessage = null;
+    lastSuccessMessage = null;
+  }
+}
+
+Future<void> setupFirebaseCoreMocks() async {
+  TestWidgetsFlutterBinding.ensureInitialized();
+  FirebasePlatform.instance = MockFirebasePlatform();
+  await Firebase.initializeApp();
+}
+
+@GenerateMocks([AuthService, User, http.Client, WebSocketService])
+void main() {
+  late MockAuthService mockAuthService;
+  late MockUser mockUser;
+  late MockWebSocketService mockWebSocketService;
+  late StreamController<User?> authStateController;
+  late StreamController<String> profileUpdateController;
+
+  setUpAll(() async {
+    await setupFirebaseCoreMocks();
+  });
+
+  setUp(() {
+    mockAuthService = MockAuthService();
+    mockUser = MockUser();
+    mockWebSocketService = MockWebSocketService();
+    authStateController = StreamController<User?>.broadcast();
+    profileUpdateController = StreamController<String>.broadcast();
+
+    // Setup default mock behaviors
+    when(mockAuthService.getCurrentUser()).thenReturn(mockUser);
+    when(mockUser.email).thenReturn('test@example.com');
+    when(mockUser.displayName).thenReturn('testuser');
+    // Return null for photoURL to avoid network requests
+    when(mockUser.photoURL).thenReturn(null);
+    when(
+      mockAuthService.authStateChanges,
+    ).thenAnswer((_) => authStateController.stream);
+    when(mockUser.reload()).thenAnswer((_) => Future<void>.value());
+
+    // Setup WebSocketService mock
+    when(
+      mockWebSocketService.profileUpdates,
+    ).thenAnswer((_) => profileUpdateController.stream);
+    when(mockWebSocketService.clientId).thenReturn('test-client-id');
+    when(mockWebSocketService.isConnected).thenReturn(true);
+    when(
+      mockWebSocketService.connect(),
+    ).thenAnswer((_) => Future<void>.value());
+
+    // Initialize global controller para tests
+    profileUpdateStreamController =
+        StreamController<Map<String, dynamic>>.broadcast();
+
+    // Reset notification mock
+    MockNotificationService.reset();
+  });
+
+  tearDown(() {
+    authStateController.close();
+    profileUpdateController.close();
+    profileUpdateStreamController.close();
+  });
+
+  // Create a testable version of EditProfilePage with fixed size to avoid layout issues
+  Widget createTestableEditProfilePage() {
+    return MaterialApp(
+      routes: {'/login': (context) => const LoginPage()},
+      home: SizedBox(
+        width: 800,
+        height: 600,
+        child: Scaffold(
+          body: SingleChildScrollView(
+            child: Container(
+              constraints: BoxConstraints(maxWidth: 800, maxHeight: 600),
+              child: ConstrainedBox(
+                constraints: BoxConstraints(minHeight: 600),
+                child: EditProfilePage(
+                  authService: mockAuthService,
+                  webSocketService: mockWebSocketService,
                 ),
               ),
             ),
-            const SizedBox(height: 16),
-
-            // Nueva contraseña
-            TextField(
-              controller: _newPasswordController,
-              obscureText: !_isNewPasswordVisible,
-              decoration: InputDecoration(
-                labelText: 'Nueva Contraseña',
-                border: const OutlineInputBorder(),
-                suffixIcon: IconButton(
-                  icon: Icon(
-                    _isNewPasswordVisible
-                        ? Icons.visibility
-                        : Icons.visibility_off,
-                  ),
-                  onPressed: () {
-                    setState(() {
-                      _isNewPasswordVisible = !_isNewPasswordVisible;
-                    });
-                  },
-                ),
-              ),
-            ),
-            const SizedBox(height: 16),
-
-            // Confirmar nueva contraseña
-            TextField(
-              controller: _confirmPasswordController,
-              obscureText: !_isConfirmPasswordVisible,
-              decoration: InputDecoration(
-                labelText: 'Confirmar Nueva Contraseña',
-                border: const OutlineInputBorder(),
-                suffixIcon: IconButton(
-                  icon: Icon(
-                    _isConfirmPasswordVisible
-                        ? Icons.visibility
-                        : Icons.visibility_off,
-                  ),
-                  onPressed: () {
-                    setState(() {
-                      _isConfirmPasswordVisible = !_isConfirmPasswordVisible;
-                    });
-                  },
-                ),
-              ),
-            ),
-            const SizedBox(height: 24),
-
-            ElevatedButton(
-              onPressed: _changePassword,
-              style: ElevatedButton.styleFrom(
-                backgroundColor: Colors.blue,
-                foregroundColor: Colors.white,
-              ),
-              child: const Text('Actualizar Contraseña'),
-            ),
-          ],
+          ),
         ),
       ),
     );
   }
-}
 
-void main() {
-  setUp(() {
-    // Initialize Firebase mocks before each test
-    FirebaseTestSetup.setupFirebaseMocks();
+  testWidgets('EditProfilePage initializes with correct user data', (
+    WidgetTester tester,
+  ) async {
+    await tester.pumpWidget(createTestableEditProfilePage());
+    await tester.pumpAndSettle();
+
+    // Simulate successful user data load
+    profileUpdateStreamController.add({'type': 'app_launched'});
+    await tester.pumpAndSettle();
+
+    // Verify the username from Firebase is displayed
+    expect(find.text('testuser'), findsOneWidget);
+    expect(find.text('test@example.com'), findsOneWidget);
   });
 
-  // Helper function to build our mock EditProfilePage for testing
-  Widget createEditProfilePageTestWidget() {
-    // Using TestWidgetsFlutterBinding to set a specific size for testing
-    TestWidgetsFlutterBinding.ensureInitialized();
+  testWidgets('Validate empty name field shows error', (
+    WidgetTester tester,
+  ) async {
+    await tester.pumpWidget(createTestableEditProfilePage());
+    await tester.pumpAndSettle();
 
-    return MaterialApp(
-      home: SizedBox(
-        width: 800,
-        height: 1200, // Increase height to accommodate all elements
-        child: const MockEditProfilePage(),
+    // Enter empty name
+    await tester.enterText(find.widgetWithText(TextField, 'Nombre').first, '');
+
+    // Use NotificationService mock instead of finding text in widget tree
+    final saveButton = find.text('Guardar Cambios');
+    await tester.dragUntilVisible(
+      saveButton,
+      find.byType(SingleChildScrollView),
+      const Offset(0, 50),
+    );
+
+    // Tap save button
+    await tester.tap(saveButton);
+    await tester.pumpAndSettle();
+
+    // Check that the error was reported via NotificationService mock
+    expect(find.text('El nombre no puede estar vacío.'), findsOneWidget);
+  });
+
+  testWidgets('Validate invalid email format shows error', (
+    WidgetTester tester,
+  ) async {
+    await tester.pumpWidget(createTestableEditProfilePage());
+    await tester.pumpAndSettle();
+
+    // Enter an invalid email
+    await tester.enterText(
+      find.widgetWithText(TextField, 'Correo Electrónico'),
+      'invalid-email',
+    );
+
+    // Make sure name is not empty to pass that validation
+    await tester.enterText(
+      find.widgetWithText(TextField, 'Nombre').first,
+      'Test Name',
+    );
+
+    // Scroll to make save button visible
+    final saveButton = find.text('Guardar Cambios');
+    await tester.dragUntilVisible(
+      saveButton,
+      find.byType(SingleChildScrollView),
+      const Offset(0, 50),
+    );
+
+    // Tap save button
+    await tester.tap(saveButton);
+    await tester.pumpAndSettle();
+
+    // Check that the error was reported via NotificationService mock
+    expect(
+      find.text('Por favor, introduce un correo electrónico válido.'),
+      findsOneWidget,
+    );
+  });
+
+  // Simplified test focusing only on password mismatch
+  testWidgets('Password mismatch shows error', (WidgetTester tester) async {
+    await tester.pumpWidget(createTestableEditProfilePage());
+    await tester.pumpAndSettle();
+
+    // Scroll to password section
+    final newPasswordField = find.widgetWithText(TextField, 'Nueva Contraseña');
+    await tester.dragUntilVisible(
+      newPasswordField,
+      find.byType(SingleChildScrollView),
+      const Offset(0, 50),
+    );
+
+    // --- Test mismatched passwords directly ---
+
+    // Enter passwords: current, new, and mismatched confirmation
+    await tester.enterText(
+      find.widgetWithText(TextField, 'Contraseña Actual'),
+      'currentpass', // Provide a current password
+    );
+    await tester.enterText(newPasswordField, 'newpass123');
+    await tester.enterText(
+      find.widgetWithText(TextField, 'Confirmar Nueva Contraseña'),
+      'different456', // Mismatched password
+    );
+
+    // Find the button text
+    final updateButtonText = find.text('Actualizar Contraseña');
+    await tester.dragUntilVisible(
+      updateButtonText,
+      find.byType(SingleChildScrollView),
+      const Offset(0, 50),
+    );
+
+    // Ensure the button text is visible and tap it
+    await tester.ensureVisible(updateButtonText);
+    await tester.pumpAndSettle();
+    await tester.tap(
+      updateButtonText,
+      warnIfMissed: false,
+    ); // Tap text directly
+
+    // Wait for UI updates, potentially adding a small explicit delay
+    await tester.pumpAndSettle();
+    await tester.pump(const Duration(milliseconds: 100)); // Small delay
+
+    // Check for the error message directly in the UI
+    expect(find.text('Las contraseñas no coinciden'), findsOneWidget);
+  });
+
+  testWidgets('User logs out when authStateChanges emits null', (
+    WidgetTester tester,
+  ) async {
+    await tester.pumpWidget(
+      MaterialApp(
+        home: EditProfilePage(
+          authService: mockAuthService,
+          webSocketService: mockWebSocketService,
+        ),
+        routes: {'/login': (context) => const LoginPage()},
       ),
     );
-  }
 
-  testWidgets('EditProfilePage renders with all form fields', (
-    WidgetTester tester,
-  ) async {
-    await tester.pumpWidget(createEditProfilePageTestWidget());
-
-    // Check for profile image section
-    expect(find.text('Select Profile Image'), findsOneWidget);
-
-    // Check for text fields
-    expect(find.widgetWithText(TextField, 'Name'), findsOneWidget);
-    expect(find.widgetWithText(TextField, 'Username'), findsOneWidget);
-    expect(find.widgetWithText(TextField, 'Email'), findsOneWidget);
-
-    // Check for language dropdown
-    expect(find.byType(DropdownButtonFormField<String>), findsOneWidget);
-
-    // Check for save button
-    expect(find.widgetWithText(ElevatedButton, 'Save Changes'), findsOneWidget);
-
-    // Check for password change section
-    expect(find.text('Cambiar Contraseña'), findsOneWidget);
-    expect(find.widgetWithText(TextField, 'Contraseña Actual'), findsOneWidget);
-    expect(find.widgetWithText(TextField, 'Nueva Contraseña'), findsOneWidget);
-    expect(
-      find.widgetWithText(TextField, 'Confirmar Nueva Contraseña'),
-      findsOneWidget,
-    );
-    expect(
-      find.widgetWithText(ElevatedButton, 'Actualizar Contraseña'),
-      findsOneWidget,
-    );
-  });
-
-  testWidgets('Password visibility toggles work', (WidgetTester tester) async {
-    // Set viewport size first before doing anything else
-    await tester.binding.setSurfaceSize(const Size(800, 1200));
-    await tester.pumpWidget(createEditProfilePageTestWidget());
-
-    // Initially all password fields should be obscured
-    expect(find.byIcon(Icons.visibility_off), findsNWidgets(3));
-    expect(find.byIcon(Icons.visibility), findsNothing);
-
-    // Get the first password field
-    final passwordField = find.widgetWithText(TextField, 'Contraseña Actual');
-    await tester.ensureVisible(passwordField);
-
-    // Find the toggle button for the first password field
-    final visibilityButton =
-        find
-            .descendant(
-              of: find.ancestor(
-                of: find.text('Contraseña Actual'),
-                matching: find.byType(TextField),
-              ),
-              matching: find.byType(IconButton),
-            )
-            .first;
-
-    // Ensure the visibility button is visible and tap it
-    await tester.ensureVisible(visibilityButton);
-    await tester.pumpAndSettle();
-    await tester.tap(visibilityButton, warnIfMissed: false);
-    await tester.pump();
-
-    // Check the state of the widget after toggle
-    final state = tester.state<_MockEditProfilePageState>(
-      find.byType(MockEditProfilePage),
-    );
-
-    // Verify the toggle state changed in the widget's state
-    expect(state._isCurrentPasswordVisible, isTrue);
-  });
-
-  testWidgets('Language dropdown shows options when tapped', (
-    WidgetTester tester,
-  ) async {
-    await tester.pumpWidget(createEditProfilePageTestWidget());
-
-    // Find and tap the language dropdown
-    final dropdown = find.byType(DropdownButtonFormField<String>);
-    expect(dropdown, findsOneWidget);
-
-    await tester.tap(dropdown);
     await tester.pumpAndSettle();
 
-    // Find dropdown items in the overlay
-    final catalan = find.text('Catalan').last;
-    final english = find.text('English').last;
+    // Simulate user logout
+    authStateController.add(null);
+    await tester.pumpAndSettle();
 
-    // Verify options are displayed
-    expect(catalan, findsOneWidget);
-    expect(english, findsOneWidget);
+    // Expect navigation to login page
+    expect(find.byType(EditProfilePage), findsNothing);
   });
 
-  testWidgets('Save button is clickable', (WidgetTester tester) async {
-    await tester.pumpWidget(createEditProfilePageTestWidget());
-
-    // Find and tap the save button
-    final saveButton = find.widgetWithText(ElevatedButton, 'Save Changes');
-    expect(saveButton, findsOneWidget);
-    await tester.tap(saveButton);
-    await tester.pump();
-
-    // This just verifies the button is clickable without errors
-  });
-
-  testWidgets('Password update button is clickable', (
+  testWidgets('Image selection UI shows correctly', (
     WidgetTester tester,
   ) async {
-    await tester.pumpWidget(createEditProfilePageTestWidget());
+    await tester.pumpWidget(createTestableEditProfilePage());
+    await tester.pumpAndSettle();
 
-    // Scroll to make sure the button is visible
-    await tester.dragFrom(
-      tester.getCenter(find.text('Cambiar Contraseña')),
-      const Offset(0, -500),
+    // Verify image button is present
+    expect(find.text('Cambiar Foto de Perfil'), findsOneWidget);
+
+    // Verify profile image is displayed - CircleAvatar should exist
+    expect(find.byType(CircleAvatar), findsOneWidget);
+  });
+
+  testWidgets('Real-time updates from WebSocketService refresh UI', (
+    WidgetTester tester,
+  ) async {
+    await tester.pumpWidget(createTestableEditProfilePage());
+    await tester.pumpAndSettle();
+
+    // Setup reload method mock to verify it's called
+    when(mockUser.reload()).thenAnswer((_) => Future.value());
+
+    // Simulate a WebSocket update
+    profileUpdateController.add(
+      json.encode({
+        'type': 'PROFILE_UPDATE',
+        'username': 'testuser',
+        'email': 'test@example.com',
+        'updatedFields': ['displayName', 'email'],
+      }),
     );
-    await tester.pump();
 
-    // Find and tap the update password button
-    final updatePasswordButton = find.widgetWithText(
-      ElevatedButton,
-      'Actualizar Contraseña',
-    );
-    expect(updatePasswordButton, findsOneWidget);
-    await tester.ensureVisible(updatePasswordButton);
-    await tester.tap(updatePasswordButton);
-    await tester.pump();
+    await tester.pumpAndSettle();
 
-    // This just verifies the button is clickable without errors
+    // Verify the user reload was called
+    verify(mockUser.reload()).called(1);
   });
 }

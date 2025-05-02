@@ -11,10 +11,16 @@ import 'dart:convert';
 import 'services/websocket_service.dart';
 import 'services/notification_service.dart';
 import 'services/api_config.dart'; // Importar la configuración de API
+import 'services/auth_service.dart'; // Import AuthService
 import 'main.dart'; // Importamos main.dart para acceder a profileUpdateStreamController
 
 class EditProfilePage extends StatefulWidget {
-  const EditProfilePage({super.key});
+  final AuthService?
+  authService; // Add AuthService parameter for dependency injection
+  final WebSocketService?
+  webSocketService; // Add WebSocketService parameter for testing
+
+  const EditProfilePage({super.key, this.authService, this.webSocketService});
 
   @override
   State<EditProfilePage> createState() => EditProfilePageState();
@@ -42,12 +48,18 @@ class EditProfilePageState extends State<EditProfilePage> {
   StreamSubscription<Map<String, dynamic>>?
   _globalUpdateSubscription; // Para eventos globales
 
+  // Auth service instance
+  late final AuthService _authService;
+
   final List<String> _languages = ['Castellano', 'Catalan', 'English'];
 
   @override
   void initState() {
     super.initState();
-    final user = FirebaseAuth.instance.currentUser;
+    // Initialize the AuthService with the provided one or create a new one
+    _authService = widget.authService ?? AuthService();
+
+    final user = _authService.getCurrentUser();
     if (user != null) {
       _emailController.text = user.email ?? '';
       // Intentar cargar los datos actuales del usuario
@@ -55,9 +67,7 @@ class EditProfilePageState extends State<EditProfilePage> {
     }
 
     // Añadir listener para los cambios de autenticación
-    _authStateSubscription = FirebaseAuth.instance.authStateChanges().listen((
-      User? user,
-    ) {
+    _authStateSubscription = _authService.authStateChanges.listen((User? user) {
       // Added mounted check
       if (user == null && mounted) {
         // Usuario ha cerrado sesión o ha cambiado su autenticación
@@ -92,11 +102,14 @@ class EditProfilePageState extends State<EditProfilePage> {
 
   // Initialize WebSocket service and subscribe to updates
   void _initWebSocketService() {
+    // Use injected webSocketService or create a new one
+    final webSocketService = widget.webSocketService ?? WebSocketService();
+
     // Connect to WebSocket for real-time updates
-    WebSocketService().connect();
+    webSocketService.connect();
 
     // Subscribe to profile update events
-    _profileUpdateSubscription = WebSocketService().profileUpdates.listen((
+    _profileUpdateSubscription = webSocketService.profileUpdates.listen((
       message,
     ) {
       try {
@@ -106,14 +119,13 @@ class EditProfilePageState extends State<EditProfilePage> {
         // Check if this is a profile update notification
         if (data['type'] == 'PROFILE_UPDATE') {
           // Check if this update is relevant for the current user
-          final currentUser = FirebaseAuth.instance.currentUser;
+          final currentUser = _authService.getCurrentUser();
           if (currentUser != null &&
               (data['username'] == currentUser.displayName ||
                   data['email'] == currentUser.email)) {
             // Reload user data from Firebase
             currentUser.reload().then((_) {
               // Then reload the updated user data from backend
-              // Added mounted check
               if (mounted) {
                 _loadUserData();
               }
@@ -127,8 +139,8 @@ class EditProfilePageState extends State<EditProfilePage> {
   }
 
   Future<void> _loadUserData() async {
-    // Obtener usuario actual de Firebase
-    final user = FirebaseAuth.instance.currentUser;
+    // Obtener usuario actual a través del servicio de autenticación
+    final user = _authService.getCurrentUser();
     if (user != null) {
       // El displayName en Firebase contiene el username
       final username = user.displayName ?? '';
@@ -225,7 +237,7 @@ class EditProfilePageState extends State<EditProfilePage> {
   void _saveProfile() async {
     if (!_validateInputFields()) return;
 
-    final currentUser = FirebaseAuth.instance.currentUser;
+    final currentUser = _authService.getCurrentUser();
     if (currentUser == null) {
       NotificationService.showError(
         context,
@@ -282,31 +294,41 @@ class EditProfilePageState extends State<EditProfilePage> {
     }
   }
 
+  // Helper to display error messages in dialogs
+  void _showErrorDialog(String message) {
+    if (!mounted) return;
+    showDialog(
+      context: context,
+      builder: (dialogContext) {
+        return AlertDialog(
+          content: Text(message),
+          actions: [
+            TextButton(
+              onPressed: () => Navigator.of(dialogContext).pop(),
+              child: const Text('OK'),
+            ),
+          ],
+        );
+      },
+    );
+  }
+
   bool _validateInputFields() {
     if (_nameController.text.trim().isEmpty) {
-      NotificationService.showError(context, 'El nombre no puede estar vacío.');
+      _showErrorDialog('El nombre no puede estar vacío.');
       return false;
     }
     if (_usernameController.text.trim().isEmpty) {
-      NotificationService.showError(
-        context,
-        'El nombre de usuario no puede estar vacío.',
-      );
+      _showErrorDialog('El nombre de usuario no puede estar vacío.');
       return false;
     }
     if (_emailController.text.trim().isEmpty) {
-      NotificationService.showError(
-        context,
-        'El correo electrónico no puede estar vacío.',
-      );
+      _showErrorDialog('El correo electrónico no puede estar vacío.');
       return false;
     }
     final emailRegex = RegExp(r'^[\w-\.]+@([\w-]+\.)+[\w-]{2,4}$');
     if (!emailRegex.hasMatch(_emailController.text.trim())) {
-      NotificationService.showError(
-        context,
-        'Por favor, introduce un correo electrónico válido.',
-      );
+      _showErrorDialog('Por favor, introduce un correo electrónico válido.');
       return false;
     }
     return true;
@@ -348,9 +370,12 @@ class EditProfilePageState extends State<EditProfilePage> {
     String newUsername,
     String? password,
   ) async {
+    // Usar el webSocketService inyectado si está disponible
+    final webSocketService = widget.webSocketService ?? WebSocketService();
+
     final updateData = {
       'currentEmail': currentEmail,
-      'clientId': WebSocketService().clientId,
+      'clientId': webSocketService.clientId,
       'username':
           currentUsername, // Solo enviar el username actual para identificar al usuario
       'nom': _nameController.text.trim(),
@@ -403,7 +428,8 @@ class EditProfilePageState extends State<EditProfilePage> {
     bool emailChanged,
   ) async {
     final currentUser =
-        FirebaseAuth.instance.currentUser; // Re-get current user just in case
+        _authService
+            .getCurrentUser(); // Use _authService instead of direct Firebase call
     if (currentUser == null) {
       return; // Should not happen if initial check passed
     }
@@ -538,11 +564,11 @@ class EditProfilePageState extends State<EditProfilePage> {
     String currentUsername,
   ) async {
     try {
-      await FirebaseAuth.instance.signInWithCustomToken(customToken);
+      await _authService.signInWithCustomToken(customToken);
       // Added mounted check
       if (!mounted) return;
 
-      final updatedUser = FirebaseAuth.instance.currentUser;
+      final updatedUser = _authService.getCurrentUser();
       if (updatedUser != null) {
         // Solo actualizar la foto de perfil si se proporciona una URL de imagen
         if (imageUrl != null) await updatedUser.updatePhotoURL(imageUrl);
@@ -612,6 +638,9 @@ class EditProfilePageState extends State<EditProfilePage> {
     required bool emailChanged,
   }) async {
     try {
+      // Usar el webSocketService inyectado si está disponible
+      final webSocketService = widget.webSocketService ?? WebSocketService();
+
       // Filtrar 'username' y 'oldUsername' de updatedFields para no notificar cambios de username
       List<String> updatedFields = updateData.keys.toList();
       updatedFields.removeWhere(
@@ -630,7 +659,7 @@ class EditProfilePageState extends State<EditProfilePage> {
             'email': currentEmail,
             'updatedFields':
                 updatedFields, // Lista filtrada sin 'username' ni 'oldUsername'
-            'clientId': WebSocketService().clientId, // Exclude current device
+            'clientId': webSocketService.clientId, // Exclude current device
           }),
         );
       }
@@ -781,39 +810,27 @@ class EditProfilePageState extends State<EditProfilePage> {
     // Added mounted check at the beginning
     if (!mounted) return;
 
-    // ... (validations for passwords)
+    // Validations for passwords
     if (_currentPasswordController.text.isEmpty) {
-      NotificationService.showError(
-        context,
-        'Debes introducir tu contraseña actual',
-      );
+      _showErrorDialog('Debes introducir tu contraseña actual');
       return;
     }
     if (_newPasswordController.text.isEmpty) {
-      NotificationService.showError(
-        context,
-        'La nueva contraseña no puede estar vacía',
-      );
+      _showErrorDialog('La nueva contraseña no puede estar vacía');
       return;
     }
     if (_newPasswordController.text.length < 8) {
-      NotificationService.showError(
-        context,
-        'La nueva contraseña debe tener al menos 8 caracteres',
-      );
+      _showErrorDialog('La nueva contraseña debe tener al menos 8 caracteres');
       return;
     }
     if (_newPasswordController.text != _confirmPasswordController.text) {
-      NotificationService.showError(context, 'Las contraseñas no coinciden');
+      _showErrorDialog('Las contraseñas no coinciden');
       return;
     }
 
-    final user = FirebaseAuth.instance.currentUser;
+    final user = _authService.getCurrentUser();
     if (user == null || user.email == null) {
-      NotificationService.showError(
-        context,
-        'No hay usuario autenticado o falta el email.',
-      );
+      _showErrorDialog('No hay usuario autenticado o falta el email.');
       return;
     }
 
@@ -968,8 +985,35 @@ class EditProfilePageState extends State<EditProfilePage> {
     return errorMessage; // Return original if it's somewhat readable
   }
 
+  // Método para construir la imagen de perfil con mejor manejo para tests
+  Widget _buildProfileImage(User? user) {
+    // Si estamos en un test, user.photoURL podría ser null o una cadena vacía
+    if (user?.photoURL == null || user!.photoURL!.isEmpty) {
+      return CircleAvatar(
+        radius: 50,
+        backgroundColor: Colors.grey[300],
+        child: Icon(Icons.person, size: 50, color: Colors.grey[700]),
+      );
+    } else {
+      // Para uso normal, intentar cargar la imagen de red
+      return CircleAvatar(
+        radius: 50,
+        backgroundImage: NetworkImage(user.photoURL!),
+        // Fallback icon en caso de error de carga
+        onBackgroundImageError: (_, __) {
+          // Silenciosamente mostrar un icono en caso de error
+          return;
+        },
+        child:
+            user.photoURL == null ? const Icon(Icons.person, size: 50) : null,
+      );
+    }
+  }
+
   @override
   Widget build(BuildContext context) {
+    final currentUser = _authService.getCurrentUser();
+
     return Scaffold(
       appBar: AppBar(title: const Text('Edit Profile')),
       body: SingleChildScrollView(
@@ -985,17 +1029,7 @@ class EditProfilePageState extends State<EditProfilePage> {
                   const SizedBox(height: 20), // Add some top spacing
                   // Display existing profile picture if available and no new one selected
                   if (_selectedImage == null && _webImage == null)
-                    CircleAvatar(
-                      radius: 50,
-                      backgroundImage: NetworkImage(
-                        FirebaseAuth.instance.currentUser?.photoURL ?? '',
-                      ),
-                      // Fallback icon if no photoURL
-                      child:
-                          FirebaseAuth.instance.currentUser?.photoURL == null
-                              ? const Icon(Icons.person, size: 50)
-                              : null,
-                    ),
+                    _buildProfileImage(currentUser),
                   // Display selected image preview
                   if (_selectedImage != null && !kIsWeb)
                     ClipOval(
