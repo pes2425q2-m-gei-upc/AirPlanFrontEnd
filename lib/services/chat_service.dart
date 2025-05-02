@@ -12,6 +12,7 @@ class Message {
   final DateTime timestamp;
   final String content;
   final bool isEdited;
+  bool isHovered;
 
   Message({
     required this.senderUsername,
@@ -19,6 +20,7 @@ class Message {
     required this.timestamp,
     required this.content,
     required this.isEdited,
+    this.isHovered = false,
   });
 
   factory Message.fromJson(Map<String, dynamic> json) {
@@ -366,6 +368,25 @@ class ChatService {
         originalTimestamp,
         newContent
     );
+  }
+
+  Future<bool> deleteMessage(String receiverUsername, String timestamp) async {
+    try {
+      final success = await _chatWebSocketService.sendDeleteMessage(receiverUsername, timestamp);
+      if (success) {
+        // Eliminar el mensaje de la caché local
+        _messageCache.removeWhere((message) =>
+        message.receiverUsername == receiverUsername &&
+            message.timestamp.toIso8601String() == timestamp);
+
+        // Notificar a los oyentes que la caché ha cambiado
+        _messageUpdateController.add(_messageCache.toList());
+      }
+      return success;
+    } catch (e) {
+      debugPrint('Error deleting message: $e');
+      return false;
+    }
   }
 
   // Método para limpiar la conexión del WebSocket cuando el usuario sale de la pantalla de chat

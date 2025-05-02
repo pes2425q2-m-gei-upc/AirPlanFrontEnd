@@ -175,6 +175,20 @@ class ChatWebSocketService {
         return;
       }
 
+      // Handle DELETE message type
+      if (messageData is Map && messageData['type'] == 'DELETE') {
+        debugPrint('Processing DELETE message');
+
+        final deleteData = {
+          'type': 'DELETE',
+          'usernameSender': messageData['usernameSender'],
+          'originalTimestamp': messageData['originalTimestamp'],
+        };
+
+        _chatMessageController.add(deleteData);
+        return;
+      }
+
       // Verificar si es un mensaje individual en formato JSON
       if (messageData is Map &&
           messageData.containsKey('usernameSender') &&
@@ -329,6 +343,28 @@ class ChatWebSocketService {
       return true;
     } catch (e) {
       debugPrint('Error al enviar edición por WebSocket: $e');
+      return false;
+    }
+  }
+
+  Future<bool> sendDeleteMessage(String receiverUsername, String timestamp) async {
+    if (!_isChatConnected || _chatChannel == null) {
+      debugPrint('WebSocket is not connected. Cannot send delete message.');
+      return false;
+    }
+
+    try {
+      final deleteMessage = {
+        'type': 'DELETE',
+        'usernameSender': _currentUsername,
+        'usernameReceiver': receiverUsername,
+        'timestamp': timestamp,
+      };
+
+      _chatChannel!.sink.add(jsonEncode(deleteMessage));
+      return true;
+    } catch (e) {
+      debugPrint('Error sending delete message: $e');
       return false;
     }
   }
