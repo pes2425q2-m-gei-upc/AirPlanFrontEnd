@@ -42,8 +42,14 @@ dependencies:
   js_interop: ^0.0.1
   rive: ^0.13.20
   rive_common: ^0.4.15
+  flutter_rating_bar: ^4.0.0
+  image_picker: ^0.8.5+3
+  web_socket_channel: ^2.4.0
+  shared_preferences: ^2.5.3
+  uuid: ^4.5.1
 
 dev_dependencies:
+  coverage: ^1.6.3
   flutter_test:
     sdk: flutter
   mockito: ^5.4.3

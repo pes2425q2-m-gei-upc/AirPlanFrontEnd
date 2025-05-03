@@ -1,4 +1,5 @@
 // map_page.dart
+import 'package:airplan/solicituds_service.dart';
 import 'package:firebase_auth/firebase_auth.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_map/flutter_map.dart';
@@ -21,6 +22,7 @@ class MapPageState extends State<MapPage> {
   final MapController mapController = MapController();
   final MapService mapService = MapService();
   final ActivityService activityService = ActivityService();
+  final SolicitudsService solicitudsService = SolicitudsService();
   LatLng selectedLocation = LatLng(0, 0);
   Map<LatLng, String> savedLocations = {};
   String placeDetails = "";
@@ -40,11 +42,11 @@ class MapPageState extends State<MapPage> {
 
   Future<void> fetchAirQualityData() async {
     try {
-    final circles = await mapService.fetchAirQualityData(
-        contaminantsPerLocation);
-    setState(() {
-      this.circles = circles;
-    });
+      final circles = await mapService.fetchAirQualityData(
+          contaminantsPerLocation);
+      setState(() {
+        this.circles = circles;
+      });
     } catch (e) {
       final actualContext = context;
       if (actualContext.mounted) {
@@ -237,17 +239,42 @@ class MapPageState extends State<MapPage> {
     }
   }
 
-  void _showActivityDetails(Map<String, dynamic> activity) {
-    // Obtener el usuario actual
+  void _showActivityDetails(Map<String, dynamic> activity) async {
     final String? currentUser = FirebaseAuth.instance.currentUser?.displayName;
     final bool isCurrentUserCreator = currentUser != null &&
         activity['creador'] == currentUser;
 
+    bool isFavorite = false;
+
+    try {
+      isFavorite = await isActivityFavorite(activity['id']);
+    } catch (error) {
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(SnackBar(
+          content: Text('Error checking favorite status: $error'),
+        ));
+      }
+    }
+
+    if (!mounted) return;
+
+    bool solicitudExistente = false;
+
+    // Verificar si ya existe una solicitud para esta actividad
+    if (!isCurrentUserCreator && currentUser != null) {
+      solicitudExistente = await solicitudsService.jaExisteixSolicitud(
+        activity['id'],
+        currentUser,
+        activity['creador'],
+      );
+    }
+
+    if (!mounted) return;
     showModalBottomSheet(
       context: context,
       builder: (context) {
         return Container(
-          padding: EdgeInsets.all(16.0),
+          padding: const EdgeInsets.all(16.0),
           child: Row(
             mainAxisAlignment: MainAxisAlignment.spaceBetween,
             children: [
@@ -264,7 +291,7 @@ class MapPageState extends State<MapPage> {
                       },
                       child: Text(
                         activity['nom'] ?? '',
-                        style: TextStyle(
+                        style: const TextStyle(
                           fontSize: 20,
                           fontWeight: FontWeight.bold,
                           color: Colors.blue,
@@ -272,34 +299,124 @@ class MapPageState extends State<MapPage> {
                         ),
                       ),
                     ),
-                    SizedBox(height: 8),
+                    const SizedBox(height: 8),
                     Text(
                       'Creador: ${activity['creador'] ?? ''}',
-                      style: TextStyle(fontSize: 16),
+                      style: const TextStyle(fontSize: 16),
                     ),
                   ],
                 ),
               ),
-              // Botones a la derecha (solo si el usuario es el creador)
-              if (isCurrentUserCreator) // <-- Condición para mostrar los botones
-                Row(
-                  children: [
+              // Botones a la derecha
+              Row(
+                children: [
+                  // Favorite button
+                  if (currentUser != null) // Only show if user is logged in
                     IconButton(
-                      icon: Icon(Icons.edit, color: Colors.blue),
-                      onPressed: () {
+                      icon: Icon(
+                        isFavorite ? Icons.favorite : Icons.favorite_border,
+                        color: Colors.red,
+                      ),
+                      onPressed: () async {
+                        if (isFavorite) {
+                          await removeActivityFromFavorites(activity['id']);
+                          if (context.mounted) {
+                            ScaffoldMessenger.of(context).showSnackBar(
+                              const SnackBar(content: Text('Removed from favorites')),
+                            );
+                          }
+                        } else {
+                          await addActivityToFavorites(activity['id']);
+                          if (context.mounted) {
+                            ScaffoldMessenger.of(context).showSnackBar(
+                              const SnackBar(content: Text('Added to favorites')),
+                            );
+                          }
+                        }
+                        if (!context.mounted) return;
                         Navigator.pop(context);
-                        _showEditActivityForm(activity);
                       },
                     ),
+
+                  if (isCurrentUserCreator) // Botones de edición y eliminación
+                    Row(
+                      children: [
+                        IconButton(
+                          icon: const Icon(Icons.edit, color: Colors.blue),
+                          onPressed: () {
+                            Navigator.pop(context);
+                            _showEditActivityForm(activity);
+                          },
+                        ),
+                        IconButton(
+                          icon: const Icon(Icons.delete, color: Colors.red),
+                          onPressed: () {
+                            Navigator.pop(context);
+                            _showDeleteConfirmation(activity);
+                          },
+                        ),
+                      ],
+                    )
+                  else if (currentUser != null) // Botón "+" o tick azul para otros usuarios
                     IconButton(
-                      icon: Icon(Icons.delete, color: Colors.red),
+                      icon: Icon(
+                        solicitudExistente ? Icons.check_circle : Icons.add,
+                        color: solicitudExistente ? Colors.blue : Colors.blue,
+                      ),
                       onPressed: () {
-                        Navigator.pop(context);
-                        _showDeleteConfirmation(activity);
+                        if (solicitudExistente) {
+                          // Mostrar botón para cancelar solicitud
+                          showDialog(
+                            context: context,
+                            builder: (context) {
+                              return AlertDialog(
+                                title: const Text('Cancelar solicitud'),
+                                content: const Text(
+                                    '¿Estás seguro de que quieres cancelar tu solicitud?'),
+                                actions: [
+                                  TextButton(
+                                    onPressed: () => Navigator.pop(context),
+                                    child: const Text('Cancelar'),
+                                  ),
+                                  TextButton(
+                                    onPressed: () async {
+                                      Navigator.pop(context);
+                                      Navigator.pop(context);
+                                      await solicitudsService.cancelarSolicitud(
+                                        activity['id'],
+                                        currentUser,
+                                      );
+                                      if (context.mounted) {
+                                        ScaffoldMessenger.of(context).showSnackBar(
+                                          const SnackBar(
+                                            content: Text(
+                                                'Solicitud cancelada correctamente.'),
+                                          ),
+                                        );
+                                      }
+                                    },
+                                    child: const Text(
+                                      'Confirmar',
+                                      style: TextStyle(color: Colors.red),
+                                    ),
+                                  ),
+                                ],
+                              );
+                            },
+                          );
+                        } else {
+                          // Enviar solicitud
+                          Navigator.pop(context);
+                          _sendSolicitud(
+                            activity['id'],
+                            currentUser,
+                            activity['creador'],
+                          );
+                        }
                       },
                     ),
-                  ],
-                ),
+                ],
+              ),
             ],
           ),
         );
@@ -475,7 +592,7 @@ class MapPageState extends State<MapPage> {
                   await activityService.deleteActivityFromBackend(activity['id'].toString());
                   if (context.mounted) {
                     ScaffoldMessenger.of(context).showSnackBar(SnackBar(
-                      content: Text("Actividad eliminada correctament."))
+                        content: Text("Actividad eliminada correctament."))
                     );
                   }
                 } catch (e) {
@@ -548,6 +665,122 @@ class MapPageState extends State<MapPage> {
       showAirQualityCircles = !showAirQualityCircles;
     });
   }
+  //Puentes entre boton de favorita y activityService
+  Future<bool> isActivityFavorite(int activityId) async {
+    final String? username = FirebaseAuth.instance.currentUser?.displayName;
+    if (username == null) {
+      throw Exception('User not logged in');
+    }
+    return await activityService.isActivityFavorite(activityId, username);
+  }
+
+
+
+  Future<void> addActivityToFavorites(int activityId) async {
+    final String? username = FirebaseAuth.instance.currentUser?.displayName;
+    if (username == null) {
+      throw Exception('User not logged in');
+    }
+    await activityService.addActivityToFavorites(activityId, username);
+  }
+
+  Future<void> removeActivityFromFavorites(int activityId) async {
+    final String? username = FirebaseAuth.instance.currentUser?.displayName;
+    if (username == null) {
+      throw Exception('User not logged in');
+    }
+    await activityService.removeActivityFromFavorites(activityId, username);
+  }
+
+  Future<void> _showFavoriteActivities() async {
+    try {
+      final String? username = FirebaseAuth.instance.currentUser?.displayName;
+      if (username == null) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(content: Text('Debes iniciar sesión para ver tus favoritos')),
+        );
+        return;
+      }
+
+      final favoriteActivities = await activityService.fetchFavoriteActivities(username);
+
+      if (!mounted) return;
+
+      showModalBottomSheet(
+        context: context,
+        builder: (context) {
+          return Container(
+            padding: const EdgeInsets.all(16.0),
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              mainAxisSize: MainAxisSize.min,
+              children: [
+                const Text(
+                  'Actividades favoritas',
+                  style: TextStyle(fontSize: 20, fontWeight: FontWeight.bold),
+                ),
+                const SizedBox(height: 16),
+                Expanded(
+                  child: favoriteActivities.isEmpty
+                      ? const Center(child: Text('No tienes actividades favoritas'))
+                      : ListView.builder(
+                    itemCount: favoriteActivities.length,
+                    itemBuilder: (context, index) {
+                      final activity = favoriteActivities[index];
+                      return ListTile(
+                        title: Text(activity['nom'] ?? 'Sin nombre'),
+                        subtitle: Text('Creador: ${activity['creador'] ?? 'Unknown'}'),
+                        trailing: IconButton(
+                          icon: const Icon(Icons.favorite, color: Colors.red),
+                          onPressed: () async {
+                            await removeActivityFromFavorites(activity['id']);
+                            if (!context.mounted) return;
+                            Navigator.pop(context);
+                            if (context.mounted) {
+                              ScaffoldMessenger.of(context).showSnackBar(
+                                const SnackBar(content: Text('Removed from favorites')),
+                              );
+                            }
+                          },
+                        ),
+                        onTap: () {
+                          Navigator.pop(context);
+                          _showActivityDetails(activity);
+                        },
+                      );
+                    },
+                  ),
+                ),
+              ],
+            ),
+          );
+        },
+      );
+    } catch (e) {
+      if (context.mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(content: Text('Error loading favorites: ${e.toString()}')),
+        );
+      }
+    }
+  }
+
+  Future<void> _sendSolicitud(int activityId, String requester, String host) async {
+    try {
+      await solicitudsService.sendSolicitud(activityId, requester, host);
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(content: Text('Solicitud enviada correctamente.')),
+        );
+      }
+    } catch (e) {
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(content: Text('Error al enviar la solicitud: ${e.toString()}')),
+        );
+      }
+    }
+  }
 
   @override
   Widget build(BuildContext context) {
@@ -574,6 +807,14 @@ class MapPageState extends State<MapPage> {
               child: Icon(showAirQualityCircles ? Icons.visibility : Icons.visibility_off),
             ),
           ),
+          Positioned(
+            top: 10,
+            left: 10,
+            child: FloatingActionButton(
+              onPressed: _showFavoriteActivities,
+              child: const Icon(Icons.favorite),
+            ),
+          ),
         ],
       ),
       floatingActionButton: FloatingActionButton(
@@ -582,11 +823,11 @@ class MapPageState extends State<MapPage> {
             _showFormWithLocation(savedLocations.keys.first, placeDetails);
           } else {
             ScaffoldMessenger.of(context).showSnackBar(
-              SnackBar(content: Text('No tens ubicacions guardades. Selecciona una ubicació abans de crear una activitat.')),
+              const SnackBar(content: Text('No tens ubicacions guardades. Selecciona una ubicació abans de crear una activitat.')),
             );
           }
         },
-        child: Icon(Icons.add_location),
+        child: const Icon(Icons.add_location),
       ),
     );
   }
