@@ -73,28 +73,36 @@ class Chat {
 
 class ChatService {
   // Singleton instance
-  static final ChatService _instance = ChatService._internal();
+  static ChatService? _instance;
 
-  // Constructor factory con posibilidad de inyectar dependencias
+  // Factory with dependency injection, lazy singleton creation
   factory ChatService({
     ChatWebSocketService? chatWebSocketService,
     AuthService? authService,
   }) {
-    // Si se proporcionan servicios, actualizar las instancias en el singleton
-    if (chatWebSocketService != null) {
-      _instance._chatWebSocketService = chatWebSocketService;
+    if (_instance == null) {
+      _instance = ChatService._internal(
+        chatWebSocketService: chatWebSocketService,
+        authService: authService,
+      );
+    } else {
+      if (chatWebSocketService != null) {
+        _instance!._chatWebSocketService = chatWebSocketService;
+      }
+      if (authService != null) {
+        _instance!._authService = authService;
+      }
     }
-    if (authService != null) {
-      _instance._authService = authService;
-    }
-    return _instance;
+    return _instance!;
   }
 
-  // Constructor interno privado
-  ChatService._internal() {
-    // Inicializar servicios con valores por defecto
-    _chatWebSocketService = ChatWebSocketService();
-    _authService = AuthService();
+  // Private internal constructor with optional injections
+  ChatService._internal({
+    ChatWebSocketService? chatWebSocketService,
+    AuthService? authService,
+  }) {
+    _chatWebSocketService = chatWebSocketService ?? ChatWebSocketService();
+    _authService = authService ?? AuthService();
   }
 
   // Referencias a servicios

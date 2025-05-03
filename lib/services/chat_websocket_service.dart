@@ -1,16 +1,39 @@
 import 'dart:async';
 import 'package:web_socket_channel/web_socket_channel.dart';
-import 'package:firebase_auth/firebase_auth.dart';
 import 'dart:convert';
 import 'package:flutter/material.dart';
 import 'package:airplan/services/api_config.dart';
-import 'package:airplan/services/auth_service.dart'; // Importamos el nuevo servicio
+import 'package:airplan/services/auth_service.dart';
 
 /// Service to manage the chat WebSocket connection.
 class ChatWebSocketService {
-  static final ChatWebSocketService _instance =
-      ChatWebSocketService._internal();
-  factory ChatWebSocketService() => _instance;
+  static ChatWebSocketService? _instance;
+
+  factory ChatWebSocketService({
+    AuthService? authService,
+    ApiConfig? apiConfig,
+    WebSocketChannelFactory? webSocketChannelFactory,
+  }) {
+    // Create a fresh instance if none exists, or when injecting AuthService to re-run initialization
+    if (_instance == null || authService != null) {
+      _instance = ChatWebSocketService._internal(
+        authService: authService,
+        apiConfig: apiConfig,
+        webSocketChannelFactory: webSocketChannelFactory,
+      );
+    } else {
+      if (authService != null) {
+        _instance!._authService = authService;
+      }
+      if (apiConfig != null) {
+        _instance!._apiConfig = apiConfig;
+      }
+      if (webSocketChannelFactory != null) {
+        _instance!._webSocketChannelFactory = webSocketChannelFactory;
+      }
+    }
+    return _instance!;
+  }
 
   WebSocketChannel? _chatChannel;
   final StreamController<Map<String, dynamic>> _chatMessageController =
@@ -20,22 +43,19 @@ class ChatWebSocketService {
   String _currentUsername = '';
   String? _currentChatPartner;
   Timer? _chatPingTimer;
-  final AuthService _authService; // Usamos AuthService
+  late AuthService _authService;
+  late ApiConfig _apiConfig;
+  late WebSocketChannelFactory _webSocketChannelFactory;
 
-  ChatWebSocketService._internal({AuthService? authService})
-    : _authService = authService ?? AuthService() {
-    _authService.authStateChanges.listen((User? user) {
-      if (user == null) {
-        disconnectChat();
-      } else {
-        _currentUsername = user.displayName ?? '';
-      }
-    });
-    // Initialize username immediately if already logged in
-    final currentUser = _authService.getCurrentUser();
-    if (currentUser != null) {
-      _currentUsername = currentUser.displayName ?? '';
-    }
+  ChatWebSocketService._internal({
+    AuthService? authService,
+    ApiConfig? apiConfig,
+    WebSocketChannelFactory? webSocketChannelFactory,
+  }) : _authService = authService ?? AuthService(),
+       _apiConfig = apiConfig ?? ApiConfig(),
+       _webSocketChannelFactory =
+           webSocketChannelFactory ?? DefaultWebSocketChannelFactory() {
+    // No auth subscription at init; connectToChat will fetch current username
   }
 
   Stream<Map<String, dynamic>> get chatMessages =>
@@ -44,10 +64,14 @@ class ChatWebSocketService {
   String? get currentChatPartner => _currentChatPartner;
 
   void connectToChat(String otherUsername) {
-    if (_currentUsername.isEmpty) {
+    // Always get the latest username from AuthService
+    final user = _authService.getCurrentUser();
+    final username = user?.displayName ?? '';
+    if (username.isEmpty) {
       debugPrint('Cannot connect to chat: current username is unknown.');
       return;
     }
+    _currentUsername = username;
 
     // Avoid redundant connections or connecting to self
     if (otherUsername == _currentUsername) {
@@ -66,16 +90,13 @@ class ChatWebSocketService {
 
     try {
       // Use ApiConfig to build the WebSocket URL correctly
-      final wsBaseUrl = ApiConfig().baseUrl.replaceFirst(
-        RegExp(r'^http'),
-        'ws',
-      );
+      final wsBaseUrl = _apiConfig.baseUrl.replaceFirst(RegExp(r'^http'), 'ws');
       final uri = Uri.parse(
         '$wsBaseUrl/ws/chat/$_currentUsername/$otherUsername',
       );
       debugPrint('Connecting to WebSocket: $uri');
 
-      _chatChannel = WebSocketChannel.connect(uri);
+      _chatChannel = _webSocketChannelFactory.connect(uri);
       _isChatConnected = true;
 
       _chatChannel!.stream.listen(
@@ -108,13 +129,14 @@ class ChatWebSocketService {
     }
 
     try {
-      final message = {
+      final msgMap = {
         'usernameSender': _currentUsername,
         'usernameReceiver': receiverUsername,
         'dataEnviament': DateTime.now().toIso8601String(),
         'missatge': content,
       };
-      _chatChannel!.sink.add(jsonEncode(message));
+      // Send message immediately
+      _chatChannel!.sink.add(jsonEncode(msgMap));
       debugPrint('Sent chat message to $receiverUsername');
       return true;
     } catch (e) {
@@ -331,5 +353,20 @@ class ChatWebSocketService {
     disconnectChat(); // Ensure connection is closed
     _chatMessageController.close(); // Close the stream controller
     debugPrint('ChatWebSocketService disposed.');
+  }
+}
+
+/// Factory interface for creating WebSocketChannel instances
+/// This facilitates mocking in tests
+abstract class WebSocketChannelFactory {
+  WebSocketChannel connect(Uri uri);
+}
+
+/// Default implementation of WebSocketChannelFactory
+/// Uses the actual WebSocketChannel.connect method
+class DefaultWebSocketChannelFactory implements WebSocketChannelFactory {
+  @override
+  WebSocketChannel connect(Uri uri) {
+    return WebSocketChannel.connect(uri);
   }
 }

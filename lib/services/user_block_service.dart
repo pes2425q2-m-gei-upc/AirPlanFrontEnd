@@ -1,19 +1,52 @@
 // user_block_service.dart
 import 'dart:convert';
 import 'package:http/http.dart' as http;
-import 'package:firebase_auth/firebase_auth.dart';
 import 'package:airplan/services/api_config.dart';
 import 'package:airplan/services/chat_websocket_service.dart';
+import 'package:airplan/services/auth_service.dart'; // Importamos AuthService
 
 /// Servicio para gestionar el bloqueo/desbloqueo de usuarios
 class UserBlockService {
-  // Singleton
-  static final UserBlockService _instance = UserBlockService._internal();
-  factory UserBlockService() => _instance;
-  UserBlockService._internal();
+  // Singleton con posibilidad de inyección de dependencias
+  static UserBlockService? _instance;
 
-  // Instancia del servicio de WebSocket para chat
-  final _chatWebSocketService = ChatWebSocketService();
+  factory UserBlockService({
+    ChatWebSocketService? chatWebSocketService,
+    ApiConfig? apiConfig,
+    http.Client? httpClient,
+    AuthService? authService,
+  }) {
+    // Create a new instance if none exists or any injection provided
+    if (_instance == null ||
+        chatWebSocketService != null ||
+        apiConfig != null ||
+        httpClient != null ||
+        authService != null) {
+      _instance = UserBlockService._internal(
+        chatWebSocketService: chatWebSocketService,
+        apiConfig: apiConfig,
+        httpClient: httpClient,
+        authService: authService,
+      );
+    }
+    return _instance!;
+  }
+
+  // Dependencias del servicio
+  late ChatWebSocketService _chatWebSocketService;
+  late ApiConfig _apiConfig;
+  late http.Client _httpClient;
+  late AuthService _authService;
+
+  UserBlockService._internal({
+    ChatWebSocketService? chatWebSocketService,
+    ApiConfig? apiConfig,
+    http.Client? httpClient,
+    AuthService? authService,
+  }) : _chatWebSocketService = chatWebSocketService ?? ChatWebSocketService(),
+       _apiConfig = apiConfig ?? ApiConfig(),
+       _httpClient = httpClient ?? http.Client(),
+       _authService = authService ?? AuthService();
 
   /// Bloquear a un usuario
   ///
@@ -33,8 +66,8 @@ class UserBlockService {
       // Si no se puede enviar por WebSocket (quizás no hay conexión),
       // utilizar el método HTTP como fallback
       if (!success) {
-        final response = await http.post(
-          Uri.parse(ApiConfig().buildUrl('api/blocks/create')),
+        final response = await _httpClient.post(
+          Uri.parse(_apiConfig.buildUrl('api/blocks/create')),
           headers: {'Content-Type': 'application/json'},
           body: jsonEncode({
             'blockerUsername': usuarioQueBloquea,
@@ -72,8 +105,8 @@ class UserBlockService {
 
       // Si no se puede enviar por WebSocket, utilizar el método HTTP como fallback
       if (!success) {
-        final response = await http.post(
-          Uri.parse(ApiConfig().buildUrl('api/blocks/remove')),
+        final response = await _httpClient.post(
+          Uri.parse(_apiConfig.buildUrl('api/blocks/remove')),
           headers: {'Content-Type': 'application/json'},
           body: jsonEncode({
             'blockerUsername': usuarioQueBloquea,
@@ -100,9 +133,9 @@ class UserBlockService {
     String usuarioBloqueado,
   ) async {
     try {
-      final response = await http.get(
+      final response = await _httpClient.get(
         Uri.parse(
-          ApiConfig().buildUrl(
+          _apiConfig.buildUrl(
             'api/blocks/status/$usuarioQueBloquea/$usuarioBloqueado',
           ),
         ),
@@ -122,8 +155,8 @@ class UserBlockService {
   /// Obtener lista de usuarios bloqueados por un usuario
   Future<List<dynamic>> getBlockedUsers(String email) async {
     try {
-      final response = await http.get(
-        Uri.parse(ApiConfig().buildUrl('api/blocks/list/$email')),
+      final response = await _httpClient.get(
+        Uri.parse(_apiConfig.buildUrl('api/blocks/list/$email')),
       );
 
       if (response.statusCode == 200) {
@@ -134,5 +167,15 @@ class UserBlockService {
       print('Error al obtener usuarios bloqueados: ${e.toString()}');
       return [];
     }
+  }
+
+  /// Obtener el email del usuario autenticado actual
+  String? getCurrentUserEmail() {
+    return _authService.getCurrentUser()?.email;
+  }
+
+  /// Obtener el username del usuario autenticado actual
+  String? getCurrentUsername() {
+    return _authService.getCurrentUsername();
   }
 }

@@ -65,25 +65,13 @@ class NotificationService {
             icon: icon,
             onDismiss: () {
               overlayEntry.remove();
-              print('Notification dismissed manually.'); // Debug print
+              print('Notification dismissed.');
             },
+            duration: duration,
           ),
     );
 
     overlay.insert(overlayEntry);
-
-    // Automatically remove the notification after the specified duration
-    Timer(duration, () {
-      print('Timer triggered for notification removal.'); // Debug print
-      if (overlayKey.currentState != null && overlayKey.currentState!.mounted) {
-        overlayKey.currentState!._controller.reverse().then((_) {
-          overlayEntry.remove();
-          print('Notification removed after timer.'); // Debug print
-        });
-      } else {
-        print('Notification already removed or not mounted.'); // Debug print
-      }
-    });
   }
 }
 
@@ -93,6 +81,7 @@ class _NotificationOverlay extends StatefulWidget {
   final Color backgroundColor;
   final IconData icon;
   final VoidCallback onDismiss;
+  final Duration duration;
 
   const _NotificationOverlay({
     super.key,
@@ -100,6 +89,7 @@ class _NotificationOverlay extends StatefulWidget {
     required this.backgroundColor,
     required this.icon,
     required this.onDismiss,
+    required this.duration,
   });
 
   @override
@@ -111,33 +101,38 @@ class _NotificationOverlayState extends State<_NotificationOverlay>
   late AnimationController _controller;
   late Animation<double> _opacityAnimation;
   late Animation<Offset> _slideAnimation;
+  Timer? _timer;
 
   @override
   void initState() {
     super.initState();
-
-    // Configurar animaciones
+    // Configurar animaciones para entrada
     _controller = AnimationController(
       vsync: this,
       duration: const Duration(milliseconds: 300),
     );
-
     _opacityAnimation = Tween<double>(
       begin: 0.0,
       end: 1.0,
     ).animate(CurvedAnimation(parent: _controller, curve: Curves.easeIn));
-
     _slideAnimation = Tween<Offset>(
-      begin: const Offset(0.0, -1.0),
+      begin: const Offset(0, -1),
       end: Offset.zero,
     ).animate(CurvedAnimation(parent: _controller, curve: Curves.easeOut));
-
-    // Iniciar animación de entrada
     _controller.forward();
+    // Auto-dismiss after duration
+    _timer = Timer(widget.duration, () {
+      print('Timer triggered for notification removal.');
+      if (mounted) {
+        widget.onDismiss();
+        print('Notification removed after timer.');
+      }
+    });
   }
 
   @override
   void dispose() {
+    _timer?.cancel();
     _controller.dispose();
     super.dispose();
   }
@@ -187,10 +182,9 @@ class _NotificationOverlayState extends State<_NotificationOverlay>
                     const SizedBox(width: 12),
                     GestureDetector(
                       onTap: () {
-                        // Iniciar animación de salida y luego eliminar el overlay
-                        _controller.reverse().then((_) {
-                          widget.onDismiss();
-                        });
+                        // Cancel auto-dismiss and remove overlay immediately
+                        _timer?.cancel();
+                        widget.onDismiss();
                       },
                       child: const Icon(
                         Icons.close,
