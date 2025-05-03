@@ -1,6 +1,5 @@
 import 'dart:convert';
 import 'package:http/http.dart' as http;
-import 'package:firebase_auth/firebase_auth.dart';
 import 'package:airplan/services/api_config.dart';
 import 'package:airplan/services/chat_websocket_service.dart';
 import 'package:airplan/services/auth_service.dart'; // Importar AuthService

@@ -49,7 +49,7 @@ void main() {
     WidgetTester tester,
   ) async {
     // Setup mock to return success
-    when(mockAuthService.resetPassword(any)).thenAnswer((_) async => null);
+    when(mockAuthService.resetPassword(any)).thenAnswer((_) async {});
 
     await tester.pumpWidget(createWidgetUnderTest());
 
@@ -70,7 +70,7 @@ void main() {
     'ResetPasswordPage shows success message when resetPassword succeeds',
     (WidgetTester tester) async {
       // Setup mock to return success
-      when(mockAuthService.resetPassword(any)).thenAnswer((_) async => null);
+      when(mockAuthService.resetPassword(any)).thenAnswer((_) async {});
 
       await tester.pumpWidget(createWidgetUnderTest());
 

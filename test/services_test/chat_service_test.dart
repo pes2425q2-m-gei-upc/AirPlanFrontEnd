@@ -3,7 +3,6 @@ import 'package:mocktail/mocktail.dart';
 import 'package:airplan/services/chat_service.dart';
 import 'package:airplan/services/chat_websocket_service.dart';
 import 'package:airplan/services/auth_service.dart';
-import 'package:firebase_core/firebase_core.dart';
 
 // Mocks
 class MockChatWebSocketService extends Mock implements ChatWebSocketService {}

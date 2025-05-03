@@ -65,7 +65,6 @@ class NotificationService {
             icon: icon,
             onDismiss: () {
               overlayEntry.remove();
-              print('Notification dismissed.');
             },
             duration: duration,
           ),
@@ -122,10 +121,8 @@ class _NotificationOverlayState extends State<_NotificationOverlay>
     _controller.forward();
     // Auto-dismiss after duration
     _timer = Timer(widget.duration, () {
-      print('Timer triggered for notification removal.');
       if (mounted) {
         widget.onDismiss();
-        print('Notification removed after timer.');
       }
     });
   }

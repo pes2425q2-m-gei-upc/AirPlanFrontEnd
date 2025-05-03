@@ -96,7 +96,6 @@ class ChatDetailPageState extends State<ChatDetailPage> {
     if (!mounted) return;
 
     // Log para debug
-    print('💬 Mensaje recibido: $messageData');
 
     // Procesar por tipo de mensaje
     if (messageData.containsKey('type')) {
@@ -143,12 +142,10 @@ class ChatDetailPageState extends State<ChatDetailPage> {
         // Si el bloqueador es el otro usuario, entonces nos está bloqueando a nosotros
         if (blocker == widget.username) {
           _otherUserBlockedCurrent = true;
-          print('🔒 El otro usuario ($blocker) te ha bloqueado.');
         }
         // Si el bloqueador somos nosotros, entonces estamos bloqueando al otro
         else if (blocker == _currentUsername) {
           _currentUserBlockedOther = true;
-          print('🔒 Has bloqueado al otro usuario (${widget.username}).');
         }
 
         // Procesar también con la información completa si está disponible
@@ -162,20 +159,12 @@ class ChatDetailPageState extends State<ChatDetailPage> {
         }
       });
     }
-
-    print(
-      '🔒 Notificación de bloqueo procesada: currentBlockedOther: $_currentUserBlockedOther, otherBlockedCurrent: $_otherUserBlockedCurrent',
-    );
   }
 
   void _handleUnblockNotification(Map<String, dynamic> data) {
     // El servidor puede enviar 'unblockerUsername' o 'blockerUsername' para la misma acción
     final unblocker = data['unblockerUsername'] ?? data['blockerUsername'];
     final unblocked = data['unblockedUsername']; // Puede ser null
-
-    print(
-      '🔍 Procesando desbloqueo - unblocker: $unblocker, unblocked: $unblocked, currentUsername: $_currentUsername, otherUsername: ${widget.username}',
-    );
 
     // Si tenemos al menos el usuario que desbloquea
     if (unblocker != null && mounted) {
@@ -189,18 +178,12 @@ class ChatDetailPageState extends State<ChatDetailPage> {
           (_currentUsername == unblocked || unblocked == null)) {
         shouldUpdate = true;
         shouldUpdateOtherUserBlockedCurrent = true;
-        print(
-          '🔓 CASO 1: El otro usuario (${widget.username}) te ha desbloqueado',
-        );
       }
       // Caso 2: Nosotros hemos desbloqueado al otro usuario (partner)
       else if (unblocker == _currentUsername &&
           (widget.username == unblocked || unblocked == null)) {
         shouldUpdate = true;
         shouldUpdateCurrentUserBlockedOther = true;
-        print(
-          '🔓 CASO 2: Tú has desbloqueado al otro usuario (${widget.username})',
-        );
       }
 
       // Actualizar estado si es necesario
@@ -212,24 +195,15 @@ class ChatDetailPageState extends State<ChatDetailPage> {
           if (shouldUpdateCurrentUserBlockedOther) {
             _currentUserBlockedOther = false;
           }
-
-          print(
-            '🔄 Estado actualizado: currentUserBlockedOther: $_currentUserBlockedOther, otherUserBlockedCurrent: $_otherUserBlockedCurrent',
-          );
         });
       }
     }
-
-    print(
-      '🔓 Notificación de desbloqueo procesada: currentBlockedOther: $_currentUserBlockedOther, otherBlockedCurrent: $_otherUserBlockedCurrent',
-    );
   }
 
   void _processMessageHistory(Map<String, dynamic> data) {
     // Procesar mensajes del historial
     if (data.containsKey('messages') && data['messages'] is List) {
       final List<dynamic> historyMessages = data['messages'];
-      print('📚 Recibidos ${historyMessages.length} mensajes de historial');
 
       if (mounted) {
         setState(() {
@@ -301,16 +275,12 @@ class ChatDetailPageState extends State<ChatDetailPage> {
   }
 
   void _updateBlockStatus(Map<String, dynamic> blockStatus) {
-    print('🔍 Procesando blockStatus: $blockStatus');
-
     final String user1 = blockStatus['user1'] ?? '';
     final String user2 = blockStatus['user2'] ?? '';
     final bool user1BlockedUser2 = blockStatus['user1BlockedUser2'] ?? false;
     final bool user2BlockedUser1 = blockStatus['user2BlockedUser1'] ?? false;
 
     if (user1.isEmpty || user2.isEmpty) {
-      print("⚠️ Advertencia: blockStatus sin nombres de usuario");
-
       if (_currentUsername != null) {
         // Fallback menos fiable
         setState(() {
@@ -330,7 +300,6 @@ class ChatDetailPageState extends State<ChatDetailPage> {
           _currentUserBlockedOther = user2BlockedUser1;
           _otherUserBlockedCurrent = user1BlockedUser2;
         } else {
-          print("🛑 Error: Los nombres de usuario no coinciden");
           if (_isLoading) {
             _currentUserBlockedOther = false;
             _otherUserBlockedCurrent = false;
@@ -340,10 +309,6 @@ class ChatDetailPageState extends State<ChatDetailPage> {
         if (_isLoading) _isLoading = false;
       });
     }
-
-    print(
-      '🔐 Estado de bloqueo: currentUserBlockedOther: $_currentUserBlockedOther, otherUserBlockedCurrent: $_otherUserBlockedCurrent',
-    );
   }
 
   void _getCurrentUsername() {
@@ -507,7 +472,9 @@ class ChatDetailPageState extends State<ChatDetailPage> {
   Widget _buildBlockBanner() {
     return Container(
       padding: const EdgeInsets.symmetric(vertical: 10, horizontal: 16),
-      color: Colors.red.withOpacity(0.1),
+      color: Colors.red.withAlpha(
+        25,
+      ), // Reemplazado withOpacity(0.1) por withAlpha(25)
       child: Row(
         children: [
           const Icon(Icons.block, color: Colors.red),
@@ -647,7 +614,11 @@ class ChatDetailPageState extends State<ChatDetailPage> {
             Text(
               _formatTimestamp(message.timestamp),
               style: TextStyle(
-                color: isMe ? Colors.white.withAlpha(204) : Colors.black54,
+                color:
+                    isMe
+                        ? Colors.white70
+                        : Colors
+                            .black54, // Reemplazado withAlpha(204) por Colors.white70
                 fontSize: 12,
               ),
               textAlign: TextAlign.right,
@@ -789,9 +760,6 @@ class ChatDetailPageState extends State<ChatDetailPage> {
     }
 
     _showProgressSnackbar('Desbloqueando usuario...');
-    print(
-      '🔓 INICIO DEL PROCESO DE DESBLOQUEO: Tu usuario (${user.displayName}) va a desbloquear a ${widget.username}',
-    );
 
     try {
       // Usar UserBlockService que ahora envía directamente por WebSocket
@@ -799,7 +767,6 @@ class ChatDetailPageState extends State<ChatDetailPage> {
         user.displayName!,
         widget.username,
       );
-      print('🔓 Respuesta del desbloqueo: $result');
 
       if (mounted) {
         ScaffoldMessenger.of(context).hideCurrentSnackBar();
@@ -823,7 +790,6 @@ class ChatDetailPageState extends State<ChatDetailPage> {
         }
       }
     } catch (e) {
-      print('❌ ERROR durante el proceso de desbloqueo: $e');
       if (mounted) {
         ScaffoldMessenger.of(context).hideCurrentSnackBar();
         _notificationService.showError(

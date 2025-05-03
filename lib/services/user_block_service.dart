@@ -75,15 +75,11 @@ class UserBlockService {
           }),
         );
 
-        print(
-          'Respuesta al bloquear (fallback HTTP): ${response.statusCode}, ${response.body}',
-        );
         return response.statusCode == 200 || response.statusCode == 201;
       }
 
       return success;
     } catch (e) {
-      print('Error al bloquear usuario: ${e.toString()}');
       return false;
     }
   }
@@ -119,7 +115,6 @@ class UserBlockService {
 
       return success;
     } catch (e) {
-      print('Error al desbloquear usuario: ${e.toString()}');
       return false;
     }
   }
@@ -147,7 +142,6 @@ class UserBlockService {
       }
       return false;
     } catch (e) {
-      print('Error al verificar bloqueo: ${e.toString()}');
       return false;
     }
   }
@@ -164,7 +158,6 @@ class UserBlockService {
       }
       return [];
     } catch (e) {
-      print('Error al obtener usuarios bloqueados: ${e.toString()}');
       return [];
     }
   }

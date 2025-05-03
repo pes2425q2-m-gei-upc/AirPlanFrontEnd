@@ -8,7 +8,6 @@ import 'package:airplan/services/chat_websocket_service.dart';
 import 'package:airplan/services/user_block_service.dart';
 import 'package:airplan/services/auth_service.dart';
 import 'dart:async';
-import 'dart:convert';
 
 import 'package:airplan/chat_detail_page.dart';
 // Import the generated mocks file

@@ -4,12 +4,10 @@ import 'package:mockito/mockito.dart';
 import 'package:mockito/annotations.dart';
 import 'package:flutter/services.dart';
 import 'package:firebase_auth/firebase_auth.dart';
-import 'package:airplan/register.dart';
 import 'package:airplan/services/auth_service.dart';
 import 'package:airplan/form_content_register.dart';
 import 'package:airplan/logo_widget.dart';
 import 'package:airplan/rive_controller.dart';
-import 'package:airplan/rive_animation_widget.dart';
 import 'register_test.mocks.dart';
 
 // Mock the Rive animation widget to avoid using actual Rive library in tests
@@ -24,7 +22,7 @@ class MockRiveAnimationWidget extends StatelessWidget {
     return Container(
       width: 200,
       height: 200,
-      color: Colors.blue.withOpacity(0.5),
+      color: Colors.blue.withAlpha((0.5 * 255).toInt()),
       child: const Center(child: Text("Mock Rive Animation")),
     );
   }
@@ -32,10 +30,7 @@ class MockRiveAnimationWidget extends StatelessWidget {
 
 // Override the LogoWidget to use our mock RiveAnimationWidget
 class TestLogoWidget extends LogoWidget {
-  const TestLogoWidget({
-    super.key,
-    required RiveAnimationControllerHelper riveHelper,
-  }) : super(riveHelper: riveHelper);
+  const TestLogoWidget({super.key, required super.riveHelper});
 
   @override
   Widget build(BuildContext context) {
@@ -164,9 +159,10 @@ void main() {
     WidgetTester tester,
   ) async {
     // Set up small screen size
-    tester.binding.window.physicalSizeTestValue = const Size(300, 800);
-    tester.binding.window.devicePixelRatioTestValue = 1.0;
-    addTearDown(tester.binding.window.clearPhysicalSizeTestValue);
+    tester.view.physicalSize = const Size(300, 800);
+    tester.view.devicePixelRatio = 1.0;
+    addTearDown(tester.view.resetPhysicalSize);
+    addTearDown(tester.view.resetDevicePixelRatio);
 
     // Build the widget with mock auth service and mock rive helper
     await tester.pumpWidget(
@@ -191,9 +187,10 @@ void main() {
     WidgetTester tester,
   ) async {
     // Set up large screen size
-    tester.binding.window.physicalSizeTestValue = const Size(1200, 800);
-    tester.binding.window.devicePixelRatioTestValue = 1.0;
-    addTearDown(tester.binding.window.clearPhysicalSizeTestValue);
+    tester.view.physicalSize = const Size(800, 1280);
+    addTearDown(tester.view.resetPhysicalSize);
+    tester.view.devicePixelRatio = 1.0;
+    addTearDown(tester.view.resetDevicePixelRatio);
 
     // Build the widget with mock auth service
     await tester.pumpWidget(

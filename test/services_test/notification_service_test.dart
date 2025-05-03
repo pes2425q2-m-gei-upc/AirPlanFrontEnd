@@ -10,7 +10,7 @@ void main() {
     service = NotificationService();
   });
 
-  Future<void> _pumpTestApp(WidgetTester tester) async {
+  Future<void> pumpTestApp(WidgetTester tester) async {
     await tester.pumpWidget(
       MaterialApp(
         home: Builder(
@@ -26,7 +26,7 @@ void main() {
   testWidgets('showSuccess displays a green notification and auto-dismisses', (
     tester,
   ) async {
-    await _pumpTestApp(tester);
+    await pumpTestApp(tester);
 
     service.showSuccess(testContext, 'Success!');
 
@@ -50,7 +50,7 @@ void main() {
   });
 
   testWidgets('showError displays a red notification', (tester) async {
-    await _pumpTestApp(tester);
+    await pumpTestApp(tester);
     service.showError(testContext, 'Error occurred');
     await tester.pump();
     await tester.pump(const Duration(milliseconds: 300));
@@ -69,7 +69,7 @@ void main() {
   });
 
   testWidgets('showInfo displays a blue notification', (tester) async {
-    await _pumpTestApp(tester);
+    await pumpTestApp(tester);
     service.showInfo(testContext, 'Info message');
     await tester.pump();
     await tester.pump(const Duration(milliseconds: 300));
@@ -88,7 +88,7 @@ void main() {
   });
 
   testWidgets('showWarning displays an amber notification', (tester) async {
-    await _pumpTestApp(tester);
+    await pumpTestApp(tester);
     NotificationService.showWarning(testContext, 'Warning!');
     await tester.pump();
     await tester.pump(const Duration(milliseconds: 300));
@@ -107,7 +107,7 @@ void main() {
   });
 
   testWidgets('manually tap close dismisses the notification', (tester) async {
-    await _pumpTestApp(tester);
+    await pumpTestApp(tester);
     service.showSuccess(testContext, 'TapClose');
     await tester.pump();
     await tester.pump(const Duration(milliseconds: 300));

@@ -164,7 +164,7 @@ class _FormContentRegisterState extends State<FormContentRegister> {
       } else {
         _emailError = _usernameError = errorMessage;
       }
-      print('Backend error triggered: $_emailError'); // Debug print
+      // Debug print
     });
     _formKey.currentState?.validate();
   }
@@ -187,7 +187,7 @@ class _FormContentRegisterState extends State<FormContentRegister> {
       } else {
         _emailError = "Error de Firebase: ${e.message}";
       }
-      print('Firebase error triggered: $_emailError'); // Debug print
+      // Debug print
     });
 
     _formKey.currentState?.validate();
@@ -205,7 +205,7 @@ class _FormContentRegisterState extends State<FormContentRegister> {
     widget.riveHelper.addFailController();
     setState(() {
       _emailError = _usernameError = "Error en connectar amb el servidor";
-      print('Generic error triggered: $_emailError'); // Debug print
+      // Debug print
     });
     _formKey.currentState?.validate();
   }
@@ -238,7 +238,6 @@ class _FormContentRegisterState extends State<FormContentRegister> {
                         value == null || value.isEmpty
                             ? 'Introdueix el teu nom'
                             : null;
-                    print('Name validator called: $result');
                     return result;
                   },
                   decoration: const InputDecoration(
@@ -260,10 +259,8 @@ class _FormContentRegisterState extends State<FormContentRegister> {
                     if (_usernameError != null) return _usernameError;
                     if (value == null || value.isEmpty) {
                       final result = 'Introdueix el teu nom d\'usuari';
-                      print('Username validator called: $result');
                       return result;
                     }
-                    print('Username validator called: null');
                     return null;
                   },
                   decoration: const InputDecoration(
@@ -281,12 +278,10 @@ class _FormContentRegisterState extends State<FormContentRegister> {
                   controller: _emailController,
                   validator: (value) {
                     if (_emailError != null) {
-                      print('Email validator called with error: $_emailError');
                       return _emailError;
                     }
                     if (value == null || value.isEmpty) {
                       final result = 'Introdueix el teu correu electrònic';
-                      print('Email validator called: $result');
                       return result;
                     }
                     bool emailValid = RegExp(
@@ -294,7 +289,6 @@ class _FormContentRegisterState extends State<FormContentRegister> {
                     ).hasMatch(value);
                     final result =
                         emailValid ? null : 'Introdueix un correu vàlid';
-                    print('Email validator called for format: $result');
                     return result;
                   },
                   decoration: const InputDecoration(
@@ -316,7 +310,6 @@ class _FormContentRegisterState extends State<FormContentRegister> {
                         value != null && value.length >= 8
                             ? null
                             : 'Mínim 8 caràcters';
-                    print('Password validator called: $result');
                     return result;
                   },
                   obscureText: !_isPasswordVisible,
@@ -348,7 +341,6 @@ class _FormContentRegisterState extends State<FormContentRegister> {
                         value == _passwordController.text
                             ? null
                             : 'Les contrasenyes no coincideixen';
-                    print('Confirm password validator called: $result');
                     return result;
                   },
                   obscureText: !_isConfirmPasswordVisible,

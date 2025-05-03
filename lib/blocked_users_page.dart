@@ -64,6 +64,9 @@ class _BlockedUsersPageState extends State<BlockedUsersPage> {
   }
 
   Future<void> _unblockUser(String blockedUsername) async {
+    // Verificamos si el widget todavía está montado
+    if (!mounted) return;
+
     final user = _authService.getCurrentUser();
     if (user == null || user.displayName == null) {
       _notificationService.showError(
@@ -73,21 +76,25 @@ class _BlockedUsersPageState extends State<BlockedUsersPage> {
       return;
     }
 
+    // Almacenamos el contexto antes de la operación asíncrona
+    final currentContext = context;
+
+    // Mostramos el diálogo de confirmación
     final confirm = await showDialog<bool>(
-      context: context,
+      context: currentContext,
       builder:
-          (context) => AlertDialog(
+          (dialogContext) => AlertDialog(
             title: Text('Desbloquear a $blockedUsername'),
             content: Text(
               '¿Estás seguro de que quieres desbloquear a este usuario? Podrás volver a ver sus mensajes y actividades.',
             ),
             actions: [
               TextButton(
-                onPressed: () => Navigator.of(context).pop(false),
+                onPressed: () => Navigator.of(dialogContext).pop(false),
                 child: const Text('Cancelar'),
               ),
               TextButton(
-                onPressed: () => Navigator.of(context).pop(true),
+                onPressed: () => Navigator.of(dialogContext).pop(true),
                 style: TextButton.styleFrom(foregroundColor: Colors.green),
                 child: const Text('Desbloquear'),
               ),
@@ -95,7 +102,11 @@ class _BlockedUsersPageState extends State<BlockedUsersPage> {
           ),
     );
 
+    // Si el usuario cancela, salimos
     if (confirm != true) return;
+
+    // Verificamos si el widget todavía está montado
+    if (!mounted) return;
 
     setState(() {
       _isLoading = true;
@@ -107,26 +118,54 @@ class _BlockedUsersPageState extends State<BlockedUsersPage> {
         blockedUsername,
       );
 
+      // Verificamos si el widget todavía está montado
+      if (!mounted) return;
+
       if (success) {
-        _notificationService.showSuccess(
-          context,
-          'Has desbloqueado a $blockedUsername',
-        );
+        // Mostrar notificación de éxito
+        // Usamos Future.microtask para asegurarnos de que la notificación se muestre después de que se actualice el estado
+        Future.microtask(() {
+          if (mounted) {
+            _notificationService.showSuccess(
+              context,
+              'Has desbloqueado a $blockedUsername',
+            );
+          }
+        });
+
+        // Recargar la lista de usuarios bloqueados
         await _loadBlockedUsers();
       } else {
-        _notificationService.showError(
-          context,
-          'No se pudo desbloquear al usuario. Inténtalo de nuevo.',
-        );
+        // Mostrar notificación de error
+        // Usamos Future.microtask para asegurarnos de que la notificación se muestre después de que se actualice el estado
+        Future.microtask(() {
+          if (mounted) {
+            _notificationService.showError(
+              context,
+              'No se pudo desbloquear al usuario. Inténtalo de nuevo.',
+            );
+          }
+        });
+
         setState(() {
           _isLoading = false;
         });
       }
     } catch (e) {
-      _notificationService.showError(
-        context,
-        'Error al desbloquear usuario: ${e.toString()}',
-      );
+      // Verificamos si el widget todavía está montado
+      if (!mounted) return;
+
+      // Mostrar notificación de error
+      // Usamos Future.microtask para asegurarnos de que la notificación se muestre después de que se actualice el estado
+      Future.microtask(() {
+        if (mounted) {
+          _notificationService.showError(
+            context,
+            'Error al desbloquear usuario: ${e.toString()}',
+          );
+        }
+      });
+
       setState(() {
         _isLoading = false;
       });

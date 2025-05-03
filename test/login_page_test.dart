@@ -4,7 +4,6 @@ import 'package:mockito/mockito.dart';
 import 'package:mockito/annotations.dart';
 import 'package:http/http.dart' as http;
 import 'package:airplan/login_page.dart';
-import 'package:airplan/register.dart';
 import 'package:airplan/reset_password.dart';
 import 'package:airplan/services/auth_service.dart';
 import 'package:airplan/services/websocket_service.dart';

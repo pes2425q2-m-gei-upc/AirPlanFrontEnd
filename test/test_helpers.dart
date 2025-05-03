@@ -1,8 +1,6 @@
 // test_helpers.dart
-import 'package:firebase_auth/firebase_auth.dart';
 import 'package:firebase_auth_mocks/firebase_auth_mocks.dart';
 import 'package:firebase_core/firebase_core.dart';
-import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
 
 // Clase de configuración para mocks de Firebase
@@ -30,7 +28,6 @@ class FirebaseTestSetup {
       // en su lugar, usaremos el mockAuth en los tests
     } catch (e) {
       // Ignoramos errores de inicialización que pueden ocurrir durante los tests
-      print('Firebase initialization error (expected in tests): $e');
     }
   }
 

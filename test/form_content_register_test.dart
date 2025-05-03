@@ -282,8 +282,7 @@ void main() {
         ),
       ).thenAnswer((_) async => mockResponse);
 
-      // Inject our mock HTTP client
-      http.Client httpClient = mockHttpClient;
+      // La variable httpClient no se estaba usando, así que la eliminamos
 
       await tester.pumpWidget(createWidgetUnderTest());
 

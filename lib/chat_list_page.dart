@@ -29,7 +29,7 @@ class ChatListPage extends StatefulWidget {
 class ChatListPageState extends State<ChatListPage> {
   late final ChatService _chatService;
   late final ChatWebSocketService _chatWebSocketService;
-  late final AuthService _authService;
+  // Se elimina el campo _authService ya que no se está utilizando
   final NotificationService _notificationService = NotificationService();
   List<Chat> _chats = [];
   List<Chat> _filteredChats = [];
@@ -46,7 +46,7 @@ class ChatListPageState extends State<ChatListPage> {
     _chatService = widget.chatService ?? ChatService();
     _chatWebSocketService =
         widget.chatWebSocketService ?? ChatWebSocketService();
-    _authService = widget.authService ?? AuthService();
+    // Se elimina la inicialización de _authService
 
     _loadChats();
     _setupMessageListener();

@@ -4,9 +4,7 @@
 import 'package:firebase_auth/firebase_auth.dart';
 import 'package:firebase_core/firebase_core.dart';
 import 'package:flutter/material.dart';
-import 'package:mockito/mockito.dart';
 import 'package:flutter_test/flutter_test.dart';
-import 'package:firebase_core_platform_interface/firebase_core_platform_interface.dart';
 
 // Simple minimal implementation of a FirebaseApp for testing
 class TestFirebaseApp implements FirebaseApp {

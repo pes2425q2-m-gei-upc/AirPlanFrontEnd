@@ -51,7 +51,6 @@ Future<void> setupFirebaseCoreMocks() async {
   TestWidgetsFlutterBinding.ensureInitialized();
   FirebasePlatform.instance = MockFirebasePlatform();
   await Firebase.initializeApp();
-  print('Firebase Auth mocking is setup and ready to use');
 }
 
 // Definir las funciones mock para inyección
@@ -225,8 +224,10 @@ void main() {
       WidgetTester tester,
     ) async {
       // Set a larger surface for the test to make buttons visible
-      tester.binding.window.physicalSizeTestValue = const Size(1280, 1600);
-      tester.binding.window.devicePixelRatioTestValue = 1.0;
+      tester.view.physicalSize = const Size(1280, 1600);
+      tester.view.devicePixelRatio = 1.0;
+      addTearDown(tester.view.resetPhysicalSize);
+      addTearDown(tester.view.resetDevicePixelRatio);
 
       await tester.pumpWidget(
         MaterialApp(
@@ -261,8 +262,9 @@ void main() {
 
       // Reset size after test
       addTearDown(() {
-        tester.binding.window.clearPhysicalSizeTestValue();
-        tester.binding.window.clearDevicePixelRatioTestValue();
+        tester.view.resetPhysicalSize();
+        tester.view.devicePixelRatio = 1.0;
+        addTearDown(tester.view.resetDevicePixelRatio);
       });
     });
 
@@ -270,8 +272,10 @@ void main() {
       WidgetTester tester,
     ) async {
       // Set a larger surface for the test to make buttons visible
-      tester.binding.window.physicalSizeTestValue = const Size(1280, 1600);
-      tester.binding.window.devicePixelRatioTestValue = 1.0;
+      tester.view.physicalSize = const Size(1280, 1600);
+      tester.view.devicePixelRatio = 1.0;
+      addTearDown(tester.view.resetPhysicalSize);
+      addTearDown(tester.view.resetDevicePixelRatio);
 
       await tester.pumpWidget(
         MaterialApp(
@@ -307,8 +311,9 @@ void main() {
 
       // Reset size after test
       addTearDown(() {
-        tester.binding.window.clearPhysicalSizeTestValue();
-        tester.binding.window.clearDevicePixelRatioTestValue();
+        tester.view.resetPhysicalSize();
+        tester.view.devicePixelRatio = 1.0;
+        addTearDown(tester.view.resetDevicePixelRatio);
       });
     });
   });

@@ -8,7 +8,6 @@ import 'package:firebase_core_platform_interface/firebase_core_platform_interfac
 import 'package:plugin_platform_interface/plugin_platform_interface.dart';
 
 import 'package:airplan/delete_account_page.dart';
-import 'package:airplan/login_page.dart';
 import 'package:airplan/services/auth_service.dart';
 
 import 'delete_account_page_test.mocks.dart';

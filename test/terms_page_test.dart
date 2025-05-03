@@ -25,7 +25,7 @@ void main() {
     });
 
     testWidgets('Back button is tappable', (WidgetTester tester) async {
-      bool popCalled = false;
+      // Variable popCalled eliminada ya que no se utilizaba
 
       await tester.pumpWidget(
         MaterialApp(
@@ -79,29 +79,25 @@ void main() {
       // Check for a widget at the bottom that should be off-screen initially
       final lastUpdatedFinder = find.textContaining('Última actualització');
 
-      // Check if it's not visible initially (needs scroll to be seen)
-      // We'll do this by checking if it's in the visible area of the screen
-      final initiallyVisible = tester
-          .getRect(lastUpdatedFinder)
-          .overlaps(tester.getRect(find.byType(Scaffold)));
+      // Check visibility by comparing positions before and after scrolling
+      final initialPosition = tester.getRect(lastUpdatedFinder);
 
       // Perform a scroll gesture
       await tester.drag(scrollView, const Offset(0, -500));
       await tester.pump();
 
-      // Verify that scrolling happened
-      // The last section should now be visible or more visible than before
-      final nowVisible = tester
-          .getRect(lastUpdatedFinder)
-          .overlaps(tester.getRect(find.byType(Scaffold)));
+      // Get new position after scrolling
+      final newPosition = tester.getRect(lastUpdatedFinder);
 
-      // Either it's now visible when it wasn't before, or its position has changed
-      final rect1 = tester.getRect(lastUpdatedFinder);
+      // Verify scrolling happened by comparing positions
+      expect(initialPosition != newPosition, isTrue);
+
+      // Scroll more to confirm continuous scrolling works
       await tester.drag(scrollView, const Offset(0, -100));
       await tester.pump();
-      final rect2 = tester.getRect(lastUpdatedFinder);
+      final finalPosition = tester.getRect(lastUpdatedFinder);
 
-      expect(rect1 != rect2, isTrue);
+      expect(newPosition != finalPosition, isTrue);
     });
 
     testWidgets('Section title styling is applied correctly', (

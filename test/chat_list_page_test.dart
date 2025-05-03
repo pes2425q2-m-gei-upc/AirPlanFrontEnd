@@ -108,7 +108,6 @@ class MockAuthService implements AuthService {
     throw UnimplementedError();
   }
 
-  @override
   EmailAuthCredential getEmailCredential(String email, String password) {
     throw UnimplementedError();
   }
@@ -157,7 +156,7 @@ class FakeChatService implements ChatService {
 
   // Added for constructor-injected AuthService in ChatService
   @override
-  noSuchMethod(Invocation invocation) => super.noSuchMethod(invocation);
+  dynamic noSuchMethod(Invocation invocation) => super.noSuchMethod(invocation);
 }
 
 class FakeChatWebSocketService implements ChatWebSocketService {

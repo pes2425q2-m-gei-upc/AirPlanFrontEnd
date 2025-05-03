@@ -612,7 +612,6 @@ class EditProfilePageState extends State<EditProfilePage> {
       // Update Firebase profile picture if a new image URL was provided by the backend
       if (imageUrl != null && imageUrl.isNotEmpty) {
         // Assume imageUrl from backend is the correct one to use
-        print("Actualizando photoURL en Firebase: $imageUrl");
         await currentUser.updatePhotoURL(imageUrl);
       }
 
@@ -623,7 +622,6 @@ class EditProfilePageState extends State<EditProfilePage> {
       if (!mounted) return;
       _notificationService.showSuccess(context, message);
     } catch (e) {
-      print("Error actualizando perfil en Firebase: ${e.toString()}");
       // Added mounted check
       if (!mounted) return;
       _notificationService.showInfo(
