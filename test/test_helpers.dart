@@ -5,6 +5,7 @@ import 'package:flutter/material.dart';
 import 'package:mockito/mockito.dart';
 import 'package:http/http.dart' as http;
 import 'package:mockito/annotations.dart';
+import 'package:firebase_auth_mocks/firebase_auth_mocks.dart';
 
 @GenerateMocks([http.Client, WebSocketService])
 import 'test_helpers.mocks.dart';
