@@ -8,6 +8,7 @@ import 'package:airplan/services/notification_service.dart';
 import 'package:flutter_rating_bar/flutter_rating_bar.dart';
 import 'package:http/http.dart' as http;
 import 'package:airplan/chat_detail_page.dart';
+import 'invite_users_dialog.dart';
 
 class Valoracio {
   final String username;
@@ -68,6 +69,29 @@ class ActivityDetailsPage extends StatefulWidget {
 class ActivityDetailsPageState extends State<ActivityDetailsPage> {
   late Future<bool> _solicitudExistente;
   final NotificationService _notificationService = NotificationService();
+  bool showParticipants = false;
+  List<String> participants = []; // Aquí se cargan los participantes
+
+  // Simulación de carga de participantes
+  Future<void> loadParticipants() async {
+    final url = Uri.parse('http://127.0.0.1:8080/api/activitats/${widget.id}/participants'); // Asegúrate que el host es accesible
+
+    try {
+      final response = await http.get(url);
+
+      if (response.statusCode == 200) {
+        final List<dynamic> jsonList = json.decode(response.body);
+        setState(() {
+          participants = jsonList.map((e) => e.toString()).toList();
+          showParticipants = true;
+        });
+      } else {
+        print('Error al obtener participantes: ${response.statusCode}');
+      }
+    } catch (e) {
+      print('Excepción al cargar participantes: $e');
+    }
+  }
 
   @override
   void initState() {
@@ -266,44 +290,6 @@ class ActivityDetailsPageState extends State<ActivityDetailsPage> {
     );
   }
 
-  String traduirContaminant(Contaminant contaminant) {
-    switch (contaminant) {
-      case Contaminant.so2:
-        return 'SO2';
-      case Contaminant.pm10:
-        return 'PM10';
-      case Contaminant.pm2_5:
-        return 'PM2.5';
-      case Contaminant.no2:
-        return 'NO2';
-      case Contaminant.o3:
-        return 'O3';
-      case Contaminant.h2s:
-        return 'H2S';
-      case Contaminant.co:
-        return 'CO';
-      case Contaminant.c6h6:
-        return 'C6H6';
-    }
-  }
-
-  String traduirAQI(AirQuality aqi) {
-    switch (aqi) {
-      case AirQuality.excelent:
-        return 'Excelent';
-      case AirQuality.bona:
-        return 'Bona';
-      case AirQuality.dolenta:
-        return 'Dolenta';
-      case AirQuality.pocSaludable:
-        return 'Poc Saludable';
-      case AirQuality.moltPocSaludable:
-        return 'Molt Poc Saludable';
-      case AirQuality.perillosa:
-        return 'Perillosa';
-    }
-  }
-
   @override
   Widget build(BuildContext context) {
     final String? currentUser = FirebaseAuth.instance.currentUser?.displayName;
@@ -407,10 +393,84 @@ class ActivityDetailsPageState extends State<ActivityDetailsPage> {
                       label: Text('Enviar mensaje'),
                       style: ElevatedButton.styleFrom(
                         backgroundColor: Colors.green,
+                        foregroundColor: Colors.white,
                       ),
                     ),
                 ],
               ),
+              SizedBox(height: 16),
+
+              // 🔽 BOTÓN "SHOW PARTICIPANTS"
+              ElevatedButton(
+                onPressed: () {
+                  if (!showParticipants) {
+                    loadParticipants();
+                  } else {
+                    setState(() {
+                      showParticipants = false;
+                    });
+                  }
+                },
+                child: Text(showParticipants ? 'Hide Participants' : 'Show Participants'),
+              ),
+              if (showParticipants)
+                ...participants.map((p) {
+                  bool isCurrentUser = p == currentUser; // Verificamos si el participante es el usuario actual
+                  return ListTile(
+                    dense: true,
+                    title: Text(p),
+                    trailing: isCurrentUserCreator && !isCurrentUser
+                        ? IconButton(
+                      icon: Icon(Icons.delete, color: Colors.red),
+                      onPressed: () async {
+                        final confirm = await showDialog<bool>(
+                          context: context,
+                          builder: (context) => AlertDialog(
+                            title: Text('Eliminar participante'),
+                            content: Text('¿Estás seguro de que quieres eliminar a $p de la actividad?'),
+                            actions: [
+                              TextButton(
+                                onPressed: () => Navigator.pop(context, false),
+                                child: Text('No'),
+                              ),
+                              TextButton(
+                                onPressed: () => Navigator.pop(context, true),
+                                child: Text('Sí'),
+                              ),
+                            ],
+                          ),
+                        );
+
+                        if (confirm == true) {
+                          final url = Uri.parse(
+                              'http://localhost:8080/api/activitats/${widget.id}/participants/$p');
+
+                          try {
+                            final response = await http.delete(url);
+                            if (response.statusCode == 200) {
+                              setState(() {
+                                participants.remove(p);
+                              });
+                              ScaffoldMessenger.of(context).showSnackBar(
+                                SnackBar(content: Text('$p eliminado correctamente')),
+                              );
+                            } else {
+                              ScaffoldMessenger.of(context).showSnackBar(
+                                SnackBar(content: Text('Error al eliminar $p')),
+                              );
+                            }
+                          } catch (e) {
+                            ScaffoldMessenger.of(context).showSnackBar(
+                              SnackBar(content: Text('Error de red al eliminar $p')),
+                            );
+                          }
+                        }
+                      },
+                    )
+                        : null,
+                  );
+                }).toList(),
+
               SizedBox(height: 16),
               Row(
                 children: [
@@ -446,6 +506,16 @@ class ActivityDetailsPageState extends State<ActivityDetailsPage> {
                 ),
               if (isCurrentUserCreator) ...[
                 SizedBox(height: 16),
+                ElevatedButton(
+                  onPressed: () {
+                    showDialog(
+                      context: context,
+                      builder: (context) => InviteUsersDialog(activityId: widget.id, creator: widget.creator),
+                    );
+                  },
+                  child: const Text('Invitar Usuarios'),
+                ),
+                SizedBox(height: 16),
                 Row(
                   mainAxisAlignment: MainAxisAlignment.spaceEvenly,
                   children: [
@@ -457,6 +527,7 @@ class ActivityDetailsPageState extends State<ActivityDetailsPage> {
                       onPressed: widget.onDelete,
                       style: ElevatedButton.styleFrom(
                         backgroundColor: Colors.red,
+                        foregroundColor: Colors.white,
                       ),
                       child: Text('Delete Activity'),
                     ),
@@ -624,5 +695,43 @@ class ActivityDetailsPageState extends State<ActivityDetailsPage> {
         ),
       ),
     );
+  }
+
+  String traduirContaminant(Contaminant contaminant) {
+    switch (contaminant) {
+      case Contaminant.so2:
+        return 'SO2';
+      case Contaminant.pm10:
+        return 'PM10';
+      case Contaminant.pm2_5:
+        return 'PM2.5';
+      case Contaminant.no2:
+        return 'NO2';
+      case Contaminant.o3:
+        return 'O3';
+      case Contaminant.h2s:
+        return 'H2S';
+      case Contaminant.co:
+        return 'CO';
+      case Contaminant.c6h6:
+        return 'C6H6';
+    }
+  }
+
+  String traduirAQI(AirQuality aqi) {
+    switch (aqi) {
+      case AirQuality.excelent:
+        return 'Excelent';
+      case AirQuality.bona:
+        return 'Bona';
+      case AirQuality.dolenta:
+        return 'Dolenta';
+      case AirQuality.pocSaludable:
+        return 'Poc Saludable';
+      case AirQuality.moltPocSaludable:
+        return 'Molt Poc Saludable';
+      case AirQuality.perillosa:
+        return 'Perillosa';
+    }
   }
 }

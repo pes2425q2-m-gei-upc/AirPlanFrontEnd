@@ -5,6 +5,7 @@ import 'package:airplan/services/websocket_service.dart';
 import 'package:airplan/services/auth_service.dart'; // Import the auth service
 import 'dart:convert';
 import 'activity_details_page.dart';
+import 'invitations_page.dart';
 import 'login_page.dart';
 import 'edit_profile_page.dart';
 import 'dart:async';
@@ -877,6 +878,23 @@ class _UserPageState extends State<UserPage> {
                   ),
                 ),
                 // Add this button after the "Ver Mis Valoraciones" button
+                const SizedBox(height: 16), // Espaciado entre botones
+                ElevatedButton.icon(
+                  onPressed: () {
+                    Navigator.push(
+                      context,
+                      MaterialPageRoute(builder: (context) => InvitationsPage(username: _username)),
+                    );
+                  },
+                  icon: const Icon(Icons.mail_outline),
+                  label: const Text('Ver Invitaciones'),
+                  style: ElevatedButton.styleFrom(
+                    backgroundColor: Colors.purple,
+                    foregroundColor: Colors.white,
+                    minimumSize: const Size(double.infinity, 50),
+                    padding: const EdgeInsets.symmetric(vertical: 12),
+                  ),
+                ),
                 const SizedBox(height: 16),
                 ElevatedButton.icon(
                   onPressed: () {
