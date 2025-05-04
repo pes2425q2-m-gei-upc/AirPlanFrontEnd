@@ -28,12 +28,14 @@ class Message {
   final String receiverUsername;
   final String content;
   final DateTime timestamp;
+  final bool isEdited;
 
   Message({
     required this.senderUsername,
     required this.receiverUsername,
     required this.content,
     required this.timestamp,
+    required this.isEdited,
   });
 }
 
@@ -186,11 +188,11 @@ void main() {
       expect(find.text('New message'), findsOneWidget);
     });
 
-    testWidgets('should send message when button is pressed', (
+  testWidgets('should send message when button is pressed', (
       WidgetTester tester,
     ) async {
       when(
-        mockChatService.sendMessage(any, any, DateTime.now()),
+        mockChatService.sendMessage(any, any, any),
       ).thenAnswer((_) => Future.value(true));
 
       await tester.pumpWidget(buildWidget());
@@ -205,11 +207,88 @@ void main() {
 
       // Verify send is called
       verify(
-        mockChatService.sendMessage('otherUser', 'Test message', DateTime.now()),
+        mockChatService.sendMessage('otherUser', 'Test message', any),
       ).called(1);
 
       // Verify text field is cleared
       expect(find.text('Test message'), findsNothing);
+    });
+  });
+
+  group('ChatDetailPage - Edit Message Tests', () {
+    testWidgets('should not allow editing messages older than 20 minutes', (WidgetTester tester) async {
+      // Arrange
+      final oldMessage = Message(
+        senderUsername: 'currentUser',
+        receiverUsername: 'otherUser',
+        content: 'Old message',
+        timestamp: DateTime.now().subtract(const Duration(minutes: 21)),
+        isEdited: false,
+      );
+
+      await tester.pumpWidget(buildWidget());
+      await tester.pump();
+
+      // Act
+      webSocketStreamController.add({
+        'type': 'history',
+        'messages': [
+          {
+            'usernameSender': oldMessage.senderUsername,
+            'usernameReceiver': oldMessage.receiverUsername,
+            'missatge': oldMessage.content,
+            'dataEnviament': oldMessage.timestamp.toIso8601String(),
+            'isEdited': oldMessage.isEdited,
+          },
+        ],
+      });
+      await tester.pumpAndSettle();
+
+      // Simulate long press on the old message
+      await tester.longPress(find.text('Old message'));
+      await tester.pumpAndSettle();
+
+      // Assert
+      expect(find.text('Editar mensaje'), findsNothing);
+    });
+
+    testWidgets('should allow editing messages less than 20 minutes old', (WidgetTester tester) async {
+      // Arrange
+      final recentMessage = Message(
+        senderUsername: 'testUser', // Matches the mocked current user
+        receiverUsername: 'otherUser',
+        content: 'Recent message',
+        timestamp: DateTime.now().subtract(const Duration(minutes: 10)),
+        isEdited: false,
+      );
+
+      await tester.pumpWidget(buildWidget());
+      await tester.pump();
+
+      // Act
+      webSocketStreamController.add({
+        'type': 'history',
+        'messages': [
+          {
+            'usernameSender': recentMessage.senderUsername,
+            'usernameReceiver': recentMessage.receiverUsername,
+            'missatge': recentMessage.content,
+            'dataEnviament': recentMessage.timestamp.toIso8601String(),
+            'isEdited': recentMessage.isEdited,
+          },
+        ],
+      });
+      await tester.pumpAndSettle();
+
+      // Verify the message is displayed
+      expect(find.text('Recent message'), findsOneWidget);
+
+      // Simulate long press on the recent message
+      await tester.longPress(find.text('Recent message'));
+      await tester.pumpAndSettle();
+
+      // Assert
+      expect(find.text('Editar mensaje'), findsOneWidget); // Verify the dialog appears
     });
   });
 

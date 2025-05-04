@@ -95,6 +95,82 @@ void main() {
     });
   });
 
+  group('sendEditMessage', () {
+    test('returns false if not connected', () async {
+      final result = await service.sendEditMessage('user', '2023-01-01T12:00:00Z', 'Updated content');
+      expect(result, isFalse);
+    });
+
+    test('sends edit message when connected', () async {
+      // Setup connected state
+      fakeChannel = FakeWebSocketChannel();
+      when(() => mockFactory.connect(any())).thenReturn(fakeChannel);
+      final user = MockUser();
+      when(() => mockAuth.getCurrentUser()).thenReturn(user);
+      when(() => user.displayName).thenReturn('me');
+      when(
+            () => mockAuth.authStateChanges,
+      ).thenAnswer((_) => Stream<User?>.value(user));
+      service = ChatWebSocketService(
+        authService: mockAuth,
+        apiConfig: mockApi,
+        webSocketChannelFactory: mockFactory,
+      );
+      service.connectToChat('other');
+
+      // Send edit message
+      final ok = await service.sendEditMessage('other', '2023-01-01T12:00:00Z', 'Updated content');
+      expect(ok, isTrue);
+
+      // Check that the fake sink recorded the sent JSON
+      final sentMessage = jsonDecode(fakeChannel.sentMessages.single);
+      expect(sentMessage['type'], 'EDIT');
+      expect(sentMessage['usernameSender'], 'me');
+      expect(sentMessage['usernameReceiver'], 'other');
+      expect(sentMessage['originalTimestamp'], '2023-01-01T12:00:00Z');
+      expect(sentMessage['newContent'], 'Updated content');
+    });
+  });
+
+  group('incoming edit messages', () {
+    test('dispatches valid edit message', () async {
+      // Setup connected state
+      final user = MockUser();
+      when(() => mockAuth.getCurrentUser()).thenReturn(user);
+      when(() => user.displayName).thenReturn('me');
+      when(
+            () => mockAuth.authStateChanges,
+      ).thenAnswer((_) => Stream<User?>.value(user));
+      service = ChatWebSocketService(
+        authService: mockAuth,
+        apiConfig: mockApi,
+        webSocketChannelFactory: mockFactory,
+      );
+      service.connectToChat('other');
+
+      // Listen to emitted messages
+      final msgs = <Map<String, dynamic>>[];
+      service.chatMessages.listen(msgs.add);
+
+      // Simulate incoming edit message
+      final editMessage = {
+        'type': 'EDIT',
+        'usernameSender': 'me',
+        'originalTimestamp': '2023-01-01T12:00:00Z',
+        'newContent': 'Updated content',
+      };
+      fakeChannel.controller.add(jsonEncode(editMessage));
+      await Future.delayed(Duration.zero);
+
+      // Verify the emitted message
+      expect(msgs.length, 1);
+      expect(msgs.first['type'], 'EDIT');
+      expect(msgs.first['usernameSender'], 'me');
+      expect(msgs.first['originalTimestamp'], '2023-01-01T12:00:00Z');
+      expect(msgs.first['newContent'], 'Updated content');
+    });
+  });
+
   group('sendChatMessage', () {
     test('returns false if not connected', () async {
       final result = await service.sendChatMessage('user', 'hi', DateTime.now());

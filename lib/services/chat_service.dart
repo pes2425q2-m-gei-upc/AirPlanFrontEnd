@@ -239,11 +239,16 @@ class ChatService {
       String newContent,
       ) async {
     // Use the WebSocket service to send the edited message
-    return _chatWebSocketService.sendEditMessage(
+    try{
+      return await _chatWebSocketService.sendEditMessage(
         receiverUsername,
         originalTimestamp,
-        newContent
-    );
+        newContent,
+      );
+    } catch (e) {
+      debugPrint('Error editing message via WebSocket: $e');
+      return false;
+    }
   }
 
   // Método para limpiar la conexión del WebSocket cuando el usuario sale de la pantalla de chat

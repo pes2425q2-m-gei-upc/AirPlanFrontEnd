@@ -88,4 +88,40 @@ void main() {
       verify(() => mockWS.disconnectChat()).called(1);
     });
   });
+
+  group('editMessage', () {
+    const receiverUsername = 'otherUser';
+    const originalTimestamp = '2023-01-01T12:00:00Z';
+    const newContent = 'Updated content';
+
+    test('returns true when WebSocket sendEditMessage succeeds', () async {
+      when(
+            () => mockWS.sendEditMessage(receiverUsername, originalTimestamp, newContent),
+      ).thenAnswer((_) async => true);
+
+      final result = await chatService.editMessage(receiverUsername, originalTimestamp, newContent);
+      expect(result, isTrue);
+      verify(() => mockWS.sendEditMessage(receiverUsername, originalTimestamp, newContent)).called(1);
+    });
+
+    test('returns false when WebSocket sendEditMessage fails', () async {
+      when(
+            () => mockWS.sendEditMessage(receiverUsername, originalTimestamp, newContent),
+      ).thenAnswer((_) async => false);
+
+      final result = await chatService.editMessage(receiverUsername, originalTimestamp, newContent);
+      expect(result, isFalse);
+      verify(() => mockWS.sendEditMessage(receiverUsername, originalTimestamp, newContent)).called(1);
+    });
+
+    test('returns false on exception', () async {
+      when(
+            () => mockWS.sendEditMessage(receiverUsername, originalTimestamp, newContent),
+      ).thenThrow(Exception('fail'));
+
+      final result = await chatService.editMessage(receiverUsername, originalTimestamp, newContent);
+      expect(result, isFalse);
+      verify(() => mockWS.sendEditMessage(receiverUsername, originalTimestamp, newContent)).called(1);
+    });
+  });
 }

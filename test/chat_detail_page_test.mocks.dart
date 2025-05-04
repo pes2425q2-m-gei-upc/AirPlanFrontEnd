@@ -82,9 +82,17 @@ class MockChatService extends _i1.Mock implements _i5.ChatService {
   }
 
   @override
-  _i6.Future<bool> sendMessage(String? receiverUsername, String? content, DateTime a) =>
+  _i6.Future<bool> sendMessage(
+    String? receiverUsername,
+    String? content,
+    DateTime? creationTime,
+  ) =>
       (super.noSuchMethod(
-            Invocation.method(#sendMessage, [receiverUsername, content]),
+            Invocation.method(#sendMessage, [
+              receiverUsername,
+              content,
+              creationTime,
+            ]),
             returnValue: _i6.Future<bool>.value(false),
           )
           as _i6.Future<bool>);
@@ -104,6 +112,22 @@ class MockChatService extends _i1.Mock implements _i5.ChatService {
             returnValue: _i6.Future<List<_i5.Chat>>.value(<_i5.Chat>[]),
           )
           as _i6.Future<List<_i5.Chat>>);
+
+  @override
+  _i6.Future<bool> editMessage(
+    String? receiverUsername,
+    String? originalTimestamp,
+    String? newContent,
+  ) =>
+      (super.noSuchMethod(
+            Invocation.method(#editMessage, [
+              receiverUsername,
+              originalTimestamp,
+              newContent,
+            ]),
+            returnValue: _i6.Future<bool>.value(false),
+          )
+          as _i6.Future<bool>);
 
   @override
   void disconnectFromChat() => super.noSuchMethod(
@@ -144,9 +168,33 @@ class MockChatWebSocketService extends _i1.Mock
   );
 
   @override
-  _i6.Future<bool> sendChatMessage(String? receiverUsername, String? content, DateTime a) =>
+  _i6.Future<bool> sendEditMessage(
+    String? receiverUsername,
+    String? originalTimestamp,
+    String? newContent,
+  ) =>
       (super.noSuchMethod(
-            Invocation.method(#sendChatMessage, [receiverUsername, content]),
+            Invocation.method(#sendEditMessage, [
+              receiverUsername,
+              originalTimestamp,
+              newContent,
+            ]),
+            returnValue: _i6.Future<bool>.value(false),
+          )
+          as _i6.Future<bool>);
+
+  @override
+  _i6.Future<bool> sendChatMessage(
+    String? receiverUsername,
+    String? content,
+    DateTime? timestamp,
+  ) =>
+      (super.noSuchMethod(
+            Invocation.method(#sendChatMessage, [
+              receiverUsername,
+              content,
+              timestamp,
+            ]),
             returnValue: _i6.Future<bool>.value(false),
           )
           as _i6.Future<bool>);
