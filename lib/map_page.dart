@@ -268,6 +268,7 @@ class MapPageState extends State<MapPage> {
   }
 
   Future<void> _onMapTapped(TapPosition tapPosition, LatLng position) async {
+    if (isNavigating) return;
     setState(() {
       // Remove previous tapped location marker if exists
       markers.removeWhere((m) => m.key == const Key('tapped_location'));
@@ -400,13 +401,16 @@ class MapPageState extends State<MapPage> {
   }
 
   void _showRouteDetails(TransitRoute transitRoute) {
+    // Remove the current instruction overlay temporarily
+    _currentInstructionOverlay?.remove();
+
     showModalBottomSheet(
       context: context,
       builder: (context) => ListView(
         children: [
           ListTile(
-            title: Text('Total Journey'),
-            subtitle: Text('Duració: ${transitRoute.duration} min - Distancia: ${transitRoute.distance} m - Sortida: ${DateFormat.Hm().format(transitRoute.departure)} - Arribada: ${DateFormat.Hm().format(transitRoute.arrival)}'),
+            title: Text('Dades de la ruta'),
+            subtitle: Text('Duració: ${transitRoute.duration} min - Distància: ${transitRoute.distance} m - Sortida: ${DateFormat.Hm().format(transitRoute.departure)} - Arribada: ${DateFormat.Hm().format(transitRoute.arrival)}'),
           ),
           const Divider(),
           ...groupSteps(transitRoute.steps).map((group) => Column(
@@ -450,7 +454,12 @@ class MapPageState extends State<MapPage> {
           )),
         ],
       ),
-    );
+    ).whenComplete(() {
+      // Reinsert the current instruction overlay after the modal is dismissed
+      if (_currentInstructionOverlay != null && mounted) {
+        Overlay.of(context).insert(_currentInstructionOverlay!);
+      }
+    });
   }
 
   List<List<TransitStep>> groupSteps(List<TransitStep> steps) {
@@ -1384,7 +1393,11 @@ class MapPageState extends State<MapPage> {
           setState(() {
             currentPosition = LatLng(position.latitude, position.longitude);
             // Update the user marker (ensure it's handled correctly in your marker list logic)
-            _updateUserMarker(currentPosition);
+            if (_showCompass) {
+              markers.removeWhere((m) => m.key == const Key('user_location'));
+            } else {
+              _updateUserMarker(currentPosition);
+            }
           });
           // Center map on user location
           mapController.move(currentPosition, 17.0); // Adjust zoom level as needed
@@ -1483,18 +1496,86 @@ class MapPageState extends State<MapPage> {
   }
 
   void _updateUserMarker(LatLng position) {
-    markers.removeWhere((m) => m.key == const Key('user_location')); // Remove old marker if exists
-    markers.add(Marker(
-      key: const Key('user_location'), // Use a key to easily find/remove it
-      width: 80.0,
-      height: 80.0,
-      point: position,
-      child: const Icon(
-        Icons.navigation, // Use a navigation icon
-        color: Colors.blue,
-        size: 40.0,
-      ),
-    ));
+    if (isNavigating && currentRoute.value.fullRoute.isNotEmpty) {
+      // Get the current step and its points
+      int currentStepIndex = _determineCurrentStepIndex(position, currentRoute);
+      if (currentStepIndex >= 0) {
+        TransitStep currentStep = currentRoute.value.steps[currentStepIndex];
+
+        double minDistance = double.infinity;
+        LatLng nextWaypoint = currentStep.points[0];
+
+        for (int i = 0; i < currentStep.points.length; i++) {
+          double distance = Distance().as(
+              LengthUnit.Meter,
+              position,
+              currentStep.points[i]
+          );
+          if (distance < minDistance) {
+            minDistance = distance;
+            // Use the point after the closest one as the next waypoint
+            if (i + 1 < currentStep.points.length) {
+              nextWaypoint = currentStep.points[i + 1];
+            } else if (currentStepIndex + 1 < currentRoute.value.steps.length) {
+              // If we're at the last point of the step, use the first point of the next step
+              nextWaypoint = currentRoute.value.steps[currentStepIndex + 1].points[0];
+            }
+          }
+        }
+
+        // Calculate bearing between current position and next waypoint
+        final bearing = _calculateBearing(position, nextWaypoint);
+
+        markers.removeWhere((m) => m.key == const Key('user_location'));
+        markers.add(Marker(
+          key: const Key('user_location'),
+          width: 80.0,
+          height: 80.0,
+          point: position,
+          child: Transform.rotate(
+            angle: bearing * (math.pi / 180),
+            child: const Icon(
+              Icons.navigation,
+              color: Colors.blue,
+              size: 40.0,
+            ),
+          ),
+        ));
+      }
+    } else {
+      // Default marker when not navigating
+      markers.removeWhere((m) => m.key == const Key('user_location'));
+      markers.add(Marker(
+        key: const Key('user_location'),
+        width: 80.0,
+        height: 80.0,
+        point: position,
+        child: const Icon(
+          Icons.my_location,
+          color: Colors.blue,
+          size: 40.0,
+        ),
+      ));
+    }
+    setState(() {
+      markers = List.from(markers);
+    });
+  }
+
+  double _calculateBearing(LatLng start, LatLng end) {
+    final startLat = start.latitude * math.pi / 180;
+    final startLng = start.longitude * math.pi / 180;
+    final endLat = end.latitude * math.pi / 180;
+    final endLng = end.longitude * math.pi / 180;
+
+    final dLng = endLng - startLng;
+
+    final y = math.sin(dLng) * math.cos(endLat);
+    final x = math.cos(startLat) * math.sin(endLat) -
+        math.sin(startLat) * math.cos(endLat) * math.cos(dLng);
+
+    final bearing = math.atan2(y, x) * 180 / math.pi;
+    return bearing;
   }
 
   void _showCurrentInstruction(TransitStep step, int stepIndex) {
@@ -1543,7 +1624,7 @@ class MapPageState extends State<MapPage> {
                             const SizedBox(width: 8),
                             Expanded(
                               child: Text(
-                                'Step ${stepIndex + 1}/${currentRoute.value.steps.length}: ${step.instruction.isNotEmpty ? step.instruction : "Follow the route"}',
+                                step.instruction.isNotEmpty ? step.instruction : "Follow the route",
                                 style: const TextStyle(fontSize: 16),
                               ),
                             ),
@@ -1565,7 +1646,7 @@ class MapPageState extends State<MapPage> {
                         ),
                       ),
                       Text(
-                        '${(step.distance / 1000).toStringAsFixed(2)} km',
+                        '${step.distance} m',
                         style: TextStyle(
                           color: Colors.grey[600],
                           fontSize: 14,
@@ -1707,12 +1788,16 @@ class MapPageState extends State<MapPage> {
                   child: Icon(showAirQualityCircles ? Icons.visibility : Icons.visibility_off),
                 ),
                 const SizedBox(height: 10),
-                FloatingActionButton(
-                  heroTag: "showSavedRoutes",
-                  onPressed: _showSavedRoutes,
-                  child: Icon(Icons.route),
-                ),
-                const SizedBox(height: 10),
+                if (!isNavigating) ...[
+                  FloatingActionButton(
+                    heroTag: "showSavedRoutes",
+                    onPressed: isNavigating
+                        ? null
+                        : _showSavedRoutes,
+                    child: Icon(Icons.route),
+                  ),
+                  const SizedBox(height: 10),
+                ],
                 FloatingActionButton(
                   heroTag: "toggleCompass",
                   onPressed: _toggleCompass,
@@ -1751,53 +1836,55 @@ class MapPageState extends State<MapPage> {
                     },
                     child: const Icon(Icons.list),
                   ),
-                  if (currentRoute.value.option == 10) const SizedBox(height: 10),
-                  if (currentRoute.value.option == 10) // Only show for public transport
+                  if (!isNavigating) ...[
+                    if (currentRoute.value.option == 10) ...[
+                      const SizedBox(height: 10),
+                      FloatingActionButton(
+                        heroTag: "changeDepartureArrival",
+                        backgroundColor: Colors.cyan,
+                        onPressed: () {
+                          _showTimeSelectionDialog();
+                        },
+                        child: const Icon(Icons.access_time),
+                      ),
+                    ],
+                    const SizedBox(height: 10),
                     FloatingActionButton(
-                      heroTag: "changeDepartureArrival",
-                      backgroundColor: Colors.cyan,
-                      onPressed: () {
-                        _showTimeSelectionDialog();
+                      heroTag: "saveRoute",
+                      backgroundColor: Colors.orange,
+                      onPressed: () async {
+                        int id = await _sendRouteToBackend(currentRoute.value);
+                        if (id != 0) {
+                          savedRoutes[id] = currentRoute.value;
+                          setState(() {
+                            savedRoutes = savedRoutes;
+                          });
+                        }
                       },
-                      child: const Icon(Icons.access_time),
+                      child: const Icon(Icons.save),
                     ),
-                  const SizedBox(height: 10),
-                  FloatingActionButton(
-                    heroTag: "saveRoute",
-                    backgroundColor: Colors.orange,
-                    onPressed: () async {
-                      int id = await _sendRouteToBackend(currentRoute.value);
-                      if (id != 0) {
-                        savedRoutes[id] = currentRoute.value;
+                    const SizedBox(height: 10),
+                    FloatingActionButton(
+                      heroTag: "unwatchRoute",
+                      backgroundColor: Colors.grey,
+                      onPressed: () {
                         setState(() {
-                          savedRoutes = savedRoutes;
+                          currentRoute = MapEntry(0, TransitRoute(
+                              fullRoute: [],
+                              steps: [],
+                              duration: 0,
+                              distance: 0,
+                              departure: DateTime.now(),
+                              arrival: DateTime.now(),
+                              origin: LatLng(0, 0),
+                              destination: LatLng(0, 0),
+                              option: 0
+                          ));
                         });
-                      }
-                    },
-                    child: const Icon(Icons.save),
-                  ),
-                  const SizedBox(height: 10),
-                  FloatingActionButton(
-                    heroTag: "unwatchRoute",
-                    backgroundColor: Colors.grey,
-                    onPressed: () {
-                      if (isNavigating) _stopNavigation();
-                      setState(() {
-                        currentRoute = MapEntry(0, TransitRoute(
-                          fullRoute: [],
-                          steps: [],
-                          duration: 0,
-                          distance: 0,
-                          departure: DateTime.now(),
-                          arrival: DateTime.now(),
-                          origin: LatLng(0, 0),
-                          destination: LatLng(0, 0),
-                          option: 0
-                        ));
-                      });
-                    },
-                    child: const Icon(Icons.close),
-                  ),
+                      },
+                      child: const Icon(Icons.close),
+                    ),
+                  ]
                 ],
               ),
             ),

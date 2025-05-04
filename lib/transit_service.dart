@@ -126,9 +126,9 @@ Future<TransitRoute> calculatePublicTransportRoute(bool departure, bool arrival,
             final walkEnd = section['arrival']['place']['location'];
             try {
               final walkingRoute = await calculateRoute(
+                true,
                 false,
-                false,
-                DateTime.now(),
+                DateTime.parse(section['departure']['time']).add(Duration(hours: 2)),
                 DateTime.now(),
                 3,
                 LatLng(walkStart['lat'], walkStart['lng']),
@@ -137,17 +137,7 @@ Future<TransitRoute> calculatePublicTransportRoute(bool departure, bool arrival,
               sectionPoints = walkingRoute.fullRoute;
               // Add detailed walking steps
               for (var step in walkingRoute.steps) {
-                steps.add(TransitStep(
-                    mode: _translateMode(mode), 
-                    instruction: step.instruction,
-                    type: step.type,
-                    line: '',
-                    departure: DateTime.parse(section['departure']['time']).add(Duration(hours: 2)),
-                    arrival: DateTime.parse(section['arrival']['time']).add(Duration(hours: 2)),
-                    distance: step.distance,
-                    points: step.points, 
-                    station: '', 
-                    color: step.color));
+                steps.add(step);
               }
             } catch (e) {
               // Fallback to HERE polyline if ORS fails
@@ -350,7 +340,7 @@ Future<TransitRoute> calculateRoute(bool departure, bool arrival, DateTime depar
       DateTime salida;
       DateTime llegada;
       if (departure) {
-        if (DateTime.now().isBefore(departureTime)) {
+        if (DateTime.now().isAfter(departureTime)) {
           throw Exception("No és possible viatjar en el temps, l'hora de sortida més aviat possible és a les ${DateFormat.Hm().format(DateTime.now())}");
         }
         salida = departureTime;
@@ -370,7 +360,7 @@ Future<TransitRoute> calculateRoute(bool departure, bool arrival, DateTime depar
       DateTime salidaTemp = salida;
       DateTime llegadaTemp = salidaTemp;
       for (var step in segments['steps']) {
-        llegadaTemp = salidaTemp.add(Duration(minutes: (step['duration']/60).round()));
+        llegadaTemp = salidaTemp.add(Duration(minutes: (step['duration']/60).toInt(), seconds: (step['duration'] % 60).toInt()));
         double distance = step['distance'];
         // Extract points for this specific step using waypoint indices
         var waypoints = [step['way_points'][0], step['way_points'][1]];
