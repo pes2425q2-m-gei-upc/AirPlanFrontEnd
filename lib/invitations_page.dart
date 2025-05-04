@@ -26,13 +26,19 @@ class _InvitationsPageState extends State<InvitationsPage> {
       setState(() {
         _invitationsFuture = InvitationsService.fetchInvitations(widget.username);
       });
-      ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(content: Text('Invitación aceptada')),
-      );
+      final actualContext = context;
+      if (actualContext.mounted) {
+        ScaffoldMessenger.of(actualContext).showSnackBar(
+          const SnackBar(content: Text('Invitación aceptada')),
+        );
+      }
     } catch (e) {
-      ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(content: Text('Error al aceptar la invitación')),
-      );
+      final actualContext = context;
+      if (actualContext.mounted) {
+        ScaffoldMessenger.of(actualContext).showSnackBar(
+          const SnackBar(content: Text('Error al aceptar la invitación')),
+        );
+      }
     }
   }
 
@@ -43,13 +49,19 @@ class _InvitationsPageState extends State<InvitationsPage> {
       setState(() {
         _invitationsFuture = InvitationsService.fetchInvitations(widget.username);
       });
-      ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(content: Text('Invitación rechazada')),
-      );
+      final actualContext = context;
+      if (actualContext.mounted) {
+        ScaffoldMessenger.of(actualContext).showSnackBar(
+          const SnackBar(content: Text('Invitación rechazada')),
+        );
+      }
     } catch (e) {
-      ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(content: Text('Error al rechazar la invitación')),
-      );
+      final actualContext = context;
+      if (actualContext.mounted) {
+        ScaffoldMessenger.of(actualContext).showSnackBar(
+          const SnackBar(content: Text('Error al rechazar la invitación')),
+        );
+      }
     }
   }
 
@@ -62,7 +74,6 @@ class _InvitationsPageState extends State<InvitationsPage> {
       body: FutureBuilder<List<Map<String, dynamic>>>(
         future: _invitationsFuture,
         builder: (context, snapshot) {
-          print('Snapshot error: $snapshot.hasEerror');
           if (snapshot.connectionState == ConnectionState.waiting) {
             return const Center(child: CircularProgressIndicator());
           } else if (snapshot.hasError) {

@@ -47,8 +47,6 @@ class InviteUsersService {
       body: json.encode({'creator': creator, 'username': username, 'activityId': activityId}),
     );
 
-    print('Response status code: ${response.statusCode}');
-
     if (response.statusCode != 201) {
       throw Exception('Error inviting user');
     }
