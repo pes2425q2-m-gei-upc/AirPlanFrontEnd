@@ -15,7 +15,7 @@ class UserService {
       final clientId = WebSocketService().clientId;
 
       // 0. Enviar notificación de eliminación de cuenta a otros dispositivos antes de eliminarla
-      await sendAccountDeletedNotification(email, username, clientId);
+      await _sendAccountDeletedNotification(email, username, clientId);
 
       // 1. Eliminar del backend - Incluir clientId como parámetro de consulta
       final backendResponse = await http.delete(
@@ -42,7 +42,7 @@ class UserService {
   }
 
   // Método para notificar a otros dispositivos sobre la eliminación de cuenta
-  static Future<void> sendAccountDeletedNotification(
+  static Future<void> _sendAccountDeletedNotification(
     String email,
     String username,
     String clientId,

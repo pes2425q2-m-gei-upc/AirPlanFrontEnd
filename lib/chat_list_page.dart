@@ -5,31 +5,49 @@ import 'package:airplan/services/chat_websocket_service.dart';
 import 'package:airplan/services/notification_service.dart';
 import 'package:airplan/user_services.dart';
 import 'package:airplan/chat_detail_page.dart';
+import 'package:airplan/services/api_config.dart';
+import 'package:airplan/services/auth_service.dart'; // Importar AuthService
 import 'package:intl/intl.dart';
 
 class ChatListPage extends StatefulWidget {
-  const ChatListPage({super.key});
+  // Inyectamos los servicios para facilitar pruebas
+  final ChatService? chatService;
+  final ChatWebSocketService? chatWebSocketService;
+  final AuthService? authService;
+
+  const ChatListPage({
+    super.key,
+    this.chatService,
+    this.chatWebSocketService,
+    this.authService,
+  });
 
   @override
   ChatListPageState createState() => ChatListPageState();
 }
 
 class ChatListPageState extends State<ChatListPage> {
-  final ChatService _chatService = ChatService();
-  final ChatWebSocketService _chatWebSocketService = ChatWebSocketService();
+  late final ChatService _chatService;
+  late final ChatWebSocketService _chatWebSocketService;
+  // Se elimina el campo _authService ya que no se está utilizando
+  final NotificationService _notificationService = NotificationService();
   List<Chat> _chats = [];
-  List<Chat> _filteredChats = []; // Lista filtrada para búsqueda
+  List<Chat> _filteredChats = [];
   bool _isLoading = true;
-  final Map<String, String> _userNames =
-      {}; // Almacenar nombres reales de los usuarios
+  final Map<String, String> _userNames = {};
   Timer? _refreshTimer;
   StreamSubscription? _chatMessageSubscription;
-  final TextEditingController _searchController =
-      TextEditingController(); // Controlador para búsqueda
+  final TextEditingController _searchController = TextEditingController();
 
   @override
   void initState() {
     super.initState();
+    // Inicializar servicios con inyección de dependencias o valores por defecto
+    _chatService = widget.chatService ?? ChatService();
+    _chatWebSocketService =
+        widget.chatWebSocketService ?? ChatWebSocketService();
+    // Se elimina la inicialización de _authService
+
     _loadChats();
     _setupMessageListener();
 
@@ -125,7 +143,7 @@ class ChatListPageState extends State<ChatListPage> {
         setState(() {
           _isLoading = false;
         });
-        NotificationService.showError(
+        _notificationService.showError(
           context,
           'Error al cargar los chats: ${e.toString()}',
         );
@@ -296,13 +314,29 @@ class ChatListPageState extends State<ChatListPage> {
                     chat.isRead
                         ? Colors.blue.shade700
                         : Theme.of(context).primaryColor,
-                child: Text(
-                  _getUserDisplayName(chat.otherUsername)[0].toUpperCase(),
-                  style: const TextStyle(
-                    color: Colors.white,
-                    fontWeight: FontWeight.bold,
-                  ),
-                ),
+                // Usar la imagen de perfil si está disponible, de lo contrario mostrar la inicial
+                backgroundImage:
+                    chat.photoURL != null && chat.photoURL!.isNotEmpty
+                        ? (chat.photoURL!.startsWith('http')
+                            ? NetworkImage(
+                              chat.photoURL!,
+                            ) // URL completa (Cloudinary)
+                            : NetworkImage(
+                              ApiConfig().buildUrl(chat.photoURL!),
+                            )) // URL relativa (backend)
+                        : null,
+                child:
+                    chat.photoURL != null && chat.photoURL!.isNotEmpty
+                        ? null // No mostrar texto si hay imagen
+                        : Text(
+                          _getUserDisplayName(
+                            chat.otherUsername,
+                          )[0].toUpperCase(),
+                          style: const TextStyle(
+                            color: Colors.white,
+                            fontWeight: FontWeight.bold,
+                          ),
+                        ),
               ),
               title: Text(
                 _getUserDisplayName(chat.otherUsername),
@@ -354,8 +388,13 @@ class ChatListPageState extends State<ChatListPage> {
                   context,
                   MaterialPageRoute(
                     builder:
-                        (context) =>
-                            ChatDetailPage(username: chat.otherUsername),
+                        (context) => ChatDetailPage(
+                          username:
+                              chat.otherUsername, // Use username for backend calls
+                          name: _getUserDisplayName(
+                            chat.otherUsername,
+                          ), // Use real name for display
+                        ),
                   ),
                 ).then((_) => _loadChats());
               },
