@@ -125,6 +125,29 @@ class ChatDetailPageState extends State<ChatDetailPage> {
         _processMessageHistory(messageData);
         return;
       }
+      if (messageData.containsKey('type') && messageData['type'] == 'EDIT') {
+        final sender = messageData['usernameSender'];
+        final originalTimestamp = messageData['originalTimestamp'];
+        final newContent = messageData['newContent'];
+
+        setState(() {
+          for (int i = 0; i < _messages.length; i++) {
+            // Compare the timestamp strings to avoid precision issues
+            if (_messages[i].senderUsername == sender &&
+                _messages[i].timestamp.toIso8601String() == originalTimestamp) {
+              _messages[i] = Message(
+                  senderUsername: _messages[i].senderUsername,
+                  receiverUsername: _messages[i].receiverUsername,
+                  timestamp: _messages[i].timestamp,
+                  content: newContent,
+                  isEdited: true
+              );
+              break;
+            }
+          }
+        });
+        return;
+      }
     }
 
     // Procesar mensajes normales
@@ -200,45 +223,6 @@ class ChatDetailPageState extends State<ChatDetailPage> {
     }
   }
 
-  void _processMessageHistory(Map<String, dynamic> data) {
-    // Procesar mensajes del historial
-    if (data.containsKey('messages') && data['messages'] is List) {
-      final List<dynamic> historyMessages = data['messages'];
-
-      if (mounted) {
-        setState(() {
-          _messages =
-              historyMessages
-                  .map(
-                    (msg) => Message(
-                      senderUsername: msg['usernameSender'],
-                      receiverUsername: msg['usernameReceiver'],
-                      content: msg['missatge'],
-                      timestamp: DateTime.parse(msg['dataEnviament']),
-                    ),
-                  )
-                  .toList()
-                ..sort((a, b) => a.timestamp.compareTo(b.timestamp));
-
-          _isLoading = false;
-        });
-      }
-
-      _scrollToBottom();
-    }
-
-    // Procesar información de bloqueo inicial
-    if (data.containsKey('blockStatus')) {
-      _updateBlockStatus(data['blockStatus']);
-    } else if (_isLoading && mounted) {
-      setState(() {
-        _currentUserBlockedOther = false;
-        _otherUserBlockedCurrent = false;
-        _isLoading = false;
-      });
-    }
-  }
-
   void _processRegularMessage(Map<String, dynamic> data) {
     if (!data.containsKey('usernameSender') ||
         !data.containsKey('usernameReceiver') ||
@@ -257,9 +241,10 @@ class ChatDetailPageState extends State<ChatDetailPage> {
         receiverUsername: data['usernameReceiver'],
         content: data['missatge'],
         timestamp:
-            data.containsKey('dataEnviament')
-                ? DateTime.parse(data['dataEnviament'])
-                : DateTime.now(),
+        data.containsKey('dataEnviament')
+            ? DateTime.parse(data['dataEnviament'])
+            : DateTime.now(),
+        isEdited: data['isEdited'] ?? false,
       );
 
       if (mounted) {
@@ -271,6 +256,46 @@ class ChatDetailPageState extends State<ChatDetailPage> {
       }
 
       _scrollToBottom();
+    }
+  }
+
+  void _processMessageHistory(Map<String, dynamic> data) {
+    // Procesar mensajes del historial
+    if (data.containsKey('messages') && data['messages'] is List) {
+      final List<dynamic> historyMessages = data['messages'];
+
+      if (mounted) {
+        setState(() {
+          _messages =
+          historyMessages
+              .map(
+                (msg) => Message(
+              senderUsername: msg['usernameSender'],
+              receiverUsername: msg['usernameReceiver'],
+              content: msg['missatge'],
+              timestamp: DateTime.parse(msg['dataEnviament']),
+              isEdited: msg['isEdited'] ?? false,
+            ),
+          )
+              .toList()
+            ..sort((a, b) => a.timestamp.compareTo(b.timestamp));
+
+          _isLoading = false;
+        });
+      }
+
+      _scrollToBottom();
+    }
+
+    // Procesar información de bloqueo inicial
+    if (data.containsKey('blockStatus')) {
+      _updateBlockStatus(data['blockStatus']);
+    } else if (_isLoading && mounted) {
+      setState(() {
+        _currentUserBlockedOther = false;
+        _otherUserBlockedCurrent = false;
+        _isLoading = false;
+      });
     }
   }
 
@@ -337,14 +362,17 @@ class ChatDetailPageState extends State<ChatDetailPage> {
     setState(() => _isSending = true);
 
     try {
-      final success = await _chatService.sendMessage(widget.username, message);
+      DateTime timestamp = DateTime.now();
+      // Enviar el mensaje usando el WebSocket a través del ChatService
+      final success = await _chatService.sendMessage(widget.username, message, timestamp);
 
       if (success && mounted) {
         final newMessage = Message(
           senderUsername: _currentUsername!,
           receiverUsername: widget.username,
           content: message,
-          timestamp: DateTime.now(),
+          timestamp: timestamp,
+          isEdited: false,
         );
 
         setState(() {
@@ -387,6 +415,101 @@ class ChatDetailPageState extends State<ChatDetailPage> {
       return 'Ayer, ${DateFormat.Hm().format(timestamp)}';
     } else {
       return DateFormat.yMMMd('es').add_Hm().format(timestamp);
+    }
+  }
+
+  bool _isMessageEditable(Message message) {
+    // Only allow editing of own messages that are less than 20 minutes old
+    if (message.senderUsername != _currentUsername) return false;
+
+    final now = DateTime.now();
+    final differenceInMinutes = now.difference(message.timestamp).inMinutes;
+    return differenceInMinutes < 20;
+  }
+
+  void _showEditDialog(Message message) {
+    final editingController = TextEditingController(text: message.content);
+
+    showDialog(
+      context: context,
+      builder: (context) => AlertDialog(
+        title: const Text('Editar mensaje'),
+        content: TextField(
+          controller: editingController,
+          decoration: const InputDecoration(
+            hintText: 'Edita tu mensaje...',
+          ),
+          autofocus: true,
+          maxLines: null,
+        ),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.of(context).pop(),
+            child: const Text('Cancelar'),
+          ),
+          TextButton(
+            onPressed: () {
+              Navigator.of(context).pop();
+              _updateMessage(message, editingController.text.trim());
+            },
+            child: const Text('Guardar'),
+          ),
+        ],
+      ),
+    );
+  }
+
+  Future<void> _updateMessage(Message message, String newContent) async {
+    if (newContent.isEmpty || newContent == message.content) return;
+
+    setState(() {
+      _isSending = true;
+    });
+
+    try {
+      // Send the edited message through the ChatService
+      final success = await _chatService.editMessage(
+          widget.username,
+          message.timestamp.toIso8601String(),
+          newContent
+      );
+
+      if (success) {
+        setState(() {
+          // Update the message locally
+          final index = _messages.indexWhere((m) =>
+          m.senderUsername == message.senderUsername &&
+              m.timestamp == message.timestamp);
+
+          if (index != -1) {
+            _messages[index] = Message(
+              senderUsername: message.senderUsername,
+              receiverUsername: message.receiverUsername,
+              content: newContent,
+              timestamp: message.timestamp,
+              isEdited: true,
+            );
+          }
+        });
+      } else {
+        if (mounted) {
+          _notificationService.showError(
+            context,
+            'Error al editar el mensaje. Inténtalo de nuevo.',
+          );
+        }
+      }
+    } catch (e) {
+      if (mounted) {
+        _notificationService.showError(
+          context,
+          'Error al editar el mensaje: ${e.toString()}',
+        );
+      }
+    } finally {
+      setState(() {
+        _isSending = false;
+      });
     }
   }
 
@@ -590,40 +713,58 @@ class ChatDetailPageState extends State<ChatDetailPage> {
   Widget _buildMessageBubble(Message message, bool isMe) {
     return Align(
       alignment: isMe ? Alignment.centerRight : Alignment.centerLeft,
-      child: Container(
-        margin: const EdgeInsets.symmetric(vertical: 4, horizontal: 8),
-        padding: const EdgeInsets.symmetric(vertical: 8, horizontal: 16),
-        decoration: BoxDecoration(
-          color: isMe ? Colors.blue : Colors.grey.shade200,
-          borderRadius: BorderRadius.circular(20),
-        ),
-        constraints: BoxConstraints(
-          maxWidth: MediaQuery.of(context).size.width * 0.7,
-        ),
-        child: Column(
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-            Text(
-              message.content,
-              style: TextStyle(
-                color: isMe ? Colors.white : Colors.black,
-                fontSize: 16,
+      child: GestureDetector(
+        onLongPress: isMe && _isMessageEditable(message)
+            ? () => _showEditDialog(message)
+            : null,
+        child: Container(
+          margin: const EdgeInsets.symmetric(vertical: 4, horizontal: 8),
+          padding: const EdgeInsets.symmetric(vertical: 8, horizontal: 16),
+          decoration: BoxDecoration(
+            color: isMe ? Colors.blue : Colors.grey.shade200,
+            borderRadius: BorderRadius.circular(20),
+          ),
+          constraints: BoxConstraints(
+            maxWidth: MediaQuery.of(context).size.width * 0.7,
+          ),
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              Text(
+                message.content,
+                style: TextStyle(
+                  color: isMe ? Colors.white : Colors.black,
+                  fontSize: 16,
+                ),
               ),
-            ),
-            const SizedBox(height: 4),
-            Text(
-              _formatTimestamp(message.timestamp),
-              style: TextStyle(
-                color:
+              const SizedBox(height: 4),
+              Row(
+                mainAxisSize: MainAxisSize.min,
+                children: [
+                  Text(
+                    _formatTimestamp(message.timestamp),
+                    style: TextStyle(
+                      color:
                     isMe
                         ? Colors.white70
                         : Colors
                             .black54, // Reemplazado withAlpha(204) por Colors.white70
-                fontSize: 12,
+                      fontSize: 12,
+                    ),
+                  ),
+                  if (message.isEdited)
+                    Text(
+                      " · Editado",
+                      style: TextStyle(
+                        color: isMe ? Colors.white.withAlpha(204) : Colors.black54,
+                        fontSize: 12,
+                        fontStyle: FontStyle.italic,
+                      ),
+                    ),
+                ],
               ),
-              textAlign: TextAlign.right,
-            ),
-          ],
+            ],
+          ),
         ),
       ),
     );

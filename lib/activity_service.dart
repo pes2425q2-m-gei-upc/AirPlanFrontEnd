@@ -14,7 +14,7 @@ class ActivityService {
 
     // Si hay un usuario autenticado, añadir su nombre para filtrar actividades de usuarios bloqueados
     if (currentUsername != null) {
-      apiPath = 'api/activitats/filter/$currentUsername';
+      apiPath = 'api/activitats';
     }
 
     final url = Uri.parse(ApiConfig().buildUrl(apiPath));

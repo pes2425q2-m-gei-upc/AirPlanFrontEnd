@@ -145,7 +145,7 @@ class FakeChatService implements ChatService {
   Future<List<Chat>> getAllChats() => _chatsProvider();
 
   @override
-  Future<bool> sendMessage(String receiverUsername, String content) async =>
+  Future<bool> sendMessage(String receiverUsername, String content, DateTime a) async =>
       true;
 
   @override
@@ -174,7 +174,7 @@ class FakeChatWebSocketService implements ChatWebSocketService {
   void connectToChat(String otherUsername) {}
 
   @override
-  Future<bool> sendChatMessage(String receiverUsername, String content) async =>
+  Future<bool> sendChatMessage(String receiverUsername, String content, DateTime a) async =>
       true;
 
   @override
@@ -193,6 +193,12 @@ class FakeChatWebSocketService implements ChatWebSocketService {
 
   @override
   String? get currentChatPartner => null;
+
+  @override
+  Future<bool> sendEditMessage(String receiverUsername, String originalTimestamp, String newContent) {
+    // TODO: implement sendEditMessage
+    throw UnimplementedError();
+  }
 }
 
 void main() {

@@ -1,3 +1,4 @@
+import 'dart:async';
 import 'dart:convert';
 import 'package:http/http.dart' as http;
 import 'package:airplan/services/api_config.dart';
@@ -10,12 +11,14 @@ class Message {
   final String receiverUsername;
   final DateTime timestamp;
   final String content;
+  final bool isEdited;
 
   Message({
     required this.senderUsername,
     required this.receiverUsername,
     required this.timestamp,
     required this.content,
+    required this.isEdited,
   });
 
   factory Message.fromJson(Map<String, dynamic> json) {
@@ -24,6 +27,7 @@ class Message {
       receiverUsername: json['usernameReceiver'],
       timestamp: DateTime.parse(json['dataEnviament']),
       content: json['missatge'],
+      isEdited: json['isEdited'] ?? false,
     );
   }
 
@@ -109,12 +113,13 @@ class ChatService {
   late AuthService _authService;
 
   // Send a message to another user using WebSocket
-  Future<bool> sendMessage(String receiverUsername, String content) async {
+  Future<bool> sendMessage(String receiverUsername, String content, DateTime creationTime) async {
     try {
       // Enviar mensaje usando ChatWebSocketService
       return await _chatWebSocketService.sendChatMessage(
         receiverUsername,
         content,
+        creationTime,
       );
     } catch (e) {
       debugPrint('Error sending message via WebSocket: $e');
@@ -228,6 +233,25 @@ class ChatService {
   }
 
   // Method to disconnect the WebSocket when leaving the chat screen
+  Future<bool> editMessage(
+      String receiverUsername,
+      String originalTimestamp,
+      String newContent,
+      ) async {
+    // Use the WebSocket service to send the edited message
+    try{
+      return await _chatWebSocketService.sendEditMessage(
+        receiverUsername,
+        originalTimestamp,
+        newContent,
+      );
+    } catch (e) {
+      debugPrint('Error editing message via WebSocket: $e');
+      return false;
+    }
+  }
+
+  // Método para limpiar la conexión del WebSocket cuando el usuario sale de la pantalla de chat
   void disconnectFromChat() {
     _chatWebSocketService.disconnectChat();
   }
