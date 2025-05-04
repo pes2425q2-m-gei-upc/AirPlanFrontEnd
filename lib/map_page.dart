@@ -26,7 +26,7 @@ class MapPage extends StatefulWidget {
 }
 
 class MapPageState extends State<MapPage> {
-  MapController mapController = MapController();
+  final MapController mapController = MapController();
   final MapService mapService = MapService();
   final ActivityService activityService = ActivityService();
   LatLng selectedLocation = LatLng(0, 0);
@@ -39,6 +39,7 @@ class MapPageState extends State<MapPage> {
   List<Marker> markers = [];
   bool showAirQualityCircles = true;
   bool loadingRoutes = false;
+  bool loadingActivities = false;
   Map<int, TransitRoute> savedRoutes = {};
   MapEntry<int,TransitRoute> currentRoute = MapEntry(0, TransitRoute(
     fullRoute: [],
@@ -109,6 +110,9 @@ class MapPageState extends State<MapPage> {
   }
 
   Future<void> fetchActivities() async {
+    setState(() {
+      loadingActivities = true;
+    });
     final activities = await activityService.fetchActivities();
 
     for (Map<String,dynamic> activity in activities) {
@@ -134,6 +138,7 @@ class MapPageState extends State<MapPage> {
 
     setState(() {
       this.activities = activities;
+      loadingActivities = false;
     });
   }
 
@@ -1125,7 +1130,7 @@ class MapPageState extends State<MapPage> {
           maxChildSize: 0.9,
           expand: false,
           builder: (context, scrollController) {
-            if (loadingRoutes) {
+            if (loadingRoutes || loadingActivities) {
               return Center(
                 child: Column(
                   mainAxisSize: MainAxisSize.min,

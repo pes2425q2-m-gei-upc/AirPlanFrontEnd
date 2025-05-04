@@ -182,7 +182,7 @@ Future<TransitRoute> calculatePublicTransportRoute(bool departure, bool arrival,
                   line: section['transport']?['name'] ?? '',
                   departure: DateTime.parse(section['departure']['time']).add(Duration(hours: 2)),
                   arrival: DateTime.parse(section['arrival']['time']).add(Duration(hours: 2)),
-                  distance: section['travelSummary']['length'],
+                  distance: section['travelSummary']['length'].toDouble(),
                   points: sectionPoints,
                   station: section['departure']['place']['name'] ?? '',
                   color: _translateColor(section)
