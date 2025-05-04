@@ -3,7 +3,6 @@
 // Do not manually edit this file.
 
 // ignore_for_file: no_leading_underscores_for_library_prefixes
-// ignore_for_file: missing_override_of_must_be_overridden, override_on_non_overriding_member
 import 'dart:ui' as _i2;
 
 import 'package:mockito/mockito.dart' as _i1;
@@ -1001,14 +1000,16 @@ class MockArtboard extends _i1.Mock implements _i5.Artboard {
   );
 
   @override
-  void play() {
-    // Add concrete implementation for play
-  }
+  void play() => super.noSuchMethod(
+    Invocation.method(#play, []),
+    returnValueForMissingStub: null,
+  );
 
   @override
-  void pause() {
-    // Add concrete implementation for pause
-  }
+  void pause() => super.noSuchMethod(
+    Invocation.method(#pause, []),
+    returnValueForMissingStub: null,
+  );
 
   @override
   void computeDrawOrder() => super.noSuchMethod(
