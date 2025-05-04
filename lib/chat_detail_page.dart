@@ -223,45 +223,29 @@ class ChatDetailPageState extends State<ChatDetailPage> {
     }
   }
 
-  void _processMessageHistory(Map<String, dynamic> data) {
-    // Procesar mensajes del historial
-    if (data.containsKey('messages') && data['messages'] is List) {
-      final List<dynamic> historyMessages = data['messages'];
+  void _processRegularMessage(Map<String, dynamic> data) {
+    if (!data.containsKey('usernameSender') ||
+        !data.containsKey('usernameReceiver') ||
+        !data.containsKey('missatge')) {
+      return;
+    }
 
-      if (mounted) {
-        setState(() {
-          _messages =
-              historyMessages
-                  .map(
-                    (msg) => Message(
-                      senderUsername: msg['usernameSender'],
-                      receiverUsername: msg['usernameReceiver'],
-                      content: msg['missatge'],
-                      timestamp: DateTime.parse(msg['dataEnviament']),
-                    ),
-                  )
-                  .toList()
-                ..sort((a, b) => a.timestamp.compareTo(b.timestamp));
+    final sender = data['usernameSender'];
+    final receiver = data['usernameReceiver'];
 
-          _isLoading = false;
-        });
-      }
-
-        // Solo procesamos mensajes que pertenecen a esta conversación
-        if ((sender == _currentUsername && receiver == widget.username) ||
-            (sender == widget.username && receiver == _currentUsername)) {
-          // Crear un nuevo objeto Message directamente a partir de los datos recibidos
-          final newMessage = Message(
-            senderUsername: messageData['usernameSender'],
-            receiverUsername: messageData['usernameReceiver'],
-            content: messageData['missatge'],
-            isEdited: messageData['isEdited'],
-            // Si el mensaje tiene timestamp, lo usamos; de lo contrario, usamos la fecha actual
-            timestamp:
-                messageData.containsKey('dataEnviament')
-                    ? DateTime.parse(messageData['dataEnviament'])
-                    : DateTime.now(),
-          );
+    // Solo procesar mensajes de esta conversación
+    if ((sender == _currentUsername && receiver == widget.username) ||
+        (sender == widget.username && receiver == _currentUsername)) {
+      final newMessage = Message(
+        senderUsername: data['usernameSender'],
+        receiverUsername: data['usernameReceiver'],
+        content: data['missatge'],
+        timestamp:
+        data.containsKey('dataEnviament')
+            ? DateTime.parse(data['dataEnviament'])
+            : DateTime.now(),
+        isEdited: data['isEdited'] ?? false,
+      );
 
       if (mounted) {
         setState(() {
@@ -272,6 +256,46 @@ class ChatDetailPageState extends State<ChatDetailPage> {
       }
 
       _scrollToBottom();
+    }
+  }
+
+  void _processMessageHistory(Map<String, dynamic> data) {
+    // Procesar mensajes del historial
+    if (data.containsKey('messages') && data['messages'] is List) {
+      final List<dynamic> historyMessages = data['messages'];
+
+      if (mounted) {
+        setState(() {
+          _messages =
+          historyMessages
+              .map(
+                (msg) => Message(
+              senderUsername: msg['usernameSender'],
+              receiverUsername: msg['usernameReceiver'],
+              content: msg['missatge'],
+              timestamp: DateTime.parse(msg['dataEnviament']),
+              isEdited: msg['isEdited'] ?? false,
+            ),
+          )
+              .toList()
+            ..sort((a, b) => a.timestamp.compareTo(b.timestamp));
+
+          _isLoading = false;
+        });
+      }
+
+      _scrollToBottom();
+    }
+
+    // Procesar información de bloqueo inicial
+    if (data.containsKey('blockStatus')) {
+      _updateBlockStatus(data['blockStatus']);
+    } else if (_isLoading && mounted) {
+      setState(() {
+        _currentUserBlockedOther = false;
+        _otherUserBlockedCurrent = false;
+        _isLoading = false;
+      });
     }
   }
 
@@ -469,7 +493,7 @@ class ChatDetailPageState extends State<ChatDetailPage> {
         });
       } else {
         if (mounted) {
-          NotificationService.showError(
+          _notificationService.showError(
             context,
             'Error al editar el mensaje. Inténtalo de nuevo.',
           );
@@ -477,7 +501,7 @@ class ChatDetailPageState extends State<ChatDetailPage> {
       }
     } catch (e) {
       if (mounted) {
-        NotificationService.showError(
+        _notificationService.showError(
           context,
           'Error al editar el mensaje: ${e.toString()}',
         );

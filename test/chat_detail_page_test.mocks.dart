@@ -82,7 +82,7 @@ class MockChatService extends _i1.Mock implements _i5.ChatService {
   }
 
   @override
-  _i6.Future<bool> sendMessage(String? receiverUsername, String? content) =>
+  _i6.Future<bool> sendMessage(String? receiverUsername, String? content, DateTime a) =>
       (super.noSuchMethod(
             Invocation.method(#sendMessage, [receiverUsername, content]),
             returnValue: _i6.Future<bool>.value(false),
@@ -144,7 +144,7 @@ class MockChatWebSocketService extends _i1.Mock
   );
 
   @override
-  _i6.Future<bool> sendChatMessage(String? receiverUsername, String? content) =>
+  _i6.Future<bool> sendChatMessage(String? receiverUsername, String? content, DateTime a) =>
       (super.noSuchMethod(
             Invocation.method(#sendChatMessage, [receiverUsername, content]),
             returnValue: _i6.Future<bool>.value(false),

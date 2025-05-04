@@ -31,32 +31,34 @@ void main() {
   group('sendMessage', () {
     const other = 'otherUser';
     const content = 'hello';
+    var hora = DateTime.now();
+
 
     test('returns true when WebSocket sendChatMessage succeeds', () async {
       when(
-        () => mockWS.sendChatMessage(other, content),
+        () => mockWS.sendChatMessage(other, content, hora),
       ).thenAnswer((_) async => true);
 
-      final result = await chatService.sendMessage(other, content);
+      final result = await chatService.sendMessage(other, content, hora);
       expect(result, isTrue);
-      verify(() => mockWS.sendChatMessage(other, content)).called(1);
+      verify(() => mockWS.sendChatMessage(other, content, hora)).called(1);
     });
 
     test('returns false when WebSocket sendChatMessage fails', () async {
       when(
-        () => mockWS.sendChatMessage(other, content),
+        () => mockWS.sendChatMessage(other, content, DateTime.now()),
       ).thenAnswer((_) async => false);
 
-      final result = await chatService.sendMessage(other, content);
+      final result = await chatService.sendMessage(other, content, DateTime.now());
       expect(result, isFalse);
     });
 
     test('returns false on exception', () async {
       when(
-        () => mockWS.sendChatMessage(other, content),
+        () => mockWS.sendChatMessage(other, content, DateTime.now()),
       ).thenThrow(Exception('fail'));
 
-      final result = await chatService.sendMessage(other, content);
+      final result = await chatService.sendMessage(other, content, DateTime.now());
       expect(result, isFalse);
     });
   });

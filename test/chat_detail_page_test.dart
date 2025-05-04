@@ -190,7 +190,7 @@ void main() {
       WidgetTester tester,
     ) async {
       when(
-        mockChatService.sendMessage(any, any),
+        mockChatService.sendMessage(any, any, DateTime.now()),
       ).thenAnswer((_) => Future.value(true));
 
       await tester.pumpWidget(buildWidget());
@@ -205,7 +205,7 @@ void main() {
 
       // Verify send is called
       verify(
-        mockChatService.sendMessage('otherUser', 'Test message'),
+        mockChatService.sendMessage('otherUser', 'Test message', DateTime.now()),
       ).called(1);
 
       // Verify text field is cleared

@@ -120,6 +120,41 @@ class ChatWebSocketService {
     }
   }
 
+  Future<bool> sendEditMessage(
+      String receiverUsername,
+      String originalTimestamp,
+      String newContent
+      ) async {
+    if (!_isChatConnected || _chatChannel == null) {
+      // If no active connection, try to connect first
+      connectToChat(receiverUsername);
+      // Wait a bit for the connection to establish
+      await Future.delayed(const Duration(milliseconds: 500));
+
+      if (!_isChatConnected || _chatChannel == null) {
+        debugPrint('No se pudo establecer conexión WebSocket para editar el mensaje');
+        return false;
+      }
+    }
+
+    try {
+      final message = {
+        'type': 'EDIT',
+        'usernameSender': _currentUsername,
+        'usernameReceiver': receiverUsername,
+        'originalTimestamp': originalTimestamp,
+        'newContent': newContent,
+        'editTimestamp': DateTime.now().toIso8601String(),
+      };
+
+      _chatChannel!.sink.add(jsonEncode(message));
+      return true;
+    } catch (e) {
+      debugPrint('Error al enviar edición por WebSocket: $e');
+      return false;
+    }
+  }
+
   Future<bool> sendChatMessage(String receiverUsername, String content, DateTime timestamp) async {
     if (!_ensureConnected(receiverUsername)) {
       debugPrint(
@@ -264,7 +299,7 @@ class ChatWebSocketService {
       }
 
       // Handle real-time edit notifications
-      if (messageData is Map && messageData['type'] == 'EDIT') {
+      if (messageData['type'] == 'EDIT') {
         debugPrint('Received edit notification');
 
         final editData = {
@@ -385,40 +420,5 @@ class DefaultWebSocketChannelFactory implements WebSocketChannelFactory {
   @override
   WebSocketChannel connect(Uri uri) {
     return WebSocketChannel.connect(uri);
-  }
-
-  Future<bool> sendEditMessage(
-      String receiverUsername,
-      String originalTimestamp,
-      String newContent
-      ) async {
-    if (!_isChatConnected || _chatChannel == null) {
-      // If no active connection, try to connect first
-      connectToChat(receiverUsername);
-      // Wait a bit for the connection to establish
-      await Future.delayed(const Duration(milliseconds: 500));
-
-      if (!_isChatConnected || _chatChannel == null) {
-        debugPrint('No se pudo establecer conexión WebSocket para editar el mensaje');
-        return false;
-      }
-    }
-
-    try {
-      final message = {
-        'type': 'EDIT',
-        'usernameSender': _currentUsername,
-        'usernameReceiver': receiverUsername,
-        'originalTimestamp': originalTimestamp,
-        'newContent': newContent,
-        'editTimestamp': DateTime.now().toIso8601String(),
-      };
-
-      _chatChannel!.sink.add(jsonEncode(message));
-      return true;
-    } catch (e) {
-      debugPrint('Error al enviar edición por WebSocket: $e');
-      return false;
-    }
   }
 }

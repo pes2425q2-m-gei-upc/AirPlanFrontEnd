@@ -97,7 +97,7 @@ void main() {
 
   group('sendChatMessage', () {
     test('returns false if not connected', () async {
-      final result = await service.sendChatMessage('user', 'hi');
+      final result = await service.sendChatMessage('user', 'hi', DateTime.now());
       expect(result, isFalse);
     });
 
@@ -118,7 +118,7 @@ void main() {
       );
       service.connectToChat('other');
       // send
-      final ok = await service.sendChatMessage('other', 'hello');
+      final ok = await service.sendChatMessage('other', 'hello', DateTime.now());
       expect(ok, isTrue);
       // check that the fake sink recorded the sent JSON
       expect(fakeChannel.sentMessages.single, contains('"missatge":"hello"'));
