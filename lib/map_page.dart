@@ -14,6 +14,9 @@ import 'map_service.dart';
 import 'activity_service.dart';
 import 'map_ui.dart' as map_ui;
 import 'activity_details_page.dart';
+import 'package:sensors_plus/sensors_plus.dart';
+import 'dart:math' as math;
+import 'dart:math' show log, ln2, min;
 
 class MapPage extends StatefulWidget {
   const MapPage({super.key});
@@ -23,7 +26,7 @@ class MapPage extends StatefulWidget {
 }
 
 class MapPageState extends State<MapPage> {
-  final MapController mapController = MapController();
+  MapController mapController = MapController();
   final MapService mapService = MapService();
   final ActivityService activityService = ActivityService();
   LatLng selectedLocation = LatLng(0, 0);
@@ -35,8 +38,9 @@ class MapPageState extends State<MapPage> {
   List<Map<String, dynamic>> activities = [];
   List<Marker> markers = [];
   bool showAirQualityCircles = true;
-  Map<int, dynamic> savedRoutes = {};
-  TransitRoute currentRoute = TransitRoute(
+  bool loadingRoutes = false;
+  Map<int, TransitRoute> savedRoutes = {};
+  MapEntry<int,TransitRoute> currentRoute = MapEntry(0, TransitRoute(
     fullRoute: [],
     steps: [],
     duration: 0,
@@ -46,17 +50,45 @@ class MapPageState extends State<MapPage> {
     origin: LatLng(0, 0),
     destination: LatLng(0, 0),
     option: 0
-  );
+  ));
   bool isNavigating = false;
   StreamSubscription<Position>? _positionStreamSubscription;
+  StreamSubscription<MagnetometerEvent>? _magnetometerSubscription;
+  double _deviceHeading = 0.0;
+  bool _showCompass = false;
+  OverlayEntry? _currentInstructionOverlay;
 
   @override
   void initState() {
     super.initState();
+    _startCompassListener();
     fetchAirQualityData();
     fetchActivities();
     fetchUserLocation();
     fetchRoutes();
+  }
+
+  void _startCompassListener() {
+    _magnetometerSubscription = magnetometerEventStream().listen((MagnetometerEvent event) {
+      if (mounted) {
+        // Calculate base heading from magnetometer data
+        double heading = math.atan2(event.y, event.x) * (180 / math.pi);
+
+        heading -= 90;
+
+        // Normalize to 0-360 degrees
+        if (heading < 0) {
+          heading += 360;
+        }
+
+        // Update the state only if significant change to prevent too many rebuilds
+        if ((heading - _deviceHeading).abs() > 2.0) {
+          setState(() {
+            _deviceHeading = heading;
+          });
+        }
+      }
+    });
   }
 
   Future<void> fetchAirQualityData() async {
@@ -167,6 +199,9 @@ class MapPageState extends State<MapPage> {
   }
 
   Future<void> fetchRoutes() async {
+    setState(() {
+      loadingRoutes = true;
+    });
     try {
       final routes = await mapService.fetchRoutes();
       for (Map<String, dynamic> route in routes) {
@@ -212,8 +247,12 @@ class MapPageState extends State<MapPage> {
       }
       setState(() {
         savedRoutes = savedRoutes;
+        loadingRoutes = false;
       });
     } catch (e) {
+      setState(() {
+        loadingRoutes = false;
+      });
       final actualContext = context;
       if (actualContext.mounted) {
         ScaffoldMessenger.of(actualContext).showSnackBar(SnackBar(
@@ -315,9 +354,15 @@ class MapPageState extends State<MapPage> {
     );
 
     try {
-      currentRoute = await _calculateRoute(false, false, DateTime.now(), DateTime.now(), selectedOption!, start, end, mapService);
+      currentRoute = MapEntry(0, await _calculateRoute(false, false, DateTime.now(), DateTime.now(), selectedOption!, start, end, mapService));
       setState(() {
         currentRoute = currentRoute;
+        if (currentRoute.value.fullRoute.isNotEmpty) {
+          // Schedule the bounds fitting for after the setState completes
+          WidgetsBinding.instance.addPostFrameCallback((_) {
+            _fitMapToBounds(_calculateRouteBounds(currentRoute.value.fullRoute));
+          });
+        }
       });
       final actualContext = context;
       if (actualContext.mounted) {
@@ -359,44 +404,68 @@ class MapPageState extends State<MapPage> {
             subtitle: Text('Duració: ${transitRoute.duration} min - Distancia: ${transitRoute.distance} m - Sortida: ${DateFormat.Hm().format(transitRoute.departure)} - Arribada: ${DateFormat.Hm().format(transitRoute.arrival)}'),
           ),
           const Divider(),
-          ...transitRoute.steps.map((step) => Column(
+          ...groupSteps(transitRoute.steps).map((group) => Column(
             children: [
               ListTile(
                 leading: Icon(
-                    step.mode == TipusVehicle.cap
+                    group.first.mode == TipusVehicle.cap
                         ? Icons.directions_walk
-                        : step.mode == TipusVehicle.cotxe
+                        : group.first.mode == TipusVehicle.cotxe
                         ? Icons.directions_car
-                        : step.mode == TipusVehicle.autobus
+                        : group.first.mode == TipusVehicle.autobus
                         ? Icons.directions_bus
-                        : step.mode == TipusVehicle.tren
+                        : group.first.mode == TipusVehicle.tren
                         ? Icons.train
-                        : step.mode == TipusVehicle.bicicleta
+                        : group.first.mode == TipusVehicle.bicicleta
                         ? Icons.pedal_bike
-                        : step.mode == TipusVehicle.moto
+                        : group.first.mode == TipusVehicle.moto
                         ? Icons.directions_bike
                         : Icons.directions_transit,
-                    color: step.color
+                    color: group.first.color
                 ),
                 title: Column(
                   crossAxisAlignment: CrossAxisAlignment.start,
-                  children: step.instructions
-                      .map((instruction) => Column(
-                    children: [
-                      Text(instruction),
-                      const Divider(), // Add a separator after each instruction
-                    ],
-                  ))
-                      .toList(),
+                  children: [
+                    ...group.map((step) => Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        Text(step.instruction),
+                        Text(
+                          '${DateFormat.Hm().format(step.departure)} - ${DateFormat.Hm().format(step.arrival)}',
+                          style: TextStyle(fontSize: 12, color: Colors.grey),
+                        ),
+                        if (step != group.last) const SizedBox(height: 8),
+                      ],
+                    )),
+                  ],
                 ),
-                subtitle: Text('${DateFormat.Hm().format(step.departure)} - ${DateFormat.Hm().format(step.arrival)}'),
               ),
-              const Divider(), // Add a separator after each instruction
+              const Divider(),
             ],
           )),
         ],
       ),
     );
+  }
+
+  List<List<TransitStep>> groupSteps(List<TransitStep> steps) {
+    List<List<TransitStep>> groups = [];
+    List<TransitStep> currentGroup = [];
+
+    for (var step in steps) {
+      if (currentGroup.isEmpty || currentGroup.first.mode == step.mode) {
+        currentGroup.add(step);
+      } else {
+        groups.add(List.from(currentGroup));
+        currentGroup = [step];
+      }
+    }
+
+    if (currentGroup.isNotEmpty) {
+      groups.add(currentGroup);
+    }
+
+    return groups;
   }
 
   void _showPlaceDetails(LatLng selectedLocation, String placeDetails) {
@@ -891,6 +960,90 @@ class MapPageState extends State<MapPage> {
     return id;
   }
 
+  Future<void> _updateRouteInBackend(MapEntry<int,TransitRoute> route) async {
+    try {
+      await mapService.updateRouteInBackend(route);
+      final actualContext = context;
+      if (actualContext.mounted) {
+        ScaffoldMessenger.of(actualContext).showSnackBar(
+          SnackBar(content: Text('Ruta actualitzada correctament.')),
+        );
+      }
+    } catch (e) {
+      final actualContext = context;
+      if (actualContext.mounted) {
+        ScaffoldMessenger.of(actualContext).showSnackBar(
+          SnackBar(content: Text('Error al actualitzar la ruta: ${e.toString()}')),
+        );
+      }
+    }
+  }
+
+  void _fitMapToBounds(LatLngBounds bounds) {
+    // Add 15% padding around the route bounds
+    final centerPoint = bounds.center;
+    final double paddingFactor = 0.15;
+
+    final heightDifference = (bounds.northEast.latitude - bounds.southWest.latitude) * (1 + paddingFactor);
+    final widthDifference = (bounds.northEast.longitude - bounds.southWest.longitude) * (1 + paddingFactor);
+
+    final newBounds = LatLngBounds(
+      LatLng(
+        centerPoint.latitude - heightDifference / 2,
+        centerPoint.longitude - widthDifference / 2,
+      ),
+      LatLng(
+        centerPoint.latitude + heightDifference / 2,
+        centerPoint.longitude + widthDifference / 2,
+      ),
+    );
+
+    mapController.move(
+        newBounds.center,
+        _getBoundsZoom(newBounds)
+    );
+  }
+
+  double _getBoundsZoom(LatLngBounds bounds) {
+    final worldLatDiff = 180.0;
+    final worldLngDiff = 360.0;
+
+    final latDiff = (bounds.northEast.latitude - bounds.southWest.latitude).abs();
+    final lngDiff = (bounds.northEast.longitude - bounds.southWest.longitude).abs();
+
+    final latZoom = (log(worldLatDiff / latDiff) / ln2).floor();
+    final lngZoom = (log(worldLngDiff / lngDiff) / ln2).floor();
+
+    return min(latZoom, lngZoom).toDouble() + 1;
+  }
+
+  LatLngBounds _calculateRouteBounds(List<LatLng> routePoints) {
+    if (routePoints.isEmpty) return LatLngBounds(currentPosition, currentPosition);
+
+    double minLat = routePoints[0].latitude;
+    double maxLat = routePoints[0].latitude;
+    double minLng = routePoints[0].longitude;
+    double maxLng = routePoints[0].longitude;
+
+    for (var point in routePoints) {
+      minLat = math.min(minLat, point.latitude);
+      maxLat = math.max(maxLat, point.latitude);
+      minLng = math.min(minLng, point.longitude);
+      maxLng = math.max(maxLng, point.longitude);
+    }
+
+    // Add padding to include current position
+    minLat = math.min(minLat, currentPosition.latitude);
+    maxLat = math.max(maxLat, currentPosition.latitude);
+    minLng = math.min(minLng, currentPosition.longitude);
+    maxLng = math.max(maxLng, currentPosition.longitude);
+
+    return LatLngBounds(
+      LatLng(minLat, minLng),
+      LatLng(maxLat, maxLng),
+    );
+  }
+
   void _showTimeSelectionDialog() async {
     final selectedOption = await showDialog<String>(
       context: context,
@@ -934,9 +1087,9 @@ class MapPageState extends State<MapPage> {
 
           try {
             if (selectedOption == 'departure') {
-              currentRoute = await _calculateRoute(true, false, selectedDateTime, selectedDateTime, currentRoute.option, currentRoute.origin, currentRoute.destination, mapService);
+              currentRoute = MapEntry(currentRoute.key, await _calculateRoute(true, false, selectedDateTime, selectedDateTime, currentRoute.value.option, currentRoute.value.origin, currentRoute.value.destination, mapService));
             } else if (selectedOption == 'arrival') {
-              currentRoute = await _calculateRoute(false, true, selectedDateTime, selectedDateTime, currentRoute.option, currentRoute.origin, currentRoute.destination, mapService);
+              currentRoute = MapEntry(currentRoute.key, await _calculateRoute(false, true, selectedDateTime, selectedDateTime, currentRoute.value.option, currentRoute.value.origin, currentRoute.value.destination, mapService));
             }
             setState(() {
               currentRoute = currentRoute;
@@ -964,72 +1117,213 @@ class MapPageState extends State<MapPage> {
   void _showSavedRoutes() {
     showModalBottomSheet(
       context: context,
+      isScrollControlled: true,
       builder: (context) {
-        if (savedRoutes.isEmpty) {
-          return Center(
-            child: Text(
-              'No tens cap ruta guardada',
-              style: TextStyle(fontSize: 20, fontWeight: FontWeight.bold),
-            ),
-          );
-        }
-        return ListView.builder(
-          itemCount: savedRoutes.length,
-          itemBuilder: (context, index) {
-            final route = savedRoutes.values.elementAt(index);
-            return ListTile(
-              title: Text('Ruta ${index + 1}'),
-              subtitle: Text('Duració: ${route.duration} min - Distancia: ${route.distance} m'),
-              trailing: Row(
-                mainAxisSize: MainAxisSize.min,
-                children: [
-                  IconButton(
-                    icon: Icon(Icons.visibility, color: Colors.blue),
-                    onPressed: () {
-                      setState(() {
-                        currentRoute = route;
-                      });
-                      Navigator.pop(context);
-                    },
+        return DraggableScrollableSheet(
+          initialChildSize: 0.5,
+          minChildSize: 0.25,
+          maxChildSize: 0.9,
+          expand: false,
+          builder: (context, scrollController) {
+            if (loadingRoutes) {
+              return Center(
+                child: Column(
+                  mainAxisSize: MainAxisSize.min,
+                  children: const [
+                    CircularProgressIndicator(),
+                    SizedBox(height: 16),
+                    Text('Carregant rutes...', style: TextStyle(fontSize: 18)),
+                  ],
+                ),
+              );
+            }
+            if (savedRoutes.isEmpty) {
+              return Center(
+                child: Text(
+                  'No tens cap ruta guardada',
+                  style: TextStyle(fontSize: 20, fontWeight: FontWeight.bold),
+                ),
+              );
+            }
+
+            // Group routes by destination type
+            final List<MapEntry<int, TransitRoute>> activityRoutes = [];
+            final List<MapEntry<int, TransitRoute>> otherRoutes = [];
+
+            // Categorize routes
+            savedRoutes.forEach((id, route) {
+              bool isActivityDestination = false;
+
+              // Check if this route is going to an activity
+              for (var activity in activities) {
+                final ubicacio = activity['ubicacio'] as Map<String, dynamic>;
+                final lat = ubicacio['latitud'] as double;
+                final lon = ubicacio['longitud'] as double;
+                final activityLocation = LatLng(lat, lon);
+
+                final distance = Distance().as(LengthUnit.Meter, route.destination, activityLocation);
+                if (distance < 20) {
+                  activityRoutes.add(MapEntry(id, route));
+                  isActivityDestination = true;
+                  break;
+                }
+              }
+
+              if (!isActivityDestination) {
+                otherRoutes.add(MapEntry(id, route));
+              }
+            });
+
+            // Build combined list with entries and divider
+            return ListView(
+              controller: scrollController,
+              children: [
+                Center(
+                  child: Container(
+                    width: 50,
+                    height: 5,
+                    margin: EdgeInsets.symmetric(vertical: 8),
+                    decoration: BoxDecoration(
+                      color: Colors.grey[300],
+                      borderRadius: BorderRadius.circular(2.5),
+                    ),
                   ),
-                  IconButton(
-                    icon: Icon(Icons.delete, color: Colors.red),
-                    onPressed: () {
-                      showDialog(
-                        context: context,
-                        builder: (context) {
-                          return AlertDialog(
-                            title: Text('Confirm Deletion'),
-                            content: Text('Segur que vols eliminar la ruta seleccionada?'),
-                            actions: [
-                              TextButton(
-                                onPressed: () {
-                                  Navigator.pop(context); // Close the dialog
-                                },
-                                child: Text('Cancel·lar', style: TextStyle(color: Colors.grey)),
-                              ),
-                              TextButton(
-                                onPressed: () {
-                                  setState(() {
-                                    _eliminarRuta(savedRoutes.keys.elementAt(index),index);
-                                  });
-                                  Navigator.pop(context);
-                                  Navigator.pop(context);
-                                },
-                                child: Text('Delete', style: TextStyle(color: Colors.red)),
-                              ),
-                            ],
-                          );
-                        },
-                      );
-                    },
+                ),
+                if (activityRoutes.isNotEmpty) ...[
+                  Center(
+                    child: Padding(
+                      padding: const EdgeInsets.all(8.0),
+                      child: Text(
+                        'Rutes a activitats',
+                        style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold),
+                      ),
+                    ),
                   ),
+                  ...activityRoutes.map((entry) => _buildRouteListTile(entry)),
                 ],
-              ),
+
+                if (activityRoutes.isNotEmpty && otherRoutes.isNotEmpty)
+                  Divider(thickness: 2, height: 32),
+
+                if (otherRoutes.isNotEmpty) ...[
+                  Center(
+                    child: Padding(
+                      padding: const EdgeInsets.all(8.0),
+                      child: Text(
+                        'Altres rutes',
+                        style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold),
+                      ),
+                    ),
+                  ),
+                  ...otherRoutes.map((entry) => _buildRouteListTile(entry)),
+                ],
+              ],
             );
           },
         );
       },
+    );
+  }
+
+  Widget _buildRouteListTile(MapEntry<int, TransitRoute> entry) {
+    final route = entry.value;
+    final routeId = entry.key;
+    final destinationLatLng = route.destination;
+
+    // Generate route title based on destination
+    String title = 'Ruta';
+
+    // Check for activity match
+    for (var activity in activities) {
+      final ubicacio = activity['ubicacio'] as Map<String, dynamic>;
+      final lat = ubicacio['latitud'] as double;
+      final lon = ubicacio['longitud'] as double;
+      final activityLocation = LatLng(lat, lon);
+
+      final distance = Distance().as(LengthUnit.Meter, destinationLatLng, activityLocation);
+      if (distance < 20) {
+        title = 'Ruta a ${activity['nom']}';
+        break;
+      }
+    }
+
+    // If no activity match, check saved locations
+    if (title == 'Ruta') {
+      for (var entry in savedLocations.entries) {
+        final savedLocation = entry.key;
+        final distance = Distance().as(LengthUnit.Meter, destinationLatLng, savedLocation);
+        if (distance < 20) {
+          // Extract a meaningful part from the place details
+          final placeName = entry.value.split(',').first;
+          title = 'Ruta a $placeName';
+          break;
+        }
+      }
+    }
+    
+    if (title == 'Ruta') {
+      // If no match found, use the destination coordinates
+      title = 'Ruta a ${destinationLatLng.latitude}, ${destinationLatLng.longitude}';
+    }
+
+    // Find route index in the savedRoutes map
+    final index = savedRoutes.keys.toList().indexOf(routeId);
+
+    return ListTile(
+      title: Text(title),
+      subtitle: Text('Duració: ${route.duration} min - Distancia: ${route.distance} m'),
+      trailing: Row(
+        mainAxisSize: MainAxisSize.min,
+        children: [
+          IconButton(
+            icon: Icon(Icons.visibility, color: Colors.blue),
+            onPressed: () {
+              setState(() {
+                currentRoute = MapEntry(routeId, route);
+                // Schedule the bounds fitting for after the setState completes
+                WidgetsBinding.instance.addPostFrameCallback((_) {
+                  if (currentRoute.value.fullRoute.isNotEmpty) {
+                    _fitMapToBounds(_calculateRouteBounds(currentRoute.value.fullRoute));
+                  }
+                });
+              });
+              Navigator.pop(context);
+            },
+          ),
+          IconButton(
+            icon: Icon(Icons.delete, color: Colors.red),
+            onPressed: () {
+              showDialog(
+                context: context,
+                builder: (context) {
+                  return AlertDialog(
+                    title: Text('Confirm Deletion'),
+                    content: Text('Segur que vols eliminar la ruta seleccionada?'),
+                    actions: [
+                      TextButton(
+                        onPressed: () {
+                          Navigator.pop(context); // Close the dialog
+                        },
+                        child: Text('Cancel·lar', style: TextStyle(color: Colors.grey)),
+                      ),
+                      TextButton(
+                        onPressed: () {
+                          setState(() {
+                            _eliminarRuta(routeId, index);
+                          });
+                          Navigator.pop(context);
+                          Navigator.pop(context);
+                        },
+                        child: Text('Delete', style: TextStyle(color: Colors.red)),
+                      ),
+                    ],
+                  );
+                },
+              );
+            },
+          ),
+        ],
+      ),
     );
   }
 
@@ -1056,11 +1350,23 @@ class MapPageState extends State<MapPage> {
     }
   }
 
+  void _toggleCompass() {
+    setState(() {
+      _showCompass = !_showCompass;
+      if (_showCompass) {
+        markers.removeWhere((m) => m.key == const Key('user_location'));
+      } else {
+        _updateUserMarker(currentPosition);
+      }
+    });
+  }
+
   void _startNavigation() {
-    if (currentRoute.fullRoute.isEmpty) return;
+    if (currentRoute.value.fullRoute.isEmpty) return;
 
     setState(() {
       isNavigating = true;
+      _showCompass = true;
     });
 
     // Start listening to location updates
@@ -1080,9 +1386,35 @@ class MapPageState extends State<MapPage> {
 
           // --- Advanced Steps (To be implemented) ---
           // 1. Determine current step based on user location
+          int currentStepIndex = _determineCurrentStepIndex(currentPosition,currentRoute);
           // 2. Display current/next instruction
+          if (currentStepIndex >= 0) {
+            // User is on a valid step
+            final currentStep = currentRoute.value.steps[currentStepIndex];
+
+            // Show instruction for current step
+            _showCurrentInstruction(currentStep, currentStepIndex);
+
+            // Check if user has reached the end of the current step
+            if (currentStepIndex < currentRoute.value.steps.length - 1) {
+              // Check if we're close to the next step's starting point
+              final nextStep = currentRoute.value.steps[currentStepIndex + 1];
+              final distanceToNextStep = Distance().as(
+                  LengthUnit.Meter,
+                  currentPosition,
+                  nextStep.points.first
+              );
+
+              if (distanceToNextStep < 20) { // Within 20 meters of next step
+                _showUpcomingInstruction(nextStep, currentStepIndex + 1);
+              }
+            }
+          } else {
+            // User is off route
+            _showOffRouteWarning();
+          }
           // 3. Check if user is off-route
-          // 4. Optionally rotate map: mapController.rotate(position.heading);
+          mapController.rotate(-_deviceHeading);
           // ---
         },
         onError: (error) {
@@ -1099,6 +1431,8 @@ class MapPageState extends State<MapPage> {
   void _stopNavigation() {
     _positionStreamSubscription?.cancel();
     _positionStreamSubscription = null;
+    _currentInstructionOverlay?.remove();
+    _currentInstructionOverlay = null;
     setState(() {
       isNavigating = false;
     });
@@ -1109,7 +1443,40 @@ class MapPageState extends State<MapPage> {
     }
   }
 
-  // Helper to update or add the user marker
+  int _determineCurrentStepIndex(LatLng userPosition, MapEntry<int,TransitRoute> route) {
+    if (route.value.steps.isEmpty) return -1;
+
+    // Find the step with the closest point to the user's current position
+    int closestStepIndex = 0;
+    double closestDistance = double.infinity;
+
+    for (int i = 0; i < route.value.steps.length; i++) {
+      final step = route.value.steps[i];
+
+      // For each step, find the closest point in that step's points
+      for (int j = 0; j < step.points.length; j++) {
+        final point = step.points[j];
+        final distance = Distance().as(
+            LengthUnit.Meter,
+            userPosition,
+            point
+        );
+
+        if (distance < closestDistance) {
+          closestDistance = distance;
+          closestStepIndex = i;
+        }
+      }
+    }
+
+    // If we're too far from any point (e.g., 50 meters), we might be off route
+    if (closestDistance > 50) {
+      return -1; // Indicates off-route
+    }
+
+    return closestStepIndex;
+  }
+
   void _updateUserMarker(LatLng position) {
     markers.removeWhere((m) => m.key == const Key('user_location')); // Remove old marker if exists
     markers.add(Marker(
@@ -1123,6 +1490,184 @@ class MapPageState extends State<MapPage> {
         size: 40.0,
       ),
     ));
+  }
+
+  void _showCurrentInstruction(TransitStep step, int stepIndex) {
+    _currentInstructionOverlay?.remove();
+    _currentInstructionOverlay = OverlayEntry(
+      builder: (context) => Positioned(
+        bottom: 0,
+        left: 0,
+        right: 0,
+        child: Material(
+          elevation: 8,
+          color: Theme.of(context).scaffoldBackgroundColor,
+          child: SafeArea(
+            child: Container(
+              padding: const EdgeInsets.all(16.0),
+              child: Column(
+                mainAxisSize: MainAxisSize.min,
+                children: [
+                  Row(
+                    children: [
+                      // Transport mode icon
+                      Icon(
+                        step.mode == TipusVehicle.cap ? Icons.directions_walk :
+                        step.mode == TipusVehicle.cotxe ? Icons.directions_car :
+                        step.mode == TipusVehicle.autobus ? Icons.directions_bus :
+                        step.mode == TipusVehicle.tren ? Icons.train :
+                        step.mode == TipusVehicle.bicicleta ? Icons.pedal_bike :
+                        step.mode == TipusVehicle.moto ? Icons.directions_bike :
+                        Icons.directions_transit,
+                        color: Theme.of(context).primaryColor,
+                        size: 32,
+                      ),
+                      const SizedBox(width: 16),
+                      // Step instruction with movement icon
+                      Expanded(
+                        child: Row(
+                          children: [
+                            if (step.mode != TipusVehicle.autobus &&
+                                step.mode != TipusVehicle.tren &&
+                                step.mode != TipusVehicle.metro)
+                              Icon(
+                                mapService.getDirectionTypeIcon(step.type),
+                                color: Theme.of(context).primaryColor,
+                                size: 24,
+                              ),
+                            const SizedBox(width: 8),
+                            Expanded(
+                              child: Text(
+                                'Step ${stepIndex + 1}/${currentRoute.value.steps.length}: ${step.instruction.isNotEmpty ? step.instruction : "Follow the route"}',
+                                style: const TextStyle(fontSize: 16),
+                              ),
+                            ),
+                          ],
+                        ),
+                      ),
+                    ],
+                  ),
+                  const SizedBox(height: 8),
+                  // Time and distance information
+                  Row(
+                    mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                    children: [
+                      Text(
+                        '${DateFormat.Hm().format(step.departure)} - ${DateFormat.Hm().format(step.arrival)}',
+                        style: TextStyle(
+                          color: Colors.grey[600],
+                          fontSize: 14,
+                        ),
+                      ),
+                      Text(
+                        '${(step.distance / 1000).toStringAsFixed(2)} km',
+                        style: TextStyle(
+                          color: Colors.grey[600],
+                          fontSize: 14,
+                        ),
+                      ),
+                    ],
+                  ),
+                ],
+              ),
+            ),
+          ),
+        ),
+      ),
+    );
+
+    if (mounted) {
+      Overlay.of(context).insert(_currentInstructionOverlay!);
+    }
+  }
+
+  void _showUpcomingInstruction(TransitStep nextStep, int nextStepIndex) {
+    if (mounted) {
+      ScaffoldMessenger.of(context).hideCurrentSnackBar();
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(
+          content: Column(
+            mainAxisSize: MainAxisSize.min,
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              Text('Coming up:', style: TextStyle(fontWeight: FontWeight.bold)),
+              Row(
+                children: [
+                  Icon(
+                    nextStep.mode == TipusVehicle.cap ? Icons.directions_walk :
+                    nextStep.mode == TipusVehicle.cotxe ? Icons.directions_car :
+                    nextStep.mode == TipusVehicle.autobus ? Icons.directions_bus :
+                    nextStep.mode == TipusVehicle.tren ? Icons.train :
+                    nextStep.mode == TipusVehicle.bicicleta ? Icons.pedal_bike :
+                    nextStep.mode == TipusVehicle.moto ? Icons.directions_bike :
+                    Icons.directions_transit,
+                    color: Colors.white,
+                  ),
+                  SizedBox(width: 8),
+                  Expanded(
+                    child: Text(
+                      'Step ${nextStepIndex + 1}: ${nextStep.instruction.isNotEmpty ? nextStep.instruction : "Follow the route"}',
+                      style: TextStyle(fontSize: 16),
+                    ),
+                  ),
+                ],
+              ),
+            ],
+          ),
+          duration: Duration(seconds: 4),
+          behavior: SnackBarBehavior.floating,
+        ),
+      );
+    }
+  }
+
+  void _showOffRouteWarning() {
+    if (mounted) {
+      ScaffoldMessenger.of(context).hideCurrentSnackBar();
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(
+          content: Row(
+            children: [
+              Icon(Icons.warning, color: Colors.yellow),
+              SizedBox(width: 8),
+              Text('Off route! Recalculating...', style: TextStyle(fontSize: 16)),
+            ],
+          ),
+          duration: Duration(seconds: 3),
+          behavior: SnackBarBehavior.floating,
+          backgroundColor: Colors.red,
+        ),
+      );
+
+      // Optional: You could trigger route recalculation here
+      _recalculateRoute(currentPosition);
+    }
+  }
+
+  void _recalculateRoute(LatLng currentPosition) async {
+    try {
+      TransitRoute newRoute = await _calculateRoute(
+        true,
+        false,
+        DateTime.now(),
+        DateTime.now(),
+        currentRoute.value.option,
+        currentPosition,
+        currentRoute.value.destination,
+        mapService
+      );
+      setState(() {
+        currentRoute = MapEntry(currentRoute.key, newRoute);
+        savedRoutes[currentRoute.key] = newRoute;
+      });
+      _updateRouteInBackend(currentRoute);
+    } catch (e) {
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(content: Text('Error recalculating route: ${e.toString()}')),
+        );
+      }
+    }
   }
 
   @override
@@ -1141,8 +1686,9 @@ class MapPageState extends State<MapPage> {
             activities: activities,
             onActivityTap: _showActivityDetails,
             markers: markers,
-            route: currentRoute.fullRoute,
-            steps: currentRoute.steps,
+            route: currentRoute.value.fullRoute,
+            steps: currentRoute.value.steps,
+            userHeading: _showCompass ? _deviceHeading : null
           ),
           // Air quality toggle button
           Positioned(
@@ -1161,13 +1707,19 @@ class MapPageState extends State<MapPage> {
                   onPressed: _showSavedRoutes,
                   child: Icon(Icons.route),
                 ),
+                const SizedBox(height: 10),
+                FloatingActionButton(
+                  heroTag: "toggleCompass",
+                  onPressed: _toggleCompass,
+                  child: Icon(_showCompass ? Icons.compass_calibration : Icons.explore),
+                ),
               ],
             )
           ),
           // Route action buttons - only show when route is active
-          if (currentRoute.fullRoute.isNotEmpty) ...[
+          if (currentRoute.value.fullRoute.isNotEmpty) ...[
             Positioned(
-              top: 160,
+              top: 210,
               right: 10,
               child: Column(
                 children: [
@@ -1188,29 +1740,30 @@ class MapPageState extends State<MapPage> {
                     heroTag: "showInstructions",
                     backgroundColor: Colors.blue,
                     onPressed: () {
-                      if (currentRoute.steps.isNotEmpty) {
-                        _showRouteDetails(currentRoute);
+                      if (currentRoute.value.steps.isNotEmpty) {
+                        _showRouteDetails(currentRoute.value);
                       }
                     },
                     child: const Icon(Icons.list),
                   ),
-                  const SizedBox(height: 10),
-                  FloatingActionButton(
-                    heroTag: "changeDepartureArrival",
-                    backgroundColor: Colors.cyan,
-                    onPressed: () {
-                      _showTimeSelectionDialog();
-                    },
-                    child: const Icon(Icons.access_time),
-                  ),
+                  if (currentRoute.value.option == 10) const SizedBox(height: 10),
+                  if (currentRoute.value.option == 10) // Only show for public transport
+                    FloatingActionButton(
+                      heroTag: "changeDepartureArrival",
+                      backgroundColor: Colors.cyan,
+                      onPressed: () {
+                        _showTimeSelectionDialog();
+                      },
+                      child: const Icon(Icons.access_time),
+                    ),
                   const SizedBox(height: 10),
                   FloatingActionButton(
                     heroTag: "saveRoute",
                     backgroundColor: Colors.orange,
                     onPressed: () async {
-                      int id = await _sendRouteToBackend(currentRoute);
+                      int id = await _sendRouteToBackend(currentRoute.value);
                       if (id != 0) {
-                        savedRoutes[id] = currentRoute;
+                        savedRoutes[id] = currentRoute.value;
                         setState(() {
                           savedRoutes = savedRoutes;
                         });
@@ -1223,8 +1776,9 @@ class MapPageState extends State<MapPage> {
                     heroTag: "unwatchRoute",
                     backgroundColor: Colors.grey,
                     onPressed: () {
+                      if (isNavigating) _stopNavigation();
                       setState(() {
-                        currentRoute = TransitRoute(
+                        currentRoute = MapEntry(0, TransitRoute(
                           fullRoute: [],
                           steps: [],
                           duration: 0,
@@ -1234,7 +1788,7 @@ class MapPageState extends State<MapPage> {
                           origin: LatLng(0, 0),
                           destination: LatLng(0, 0),
                           option: 0
-                        );
+                        ));
                       });
                     },
                     child: const Icon(Icons.close),
@@ -1264,6 +1818,7 @@ class MapPageState extends State<MapPage> {
   @override
   void dispose() {
     _positionStreamSubscription?.cancel();
+    _magnetometerSubscription?.cancel();
     super.dispose();
   }
 }

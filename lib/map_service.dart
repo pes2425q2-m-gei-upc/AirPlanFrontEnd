@@ -3,6 +3,7 @@ import 'dart:convert';
 import 'dart:ui';
 import 'package:airplan/transit_service.dart';
 import 'package:firebase_auth/firebase_auth.dart';
+import 'package:flutter/cupertino.dart';
 import 'package:flutter_map/flutter_map.dart';
 import 'package:http/http.dart' as http;
 import 'package:intl/intl.dart';
@@ -84,7 +85,7 @@ class MapService {
   }
 
   Future<int> sendRouteToBackend(TransitRoute ruta) async {
-    final url = Uri.parse('http://nattech.fib.upc.edu:40350/api/rutas/crear');
+    final url = Uri.parse('http://nattech.fib.upc.edu:40350/api/rutas');
     final dateFormat = DateFormat("yyyy-MM-dd'T'HH:mm:ss");
     final origen = <String, double>{
       'latitud': ruta.origin.latitude,
@@ -132,6 +133,53 @@ class MapService {
     return json.decode(response.body);
   }
 
+  Future<void> updateRouteInBackend(MapEntry<int, TransitRoute> route) async {
+    final url = Uri.parse('http://nattech.fib.upc.edu:40350/api/rutas/${route.key}');
+    final dateFormat = DateFormat("yyyy-MM-dd'T'HH:mm:ss");
+    final origen = <String, double>{
+      'latitud': route.value.origin.latitude,
+      'longitud': route.value.origin.longitude,
+    };
+    final desti = <String, double>{
+      'latitud': route.value.destination.latitude,
+      'longitud': route.value.destination.longitude,
+    };
+
+    String tipusVehicle = '';
+    for (var step in route.value.steps) {
+      if (step.mode == TipusVehicle.autobus || step.mode == TipusVehicle.tren || step.mode == TipusVehicle.metro) {
+        tipusVehicle = 'TransportPublic';
+        break;
+      }
+    }
+    if (tipusVehicle.isEmpty) {
+      tipusVehicle = translateTipusVehicle(route.value.steps.first.mode);
+    }
+
+    final body = <String, dynamic>{
+      'origen': origen,
+      'desti': desti,
+      'client': FirebaseAuth.instance.currentUser?.displayName,
+      'data': dateFormat.format(route.value.departure),
+      'id': route.key,
+      'duracioMin': route.value.duration,
+      'duracioMax': route.value.duration,
+      'tipusVehicle': tipusVehicle,
+    };
+
+    final response = await http.put(
+      url,
+      headers: <String, String>{
+        'Content-Type': 'application/json; charset=UTF-8',
+      },
+      body: jsonEncode(body),
+    );
+
+    if (response.statusCode != 200) {
+      throw Exception('Error al actualitzar la ruta: ${response.body}');
+    }
+  }
+
   Future<void> deleteRouteInBackend(int routeId) async {
     final url = Uri.parse('http://nattech.fib.upc.edu:40350/api/rutas/$routeId');
     final response = await http.delete(url);
@@ -151,5 +199,9 @@ class MapService {
     } else {
       throw Exception('Error al carregar les rutes');
     }
+  }
+
+  IconData getDirectionTypeIcon(TipusInstruccio type) {
+    return getDirectionIcon(type);
   }
 }

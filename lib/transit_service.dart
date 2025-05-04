@@ -17,22 +17,44 @@ enum TipusVehicle {
   cap
 }
 
+enum TipusInstruccio {
+  esquerra,
+  dreta,
+  esquerraBrusca,
+  dretaBrusca,
+  esquerraSuau,
+  dretaSuau,
+  recta,
+  entrarRotonda,
+  sortirRotonda,
+  girEnU,
+  destinacio,
+  sortida,
+  mantenirEsquerra,
+  mantenirDreta,
+  transportPublic
+}
+
 class TransitStep {
   final TipusVehicle mode;
-  final List<String> instructions;
+  final String instruction;
+  final TipusInstruccio type;
   final String line;
   final DateTime departure;
   final DateTime arrival;
+  final double distance;
   final List<LatLng> points;
   final String station;
   final Color color;
 
   TransitStep({
     required this.mode,
-    required this.instructions,
+    required this.instruction,
+    required this.type,
     required this.line,
     required this.departure,
     required this.arrival,
+    required this.distance,
     required this.points,
     required this.station,
     required this.color,
@@ -117,10 +139,12 @@ Future<TransitRoute> calculatePublicTransportRoute(bool departure, bool arrival,
               for (var step in walkingRoute.steps) {
                 steps.add(TransitStep(
                     mode: _translateMode(mode), 
-                    instructions: step.instructions, 
+                    instruction: step.instruction,
+                    type: step.type,
                     line: '',
                     departure: DateTime.parse(section['departure']['time']).add(Duration(hours: 2)),
                     arrival: DateTime.parse(section['arrival']['time']).add(Duration(hours: 2)),
+                    distance: step.distance,
                     points: step.points, 
                     station: '', 
                     color: step.color));
@@ -151,13 +175,14 @@ Future<TransitRoute> calculatePublicTransportRoute(bool departure, bool arrival,
                   .toList();
             }
             if (sectionPoints.isNotEmpty) {
-              List<String> instructions = [_getInstruction(section)];
               steps.add(TransitStep(
                   mode: _translateMode(mode),
-                  instructions: instructions,
+                  instruction: _getInstruction(section),
+                  type: TipusInstruccio.transportPublic,
                   line: section['transport']?['name'] ?? '',
                   departure: DateTime.parse(section['departure']['time']).add(Duration(hours: 2)),
                   arrival: DateTime.parse(section['arrival']['time']).add(Duration(hours: 2)),
+                  distance: section['travelSummary']['length'],
                   points: sectionPoints,
                   station: section['departure']['place']['name'] ?? '',
                   color: _translateColor(section)
@@ -230,6 +255,41 @@ TipusVehicle _translateMode(String mode) {
   }
 }
 
+TipusInstruccio _translateType(int type) {
+  switch (type) {
+    case 0:
+      return TipusInstruccio.esquerra;
+    case 1:
+      return TipusInstruccio.dreta;
+    case 2:
+      return TipusInstruccio.esquerraBrusca;
+    case 3:
+      return TipusInstruccio.dretaBrusca;
+    case 4:
+      return TipusInstruccio.esquerraSuau;
+    case 5:
+      return TipusInstruccio.dretaSuau;
+    case 6:
+      return TipusInstruccio.recta;
+    case 7:
+      return TipusInstruccio.entrarRotonda;
+    case 8:
+      return TipusInstruccio.sortirRotonda;
+    case 9:
+      return TipusInstruccio.girEnU;
+    case 10:
+      return TipusInstruccio.destinacio;
+    case 11:
+      return TipusInstruccio.sortida;
+    case 12:
+      return TipusInstruccio.mantenirEsquerra;
+    case 13:
+      return TipusInstruccio.mantenirDreta;
+    default:
+      throw Exception('Unknown instruction type');
+  }
+}
+
 String _getInstruction(Map<String, dynamic> section) {
   if (section['type'] == 'pedestrian') {
     return 'Camina fins a ${section['arrival']['place']['name'] ?? 'la teva destinacio'}';
@@ -287,10 +347,6 @@ Future<TransitRoute> calculateRoute(bool departure, bool arrival, DateTime depar
           .map((point) => LatLng(point.latitude, point.longitude))
           .toList();
 
-      List<String> instructions = [];
-      for (var step in segments['steps']) {
-        instructions.add(step['instruction']);
-      }
       DateTime salida;
       DateTime llegada;
       if (departure) {
@@ -309,16 +365,31 @@ Future<TransitRoute> calculateRoute(bool departure, bool arrival, DateTime depar
         salida = DateTime.now();
         llegada = salida.add(Duration(minutes: (summary['duration'] / 60).round()));
       }
-      List<TransitStep> steps = [TransitStep(
-        mode: vehicleType,
-        instructions: instructions,
-        line: '',
-        departure: salida,
-        arrival: llegada,
-        points: fullRoute, // Steps don't include individual geometries in this response
-        station: '',
-        color: color, // Default color for driving
-      )];
+
+      List<TransitStep> steps = [];
+      DateTime salidaTemp = salida;
+      DateTime llegadaTemp = salidaTemp;
+      for (var step in segments['steps']) {
+        llegadaTemp = salidaTemp.add(Duration(minutes: (step['duration']/60).round()));
+        double distance = step['distance'];
+        // Extract points for this specific step using waypoint indices
+        var waypoints = [step['way_points'][0], step['way_points'][1]];
+        var stepPoints = fullRoute.sublist(waypoints[0], waypoints[1] + 1);
+        TipusInstruccio type = _translateType(step['type']);
+        steps.add(TransitStep(
+          mode: vehicleType,
+          instruction: step['instruction'],
+          type: type,
+          line: '',
+          departure: salidaTemp,
+          arrival: llegadaTemp,
+          distance: distance,
+          points: stepPoints,
+          station: '',
+          color: color, // Default color for driving
+        ));
+        salidaTemp = llegadaTemp;
+      }
       return TransitRoute(
         fullRoute: fullRoute,
         steps: steps,
@@ -354,5 +425,40 @@ String translateTipusVehicle(TipusVehicle tipus) {
       return 'Bicicleta';
     default:
       return 'Cap'; // Default case
+  }
+}
+
+IconData getDirectionIcon(TipusInstruccio type) {
+  switch (type) {
+    case TipusInstruccio.esquerra:
+      return Icons.turn_left;
+    case TipusInstruccio.dreta:
+      return Icons.turn_right;
+    case TipusInstruccio.esquerraBrusca:
+      return Icons.turn_sharp_left;
+    case TipusInstruccio.dretaBrusca:
+      return Icons.turn_sharp_right;
+    case TipusInstruccio.esquerraSuau:
+      return Icons.turn_slight_left;
+    case TipusInstruccio.dretaSuau:
+      return Icons.turn_slight_right;
+    case TipusInstruccio.recta:
+      return Icons.straight;
+    case TipusInstruccio.entrarRotonda:
+      return Icons.roundabout_left;
+    case TipusInstruccio.sortirRotonda:
+      return Icons.roundabout_right;
+    case TipusInstruccio.girEnU:
+      return Icons.u_turn_left;
+    case TipusInstruccio.destinacio:
+      return Icons.place;
+    case TipusInstruccio.sortida:
+      return Icons.exit_to_app;
+    case TipusInstruccio.mantenirEsquerra:
+      return Icons.fork_left;
+    case TipusInstruccio.mantenirDreta:
+      return Icons.fork_right;
+    default:
+      return Icons.arrow_forward;
   }
 }
