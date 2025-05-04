@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:firebase_auth/firebase_auth.dart';
 import 'package:airplan/user_services.dart';
 import 'package:airplan/services/websocket_service.dart';
+import 'package:airplan/services/auth_service.dart'; // Import the auth service
 import 'dart:convert';
 import 'activity_details_page.dart';
 import 'login_page.dart';
@@ -10,6 +11,12 @@ import 'dart:async';
 import 'main.dart';
 import 'rating_page.dart';
 import 'package:airplan/solicituds_service.dart';
+import 'blocked_users_page.dart'; // Import para la página de usuarios bloqueados
+
+// Type definitions for function injection
+typedef GetUserRealNameFunc = Future<String> Function(String username);
+typedef GetUserTypeAndLevelFunc =
+    Future<Map<String, dynamic>> Function(String username);
 
 class UserRequestsPage extends StatefulWidget {
   final String username;
@@ -31,17 +38,24 @@ class UserRequestsPageState extends State<UserRequestsPage> {
 
   Future<void> _cancelSolicitud(String activityId) async {
     try {
-      await SolicitudsService().cancelarSolicitud(int.parse(activityId), widget.username);
+      await SolicitudsService().cancelarSolicitud(
+        int.parse(activityId),
+        widget.username,
+      );
       if (!mounted) return;
       ScaffoldMessenger.of(context).showSnackBar(
         const SnackBar(content: Text('Solicitud eliminada correctamente.')),
       );
       setState(() {
-        _requestsFuture = SolicitudsService().fetchUserRequests(widget.username);
+        _requestsFuture = SolicitudsService().fetchUserRequests(
+          widget.username,
+        );
       });
     } catch (e) {
       ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(content: Text('Error al eliminar la solicitud: ${e.toString()}')),
+        SnackBar(
+          content: Text('Error al eliminar la solicitud: ${e.toString()}'),
+        ),
       );
     }
   }
@@ -49,9 +63,7 @@ class UserRequestsPageState extends State<UserRequestsPage> {
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      appBar: AppBar(
-        title: const Text("Mis Solicitudes"),
-      ),
+      appBar: AppBar(title: const Text("Mis Solicitudes")),
       body: FutureBuilder<List<Map<String, dynamic>>>(
         future: _requestsFuture,
         builder: (context, snapshot) {
@@ -70,7 +82,9 @@ class UserRequestsPageState extends State<UserRequestsPage> {
               final request = requests[index];
               return ListTile(
                 title: Text(request['nom'] ?? 'Actividad sin nombre'),
-                subtitle: Text('Creador: ${request['creador'] ?? 'Desconocido'}'),
+                subtitle: Text(
+                  'Creador: ${request['creador'] ?? 'Desconocido'}',
+                ),
                 trailing: IconButton(
                   icon: const Icon(Icons.close, color: Colors.red),
                   onPressed: () => _cancelSolicitud(request['id'].toString()),
@@ -79,18 +93,19 @@ class UserRequestsPageState extends State<UserRequestsPage> {
                   Navigator.push(
                     context,
                     MaterialPageRoute(
-                      builder: (context) => ActivityDetailsPage(
-                        id: request['id'].toString(),
-                        title: request['nom'] ?? '',
-                        creator: request['creador'] ?? '',
-                        description: request['descripcio'] ?? '',
-                        startDate: request['dataInici'] ?? '',
-                        endDate: request['dataFi'] ?? '',
-                        airQualityData: [],
-                        isEditable: false,
-                        onEdit: () {},
-                        onDelete: () {},
-                      ),
+                      builder:
+                          (context) => ActivityDetailsPage(
+                            id: request['id'].toString(),
+                            title: request['nom'] ?? '',
+                            creator: request['creador'] ?? '',
+                            description: request['descripcio'] ?? '',
+                            startDate: request['dataInici'] ?? '',
+                            endDate: request['dataFi'] ?? '',
+                            airQualityData: [],
+                            isEditable: false,
+                            onEdit: () {},
+                            onDelete: () {},
+                          ),
                     ),
                   );
                 },
@@ -144,7 +159,7 @@ class UserInfoCard extends StatelessWidget {
               title: 'Username',
               value: username,
               isLoading:
-              false, // Username comes directly from Firebase Auth, not loaded async here
+                  false, // Username comes directly from Firebase Auth, not loaded async here
             ),
             const Divider(),
             _buildInfoListTile(
@@ -182,29 +197,42 @@ class UserInfoCard extends StatelessWidget {
       leading: Icon(icon, color: iconColor),
       title: Text(title, style: const TextStyle(fontWeight: FontWeight.bold)),
       subtitle:
-      isLoading
-          ? const Center(
-        child: SizedBox(
-          height: 20,
-          width: 20,
-          child: CircularProgressIndicator(strokeWidth: 2),
-        ),
-      )
-          : Text(
-        value,
-        style: TextStyle(
-          fontSize: 16,
-          fontWeight: isBold ? FontWeight.bold : FontWeight.normal,
-        ),
-      ),
+          isLoading
+              ? const Center(
+                child: SizedBox(
+                  height: 20,
+                  width: 20,
+                  child: CircularProgressIndicator(strokeWidth: 2),
+                ),
+              )
+              : Text(
+                value,
+                style: TextStyle(
+                  fontSize: 16,
+                  fontWeight: isBold ? FontWeight.bold : FontWeight.normal,
+                ),
+              ),
     );
   }
 }
 
 class UserPage extends StatefulWidget {
   final bool isEmbedded;
+  final AuthService? authService; // Add AuthService injection
+  // Add optional function parameters for dependency injection
+  final GetUserRealNameFunc? getUserRealNameFunc;
+  final GetUserTypeAndLevelFunc? getUserTypeAndLevelFunc;
+  // Add optional WebSocketService parameter
+  final WebSocketService? webSocketService;
 
-  const UserPage({super.key, this.isEmbedded = false});
+  const UserPage({
+    super.key,
+    this.isEmbedded = false,
+    this.authService, // Add optional authService parameter
+    this.getUserRealNameFunc,
+    this.getUserTypeAndLevelFunc,
+    this.webSocketService, // Add to constructor
+  });
 
   @override
   State<UserPage> createState() => _UserPageState();
@@ -227,10 +255,20 @@ class _UserPageState extends State<UserPage> {
   String _email = '';
   String? _photoURL;
 
+  // AuthService instance
+  late final AuthService _authService;
+  // WebSocketService instance
+  late final WebSocketService _webSocketService;
+
   @override
   void initState() {
     super.initState();
-    _currentUser = FirebaseAuth.instance.currentUser;
+    // Initialize the AuthService with the provided one or create a new one
+    _authService = widget.authService ?? AuthService();
+    // Initialize the WebSocketService with the provided one or create a new one
+    _webSocketService = widget.webSocketService ?? WebSocketService();
+
+    _currentUser = _authService.getCurrentUser();
     _updateLocalUserInfo(); // Initialize local user info
 
     // Inicializar la conexión WebSocket antes de cargar datos
@@ -256,8 +294,8 @@ class _UserPageState extends State<UserPage> {
   // Método para suscribirse a eventos globales
   void _subscribeToGlobalUpdates() {
     _globalUpdateSubscription = profileUpdateStreamController.stream.listen((
-        data,
-        ) {
+      data,
+    ) {
       // Verificar si es un evento de reanudación de la app O inicio de la app
       if (data['type'] == 'app_resumed' || data['type'] == 'app_launched') {
         // Recargar datos cuando la app se reanuda desde segundo plano o cuando se inicia desde cero
@@ -274,8 +312,8 @@ class _UserPageState extends State<UserPage> {
 
   // Asegurar que la conexión WebSocket está activa
   void _ensureWebSocketConnection() {
-    // Obtener la instancia del WebSocketService
-    final webSocketService = WebSocketService();
+    // Use the injected or default WebSocketService instance
+    final webSocketService = _webSocketService;
 
     // Verificar si ya está conectado
     if (!webSocketService.isConnected) {
@@ -291,9 +329,9 @@ class _UserPageState extends State<UserPage> {
     // Cancelar suscripción anterior si existe
     _profileUpdateSubscription?.cancel();
 
-    // Listen for profile update events
-    _profileUpdateSubscription = WebSocketService().profileUpdates.listen(
-          (message) {
+    // Listen for profile update events using the instance
+    _profileUpdateSubscription = _webSocketService.profileUpdates.listen(
+      (message) {
         // Added mounted check at the beginning of the callback
         if (!mounted) return;
 
@@ -313,8 +351,8 @@ class _UserPageState extends State<UserPage> {
               final isPasswordUpdate = updatedFields.contains('password');
               final isNameUpdate =
                   updatedFields.contains('nom') ||
-                      updatedFields.contains('username') ||
-                      updatedFields.contains('displayName');
+                  updatedFields.contains('username') ||
+                  updatedFields.contains('displayName');
               final isPhotoUpdate = updatedFields.contains('photoURL');
 
               // Determine if it's a critical change requiring re-login
@@ -370,14 +408,14 @@ class _UserPageState extends State<UserPage> {
     String message = '';
     if (isEmailUpdate && isPasswordUpdate) {
       message =
-      'Se han detectado cambios en tu correo y contraseña en otro dispositivo. Es necesario volver a iniciar sesión.';
+          'Se han detectado cambios en tu correo y contraseña en otro dispositivo. Es necesario volver a iniciar sesión.';
     } else if (isEmailUpdate) {
       message =
-      'Se ha detectado un cambio de correo electrónico en otro dispositivo. Es necesario volver a iniciar sesión.';
+          'Se ha detectado un cambio de correo electrónico en otro dispositivo. Es necesario volver a iniciar sesión.';
     } else {
       // isPasswordUpdate
       message =
-      'Se ha detectado un cambio de contraseña en otro dispositivo. Es necesario volver a iniciar sesión.';
+          'Se ha detectado un cambio de contraseña en otro dispositivo. Es necesario volver a iniciar sesión.';
     }
 
     // Show info message and trigger logout/redirect
@@ -391,7 +429,7 @@ class _UserPageState extends State<UserPage> {
     String message = 'Tu perfil ha sido actualizado en otro dispositivo.';
     if (isNameUpdate && isPhotoUpdate) {
       message =
-      'Tu nombre y foto de perfil han sido actualizados en otro dispositivo.';
+          'Tu nombre y foto de perfil han sido actualizados en otro dispositivo.';
     } else if (isNameUpdate) {
       message = 'Tu nombre ha sido actualizado en otro dispositivo.';
     } else if (isPhotoUpdate) {
@@ -465,18 +503,24 @@ class _UserPageState extends State<UserPage> {
   // Método para cargar los datos de usuario
   Future<void> _loadUserData() async {
     // Refresh _currentUser instance
-    _currentUser = FirebaseAuth.instance.currentUser;
+    _currentUser = _authService.getCurrentUser();
     _updateLocalUserInfo(); // Update local vars like _username, _email, _photoURL
 
     if (_currentUser != null &&
         _username.isNotEmpty &&
         _username != 'Username no disponible') {
       try {
+        // Use injected function or default static method
+        final realNameFunc =
+            widget.getUserRealNameFunc ?? UserService.getUserRealName;
+        final typeLevelFunc =
+            widget.getUserTypeAndLevelFunc ?? UserService.getUserTypeAndLevel;
+
         // Cargar el nombre real del usuario
-        final realName = await UserService.getUserRealName(_username);
+        final realName = await realNameFunc(_username);
 
         // Obtener el tipo de usuario y nivel si es cliente
-        final tipoInfo = await UserService.getUserTypeAndLevel(_username);
+        final tipoInfo = await typeLevelFunc(_username);
 
         // Added mounted check after awaits
         if (!mounted) return;
@@ -511,20 +555,13 @@ class _UserPageState extends State<UserPage> {
         _handleSessionClose(
           title: 'Sesión Expirada',
           message:
-          'Tu sesión ha expirado o no se pudo verificar. Por favor, inicia sesión nuevamente.',
+              'Tu sesión ha expirado o no se pudo verificar. Por favor, inicia sesión nuevamente.',
           redirectToLogin: true,
           isRemoteAction: false,
         );
       }
     }
   }
-
-  // --- Deprecated: _showSessionExpiredDialog --- (Replaced by _handleSessionClose)
-  /*
-  Future<void> _showSessionExpiredDialog() async {
-    // ... (Previous logic)
-  }
-  */
 
   // --- Removed redundant refresh logic (_needsRefresh, didChangeDependencies, markForRefresh) ---
   // Refreshing is handled by calling _loadUserData directly after returning from EditProfilePage
@@ -535,6 +572,10 @@ class _UserPageState extends State<UserPage> {
     // Cancel profile update subscription when the page is disposed
     _profileUpdateSubscription?.cancel();
     _globalUpdateSubscription?.cancel();
+    // Dispose the WebSocketService ONLY if it was created internally
+    if (widget.webSocketService == null) {
+      _webSocketService.dispose();
+    }
     super.dispose();
   }
 
@@ -559,24 +600,24 @@ class _UserPageState extends State<UserPage> {
       context: contextCaptured,
       builder:
           (dialogContext) => AlertDialog(
-        title: const Text("Eliminar cuenta"),
-        content: const Text(
-          "¿Estás seguro de que quieres eliminar tu cuenta? Esta acción no se puede deshacer.",
-        ),
-        actions: [
-          TextButton(
-            onPressed: () => Navigator.of(dialogContext).pop(false),
-            child: const Text("Cancelar"),
-          ),
-          TextButton(
-            onPressed: () => Navigator.of(dialogContext).pop(true),
-            child: const Text(
-              "Eliminar",
-              style: TextStyle(color: Colors.red),
+            title: const Text("Eliminar cuenta"),
+            content: const Text(
+              "¿Estás seguro de que quieres eliminar tu cuenta? Esta acción no se puede deshacer.",
             ),
+            actions: [
+              TextButton(
+                onPressed: () => Navigator.of(dialogContext).pop(false),
+                child: const Text("Cancelar"),
+              ),
+              TextButton(
+                onPressed: () => Navigator.of(dialogContext).pop(true),
+                child: const Text(
+                  "Eliminar",
+                  style: TextStyle(color: Colors.red),
+                ),
+              ),
+            ],
           ),
-        ],
-      ),
     );
 
     // Re-check mounted status after await
@@ -597,7 +638,7 @@ class _UserPageState extends State<UserPage> {
     );
 
     // Desconecta el WebSocket antes de eliminar la cuenta
-    WebSocketService().disconnect();
+    _webSocketService.disconnect();
 
     // Eliminar la cuenta using UserService
     final success = await UserService.deleteUser(userEmail);
@@ -615,7 +656,7 @@ class _UserPageState extends State<UserPage> {
       // Redirect to login page
       Navigator.of(contextCaptured).pushAndRemoveUntil(
         MaterialPageRoute(builder: (context) => const LoginPage()),
-            (route) => false,
+        (route) => false,
       );
     } else {
       ScaffoldMessenger.of(contextCaptured).showSnackBar(
@@ -642,7 +683,7 @@ class _UserPageState extends State<UserPage> {
     String message = 'Tu sesión ha sido cerrada',
     bool redirectToLogin = true,
     bool isRemoteAction =
-    false, // Flag to indicate if triggered by remote event
+        false, // Flag to indicate if triggered by remote event
   }) async {
     // Capture context early
     final contextCaptured = context;
@@ -663,11 +704,12 @@ class _UserPageState extends State<UserPage> {
       }
 
       // 2. Desconectar WebSocket
-      WebSocketService().disconnect();
+      _webSocketService.disconnect();
 
       // 3. Cerrar sesión en Firebase (important!)
       try {
-        await FirebaseAuth.instance.signOut();
+        await _authService
+            .signOut(); // Using auth service instead of direct Firebase call
       } catch (e) {
         debugPrint('Error during Firebase signOut in _handleSessionClose: $e');
         // Continue with the process
@@ -714,7 +756,7 @@ class _UserPageState extends State<UserPage> {
         if (contextCaptured.mounted) {
           Navigator.of(contextCaptured).pushAndRemoveUntil(
             MaterialPageRoute(builder: (context) => const LoginPage()),
-                (route) => false,
+            (route) => false,
           );
         }
       }
@@ -727,7 +769,7 @@ class _UserPageState extends State<UserPage> {
         );
         Navigator.of(contextCaptured).pushAndRemoveUntil(
           MaterialPageRoute(builder: (context) => const LoginPage()),
-              (route) => false,
+          (route) => false,
         );
       }
     }
@@ -743,22 +785,22 @@ class _UserPageState extends State<UserPage> {
       context: contextCaptured,
       builder:
           (dialogContext) => AlertDialog(
-        title: const Text("Cerrar Sesión"),
-        content: const Text("¿Estás seguro de que quieres cerrar sesión?"),
-        actions: [
-          TextButton(
-            onPressed: () => Navigator.of(dialogContext).pop(false),
-            child: const Text("Cancelar"),
+            title: const Text("Cerrar Sesión"),
+            content: const Text("¿Estás seguro de que quieres cerrar sesión?"),
+            actions: [
+              TextButton(
+                onPressed: () => Navigator.of(dialogContext).pop(false),
+                child: const Text("Cancelar"),
+              ),
+              TextButton(
+                onPressed: () => Navigator.of(dialogContext).pop(true),
+                child: const Text(
+                  "Cerrar Sesión",
+                  style: TextStyle(color: Colors.red),
+                ),
+              ),
+            ],
           ),
-          TextButton(
-            onPressed: () => Navigator.of(dialogContext).pop(true),
-            child: const Text(
-              "Cerrar Sesión",
-              style: TextStyle(color: Colors.red),
-            ),
-          ),
-        ],
-      ),
     );
 
     // Re-check mounted status and confirmation
@@ -796,15 +838,15 @@ class _UserPageState extends State<UserPage> {
                   backgroundColor: Colors.grey[300],
                   // Use local _photoURL
                   backgroundImage:
-                  _photoURL != null ? NetworkImage(_photoURL!) : null,
+                      _photoURL != null ? NetworkImage(_photoURL!) : null,
                   child:
-                  _photoURL == null
-                      ? const Icon(
-                    Icons.person,
-                    size: 60,
-                    color: Colors.grey,
-                  )
-                      : null,
+                      _photoURL == null
+                          ? const Icon(
+                            Icons.person,
+                            size: 60,
+                            color: Colors.grey,
+                          )
+                          : null,
                 ),
                 const SizedBox(height: 30),
                 // Información del usuario
@@ -840,7 +882,8 @@ class _UserPageState extends State<UserPage> {
                   onPressed: () {
                     Navigator.of(context).push(
                       MaterialPageRoute(
-                        builder: (context) => UserRequestsPage(username: _username),
+                        builder:
+                            (context) => UserRequestsPage(username: _username),
                       ),
                     );
                   },
@@ -848,6 +891,26 @@ class _UserPageState extends State<UserPage> {
                   label: const Text('Mis Solicitudes'),
                   style: ElevatedButton.styleFrom(
                     backgroundColor: Colors.blueAccent,
+                    foregroundColor: Colors.white,
+                    minimumSize: const Size(double.infinity, 50),
+                    padding: const EdgeInsets.symmetric(vertical: 12),
+                  ),
+                ),
+                // Botón para ver usuarios bloqueados
+                const SizedBox(height: 16),
+                ElevatedButton.icon(
+                  onPressed: () {
+                    Navigator.of(context).push(
+                      MaterialPageRoute(
+                        builder:
+                            (context) => BlockedUsersPage(username: _username),
+                      ),
+                    );
+                  },
+                  icon: const Icon(Icons.block),
+                  label: const Text('Usuarios Bloqueados'),
+                  style: ElevatedButton.styleFrom(
+                    backgroundColor: Colors.redAccent,
                     foregroundColor: Colors.white,
                     minimumSize: const Size(double.infinity, 50),
                     padding: const EdgeInsets.symmetric(vertical: 12),

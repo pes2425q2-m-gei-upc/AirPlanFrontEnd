@@ -5,7 +5,7 @@ import 'dart:async';
 /// sin desplazar la pantalla usando Overlay
 class NotificationService {
   /// Muestra una notificación de éxito (verde)
-  static void showSuccess(BuildContext context, String message) {
+  void showSuccess(BuildContext context, String message) {
     _showNotification(
       context: context,
       message: message,
@@ -15,7 +15,7 @@ class NotificationService {
   }
 
   /// Muestra una notificación de error (roja)
-  static void showError(BuildContext context, String message) {
+  void showError(BuildContext context, String message) {
     _showNotification(
       context: context,
       message: message,
@@ -25,7 +25,7 @@ class NotificationService {
   }
 
   /// Muestra una notificación de información (azul)
-  static void showInfo(BuildContext context, String message) {
+  void showInfo(BuildContext context, String message) {
     _showNotification(
       context: context,
       message: message,
@@ -52,16 +52,10 @@ class NotificationService {
     required IconData icon,
     Duration duration = const Duration(seconds: 3),
   }) {
-    // Crear una clave para el overlay
     final overlayKey = GlobalKey<_NotificationOverlayState>();
-
-    // Obtener el estado del overlay
     final overlay = Overlay.of(context);
-
-    // Declarar la variable overlayEntry primero
     late final OverlayEntry overlayEntry;
 
-    // Crear la entrada de overlay
     overlayEntry = OverlayEntry(
       builder:
           (context) => _NotificationOverlay(
@@ -72,18 +66,11 @@ class NotificationService {
             onDismiss: () {
               overlayEntry.remove();
             },
+            duration: duration,
           ),
     );
 
-    // Insertar la entrada de overlay
     overlay.insert(overlayEntry);
-
-    // Configura un temporizador para remover la notificación automáticamente
-    Timer(duration, () {
-      if (overlayEntry.mounted) {
-        overlayEntry.remove();
-      }
-    });
   }
 }
 
@@ -93,6 +80,7 @@ class _NotificationOverlay extends StatefulWidget {
   final Color backgroundColor;
   final IconData icon;
   final VoidCallback onDismiss;
+  final Duration duration;
 
   const _NotificationOverlay({
     super.key,
@@ -100,6 +88,7 @@ class _NotificationOverlay extends StatefulWidget {
     required this.backgroundColor,
     required this.icon,
     required this.onDismiss,
+    required this.duration,
   });
 
   @override
@@ -111,33 +100,36 @@ class _NotificationOverlayState extends State<_NotificationOverlay>
   late AnimationController _controller;
   late Animation<double> _opacityAnimation;
   late Animation<Offset> _slideAnimation;
+  Timer? _timer;
 
   @override
   void initState() {
     super.initState();
-
-    // Configurar animaciones
+    // Configurar animaciones para entrada
     _controller = AnimationController(
       vsync: this,
       duration: const Duration(milliseconds: 300),
     );
-
     _opacityAnimation = Tween<double>(
       begin: 0.0,
       end: 1.0,
     ).animate(CurvedAnimation(parent: _controller, curve: Curves.easeIn));
-
     _slideAnimation = Tween<Offset>(
-      begin: const Offset(0.0, -1.0),
+      begin: const Offset(0, -1),
       end: Offset.zero,
     ).animate(CurvedAnimation(parent: _controller, curve: Curves.easeOut));
-
-    // Iniciar animación de entrada
     _controller.forward();
+    // Auto-dismiss after duration
+    _timer = Timer(widget.duration, () {
+      if (mounted) {
+        widget.onDismiss();
+      }
+    });
   }
 
   @override
   void dispose() {
+    _timer?.cancel();
     _controller.dispose();
     super.dispose();
   }
@@ -187,10 +179,9 @@ class _NotificationOverlayState extends State<_NotificationOverlay>
                     const SizedBox(width: 12),
                     GestureDetector(
                       onTap: () {
-                        // Iniciar animación de salida y luego eliminar el overlay
-                        _controller.reverse().then((_) {
-                          widget.onDismiss();
-                        });
+                        // Cancel auto-dismiss and remove overlay immediately
+                        _timer?.cancel();
+                        widget.onDismiss();
                       },
                       child: const Icon(
                         Icons.close,

@@ -48,6 +48,7 @@ class _RatingsPageState extends State<RatingsPage> {
   late Future<List<Valoracio>> _userRatingsFuture;
   List<Map<String, dynamic>> _activities = [];
   final ActivityService _activityService = ActivityService();
+  final NotificationService _notificationService = NotificationService();
   bool _isLoading = true;
 
   @override
@@ -66,10 +67,12 @@ class _RatingsPageState extends State<RatingsPage> {
 
   Future<List<Valoracio>> _fetchUserRatings(String username) async {
     try {
-      final response = await http.get(
-        Uri.parse(ApiConfig().buildUrl('valoracions/usuari/$username')),
-        headers: {'Accept': 'application/json'},
-      ).timeout(const Duration(seconds: 10));
+      final response = await http
+          .get(
+            Uri.parse(ApiConfig().buildUrl('valoracions/usuari/$username')),
+            headers: {'Accept': 'application/json'},
+          )
+          .timeout(const Duration(seconds: 10));
 
       if (response.statusCode == 200) {
         final List<dynamic> data = json.decode(utf8.decode(response.bodyBytes));
@@ -94,14 +97,14 @@ class _RatingsPageState extends State<RatingsPage> {
       _activities = await _activityService.fetchActivities();
     } catch (e) {
       final String message = 'Error al cargar actividades';
-      if(!mounted) return;
-      NotificationService.showError(context, message);
+      if (!mounted) return;
+      _notificationService.showError(context, message);
     }
   }
 
   String? _findActivityTitleById(int id) {
     final activity = _activities.firstWhere(
-          (activity) => activity['id'] == id,
+      (activity) => activity['id'] == id,
       orElse: () => {},
     );
     return activity.isNotEmpty ? activity['nom'] as String? : null;
@@ -115,15 +118,13 @@ class _RatingsPageState extends State<RatingsPage> {
         context: context,
         barrierDismissible: false,
         builder: (BuildContext context) {
-          return const Center(
-            child: CircularProgressIndicator(),
-          );
+          return const Center(child: CircularProgressIndicator());
         },
       );
 
       // Find the activity details from your fetched activities
       final activity = _activities.firstWhere(
-            (activity) => activity['id'] == activityId,
+        (activity) => activity['id'] == activityId,
         orElse: () => {},
       );
 
@@ -131,7 +132,10 @@ class _RatingsPageState extends State<RatingsPage> {
         if (context.mounted) {
           // Close loading dialog
           Navigator.of(context).pop();
-          NotificationService.showError(context, 'No se encontró la actividad');
+          _notificationService.showError(
+            context,
+            'No se encontró la actividad',
+          );
         }
         return;
       }
@@ -141,7 +145,8 @@ class _RatingsPageState extends State<RatingsPage> {
       final String title = activity['nom'] ?? 'Actividad sin título';
       final String creator = activity['creador'] ?? 'Usuario desconocido';
       final String description = activity['descripcio'] ?? 'Sin descripción';
-      final String startDate = activity['dataInici'] ?? DateTime.now().toString();
+      final String startDate =
+          activity['dataInici'] ?? DateTime.now().toString();
       final String endDate = activity['dataFi'] ?? DateTime.now().toString();
 
       // Create empty air quality data or fetch it if available
@@ -154,18 +159,20 @@ class _RatingsPageState extends State<RatingsPage> {
       if (context.mounted) {
         Navigator.of(context).push(
           MaterialPageRoute(
-            builder: (context) => ActivityDetailsPage(
-              id: id,
-              title: title,
-              creator: creator,
-              description: description,
-              airQualityData: airQualityData,
-              startDate: startDate,
-              endDate: endDate,
-              isEditable: false, // Assuming the user can't edit from ratings page
-              onEdit: () {}, // Empty function since not editable
-              onDelete: () {}, // Empty function since not deletable
-            ),
+            builder:
+                (context) => ActivityDetailsPage(
+                  id: id,
+                  title: title,
+                  creator: creator,
+                  description: description,
+                  airQualityData: airQualityData,
+                  startDate: startDate,
+                  endDate: endDate,
+                  isEditable:
+                      false, // Assuming the user can't edit from ratings page
+                  onEdit: () {}, // Empty function since not editable
+                  onDelete: () {}, // Empty function since not deletable
+                ),
           ),
         );
       }
@@ -173,7 +180,10 @@ class _RatingsPageState extends State<RatingsPage> {
       if (context.mounted) {
         // Close loading dialog if open
         Navigator.of(context, rootNavigator: true).pop();
-        NotificationService.showError(context, 'Error al cargar los detalles: $e');
+        _notificationService.showError(
+          context,
+          'Error al cargar los detalles: $e',
+        );
       }
     }
   }
@@ -181,9 +191,7 @@ class _RatingsPageState extends State<RatingsPage> {
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      appBar: AppBar(
-        title: const Text('Mis Valoraciones'),
-      ),
+      appBar: AppBar(title: const Text('Mis Valoraciones')),
       body: RefreshIndicator(
         onRefresh: () async {
           _loadUserRatings();
@@ -191,10 +199,9 @@ class _RatingsPageState extends State<RatingsPage> {
         child: FutureBuilder<List<Valoracio>>(
           future: _userRatingsFuture,
           builder: (context, snapshot) {
-            if (snapshot.connectionState == ConnectionState.waiting || _isLoading) {
-              return const Center(
-                child: CircularProgressIndicator(),
-              );
+            if (snapshot.connectionState == ConnectionState.waiting ||
+                _isLoading) {
+              return const Center(child: CircularProgressIndicator());
             }
 
             if (snapshot.hasError) {
@@ -241,12 +248,17 @@ class _RatingsPageState extends State<RatingsPage> {
                       children: [
                         // Clickable activity title with navigation
                         InkWell(
-                          onTap: () => _navigateToActivityDetails(valoracio.idActivitat),
+                          onTap:
+                              () => _navigateToActivityDetails(
+                                valoracio.idActivitat,
+                              ),
                           child: Row(
                             children: [
                               Expanded(
                                 child: Text(
-                                  _findActivityTitleById(valoracio.idActivitat) ??
+                                  _findActivityTitleById(
+                                        valoracio.idActivitat,
+                                      ) ??
                                       "Actividad no encontrada",
                                   style: const TextStyle(
                                     fontWeight: FontWeight.bold,
@@ -263,7 +275,9 @@ class _RatingsPageState extends State<RatingsPage> {
                         const SizedBox(height: 12),
                         RatingBarIndicator(
                           rating: valoracio.valoracion,
-                          itemBuilder: (context, _) => const Icon(Icons.star, color: Colors.amber),
+                          itemBuilder:
+                              (context, _) =>
+                                  const Icon(Icons.star, color: Colors.amber),
                           itemCount: 5,
                           itemSize: 24,
                         ),

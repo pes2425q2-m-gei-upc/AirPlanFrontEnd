@@ -10,8 +10,58 @@ import 'api_config.dart';
 
 /// Clase principal para gestionar la conexión WebSocket y distribuir mensajes
 class WebSocketService {
-  static final WebSocketService _instance = WebSocketService._internal();
-  WebSocketChannel? _channel;
+  static WebSocketService? _instance;
+
+  factory WebSocketService({
+    FirebaseAuth? auth,
+    SharedPreferences? preferences,
+    ApiConfig? apiConfig,
+    WebSocketChannelFactory? channelFactory,
+  }) {
+    if (_instance == null) {
+      _instance = WebSocketService._internal(
+        auth: auth,
+        preferences: preferences,
+        apiConfig: apiConfig,
+        channelFactory: channelFactory,
+      );
+    } else {
+      if (auth != null) _instance!._auth = auth;
+      if (preferences != null) _instance!._prefs = preferences;
+      if (apiConfig != null) _instance!._apiConfig = apiConfig;
+      if (channelFactory != null) _instance!._channelFactory = channelFactory;
+    }
+    return _instance!;
+  }
+
+  // Private constructor with injectable dependencies
+  WebSocketService._internal({
+    FirebaseAuth? auth,
+    SharedPreferences? preferences,
+    ApiConfig? apiConfig,
+    WebSocketChannelFactory? channelFactory,
+  }) : _auth = auth ?? FirebaseAuth.instance,
+       _prefs = preferences,
+       _apiConfig = apiConfig ?? ApiConfig(),
+       _channelFactory = channelFactory ?? DefaultChannelFactory() {
+    _initializeClientId();
+
+    // Listen authentication changes
+    _auth.authStateChanges().listen((User? user) {
+      if (user != null) {
+        _updateUserCredentials(user);
+      } else {
+        disconnect();
+      }
+    });
+
+    // Check current user on init
+    final user = _auth.currentUser;
+    if (user != null) {
+      _updateUserCredentials(user);
+      connect();
+    }
+  }
 
   final StreamController<String> _profileUpdateController =
       StreamController<String>.broadcast();
@@ -23,35 +73,16 @@ class WebSocketService {
   Timer? _pingTimer;
   Timer? _reconnectTimer;
 
-  // Singleton factory
-  factory WebSocketService() {
-    return _instance;
-  }
-
-  WebSocketService._internal() {
-    _initializeClientId();
-
-    // Escuchar cambios de autenticación
-    FirebaseAuth.instance.authStateChanges().listen((User? user) {
-      if (user != null) {
-        _updateUserCredentials(user);
-      } else {
-        disconnect();
-      }
-    });
-
-    // Verificar si hay un usuario activo al iniciar
-    final user = FirebaseAuth.instance.currentUser;
-    if (user != null) {
-      _updateUserCredentials(user);
-      connect();
-    }
-  }
+  FirebaseAuth _auth;
+  SharedPreferences? _prefs;
+  ApiConfig _apiConfig;
+  WebSocketChannelFactory _channelFactory;
+  WebSocketChannel? _channel;
 
   // Inicializar el ID de cliente único
   Future<void> _initializeClientId() async {
     try {
-      final prefs = await SharedPreferences.getInstance();
+      final prefs = _prefs ?? await SharedPreferences.getInstance();
       _clientId = prefs.getString('websocket_client_id') ?? '';
 
       if (_clientId.isEmpty) {
@@ -91,13 +122,11 @@ class WebSocketService {
 
   // Conectar al servidor WebSocket
   void connect() {
-    if (_isConnected && _channel != null) {
-      return;
-    }
+    if (_isConnected && _channel != null) return;
 
     disconnect();
 
-    final user = FirebaseAuth.instance.currentUser;
+    final user = _auth.currentUser;
     if (user == null) {
       return;
     }
@@ -110,9 +139,8 @@ class WebSocketService {
     }
 
     try {
-      final baseUrl = ApiConfig().baseUrl.replaceFirst('http://', 'ws://');
-
-      _channel = WebSocketChannel.connect(
+      final baseUrl = _apiConfig.baseUrl.replaceFirst('http://', 'ws://');
+      _channel = _channelFactory.connect(
         Uri.parse(
           '$baseUrl/ws?username=$_currentUsername&email=$_currentEmail&clientId=$_clientId',
         ),
@@ -173,25 +201,27 @@ class WebSocketService {
 
   // Manejar mensajes entrantes del WebSocket
   void _handleIncomingMessage(String message) {
+    // Filter out ping/pong messages
+    if (message.contains('"type":"PING"') ||
+        message.contains('"type":"PONG"')) {
+      return;
+    }
     try {
-      // No procesamos mensajes de ping/pong
-      if (message.contains('"type":"PING"') ||
-          message.contains('"type":"PONG"')) {
+      // Try parsing JSON messages
+      final data = json.decode(message) as Map<String, dynamic>;
+      // Ignore messages from this client
+      if (data.containsKey('clientId') && data['clientId'] == _clientId) {
         return;
       }
-
-      // Deserializar el mensaje
-      final Map<String, dynamic> data = json.decode(message);
-
-      if (data.containsKey('clientId') && data['clientId'] == _clientId) {
-        return; // No procesamos mensajes de nuestro propio dispositivo
-      }
-
+      // Handle account deletion separately
       if (data['type'] == 'ACCOUNT_DELETED') {
         _handleAccountDeletedMessage(data);
         return;
       }
-
+      // Forward JSON message payload as raw string
+      _profileUpdateController.add(message);
+    } on FormatException {
+      // Non-JSON message: forward as-is
       _profileUpdateController.add(message);
     } catch (e) {
       debugPrint('Error handling WebSocket message: $e');
@@ -204,7 +234,7 @@ class WebSocketService {
       final String email = data['email'] ?? '';
       final String username = data['username'] ?? '';
 
-      final currentUser = FirebaseAuth.instance.currentUser;
+      final currentUser = _auth.currentUser;
       if (currentUser != null &&
           (currentUser.email == email || currentUser.displayName == username)) {
         _showAccountDeletedDialog();
@@ -256,7 +286,7 @@ class WebSocketService {
   Future<void> _forceLogout() async {
     try {
       disconnect();
-      await FirebaseAuth.instance.signOut();
+      await _auth.signOut();
 
       final context = navigatorKey.currentContext;
       if (context != null && context.mounted) {
@@ -296,7 +326,7 @@ class WebSocketService {
   Future<void> refreshConnection() async {
     disconnect();
 
-    final user = FirebaseAuth.instance.currentUser;
+    final user = _auth.currentUser;
     if (user != null) {
       await user.reload();
       _updateUserCredentials(user);
@@ -310,4 +340,15 @@ class WebSocketService {
     disconnect();
     _profileUpdateController.close();
   }
+}
+
+/// Factory interface to allow mocking WebSocketChannel connection in tests
+abstract class WebSocketChannelFactory {
+  WebSocketChannel connect(Uri uri);
+}
+
+/// Default implementation uses the real WebSocketChannel.connect
+class DefaultChannelFactory implements WebSocketChannelFactory {
+  @override
+  WebSocketChannel connect(Uri uri) => WebSocketChannel.connect(uri);
 }

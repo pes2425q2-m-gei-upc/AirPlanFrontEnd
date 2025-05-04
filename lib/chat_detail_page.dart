@@ -2,47 +2,129 @@ import 'package:flutter/material.dart';
 import 'package:airplan/services/chat_service.dart';
 import 'package:airplan/services/notification_service.dart';
 import 'package:airplan/services/chat_websocket_service.dart';
-import 'package:firebase_auth/firebase_auth.dart';
+import 'package:airplan/services/auth_service.dart';
 import 'package:intl/intl.dart';
 import 'dart:async';
+import 'package:airplan/services/user_block_service.dart';
 
 class ChatDetailPage extends StatefulWidget {
-  final String username;
+  final String username; // Used for backend calls
+  final String? name; // Used for UI display
+  final AuthService? authService; // Inyección de servicio de autenticación
+  final ChatService? chatService; // Inyección de servicio de chat
+  final ChatWebSocketService?
+  webSocketService; // Inyección de servicio WebSocket
+  final UserBlockService? userBlockService; // Inyección de servicio de bloqueo
 
-  const ChatDetailPage({super.key, required this.username});
+  const ChatDetailPage({
+    super.key,
+    required this.username,
+    this.name,
+    this.authService,
+    this.chatService,
+    this.webSocketService,
+    this.userBlockService,
+  });
 
   @override
   ChatDetailPageState createState() => ChatDetailPageState();
 }
 
 class ChatDetailPageState extends State<ChatDetailPage> {
-  final ChatService _chatService = ChatService();
-  final ChatWebSocketService _chatWebSocketService = ChatWebSocketService();
+  late final ChatService _chatService;
+  late final ChatWebSocketService _chatWebSocketService;
+  late final UserBlockService _userBlockService;
   final TextEditingController _messageController = TextEditingController();
   final ScrollController _scrollController = ScrollController();
+  late final AuthService _authService;
+  final NotificationService _notificationService = NotificationService();
   List<Message> _messages = [];
+  String? _currentUsername;
+
+  // Estados de carga y bloqueo
   bool _isLoading = true;
   bool _isSending = false;
-  String? _currentUsername;
+  bool _isInitializing = true;
+  bool _currentUserBlockedOther = false;
+  bool _otherUserBlockedCurrent = false;
 
   // Suscripción a mensajes de WebSocket
   StreamSubscription? _chatSubscription;
 
+  // Getter para determinar si el chat está bloqueado
+  bool get _isChatBlocked =>
+      _currentUserBlockedOther || _otherUserBlockedCurrent;
+
   @override
   void initState() {
     super.initState();
-    _getCurrentUsername();
-    _loadMessages();
-    _setupWebSocketListener();
+    _authService = widget.authService ?? AuthService();
+    _chatService = widget.chatService ?? ChatService();
+    _chatWebSocketService = widget.webSocketService ?? ChatWebSocketService();
+    _userBlockService = widget.userBlockService ?? UserBlockService();
+    _initializeChat();
   }
 
-  // Configurar el listener de WebSocket para recibir mensajes en tiempo real
-  void _setupWebSocketListener() {
-    _chatSubscription = _chatWebSocketService.chatMessages.listen((
-      messageData,
-    ) {
-      if (!mounted) return;
+  // Método combinado para inicializar el chat
+  Future<void> _initializeChat() async {
+    _getCurrentUsername();
+    _setupWebSocketListener();
+    _connectToChat();
+  }
 
+  void _connectToChat() {
+    if (_currentUsername != null) {
+      _chatWebSocketService.connectToChat(widget.username);
+      setState(() => _isInitializing = false);
+    } else {
+      // Intentar de nuevo después de un breve retraso
+      Future.delayed(const Duration(milliseconds: 300), () {
+        _getCurrentUsername();
+        _connectToChat();
+      });
+    }
+  }
+
+  void _setupWebSocketListener() {
+    _chatSubscription = _chatWebSocketService.chatMessages.listen(
+      _handleIncomingMessage,
+    );
+  }
+
+  // Método para manejar mensajes entrantes - separado para mayor legibilidad
+  void _handleIncomingMessage(dynamic messageData) {
+    if (!mounted) return;
+
+    // Log para debug
+
+    // Procesar por tipo de mensaje
+    if (messageData.containsKey('type')) {
+      final messageType = messageData['type'];
+
+      // Manejar actualizaciones de estado de bloqueo
+      if (messageType == 'blockStatusUpdate' &&
+          messageData.containsKey('blockStatus')) {
+        _updateBlockStatus(messageData['blockStatus']);
+        return;
+      }
+
+      // Manejar notificaciones de bloqueo
+      if (messageType == 'BLOCK_NOTIFICATION') {
+        _handleBlockNotification(messageData);
+        return;
+      }
+
+      // Manejar notificaciones de desbloqueo
+      if (messageType == 'UNBLOCK_NOTIFICATION') {
+        _handleUnblockNotification(messageData);
+        return;
+      }
+
+      // Manejar historial de mensajes
+      if (messageType == 'history') {
+        _processMessageHistory(messageData);
+        return;
+      }
       if (messageData.containsKey('type') && messageData['type'] == 'EDIT') {
         final sender = messageData['usernameSender'];
         final originalTimestamp = messageData['originalTimestamp'];
@@ -66,12 +148,104 @@ class ChatDetailPageState extends State<ChatDetailPage> {
         });
         return;
       }
+    }
 
-      if (messageData.containsKey('usernameSender') &&
-          messageData.containsKey('usernameReceiver') &&
-          messageData.containsKey('missatge')) {
-        final sender = messageData['usernameSender'];
-        final receiver = messageData['usernameReceiver'];
+    // Procesar mensajes normales
+    _processRegularMessage(messageData);
+  }
+
+  // Métodos auxiliares para procesar diferentes tipos de mensajes
+  void _handleBlockNotification(Map<String, dynamic> data) {
+    final blocker = data['blockerUsername'];
+    final blocked = data['blockedUsername']; // Puede ser null
+
+    // Si solo recibimos el bloqueador pero no el bloqueado
+    if (blocker != null && mounted) {
+      setState(() {
+        // Si el bloqueador es el otro usuario, entonces nos está bloqueando a nosotros
+        if (blocker == widget.username) {
+          _otherUserBlockedCurrent = true;
+        }
+        // Si el bloqueador somos nosotros, entonces estamos bloqueando al otro
+        else if (blocker == _currentUsername) {
+          _currentUserBlockedOther = true;
+        }
+
+        // Procesar también con la información completa si está disponible
+        if (blocked != null) {
+          if (blocker == _currentUsername && blocked == widget.username) {
+            _currentUserBlockedOther = true;
+          } else if (blocker == widget.username &&
+              blocked == _currentUsername) {
+            _otherUserBlockedCurrent = true;
+          }
+        }
+      });
+    }
+  }
+
+  void _handleUnblockNotification(Map<String, dynamic> data) {
+    // El servidor puede enviar 'unblockerUsername' o 'blockerUsername' para la misma acción
+    final unblocker = data['unblockerUsername'] ?? data['blockerUsername'];
+    final unblocked = data['unblockedUsername']; // Puede ser null
+
+    // Si tenemos al menos el usuario que desbloquea
+    if (unblocker != null && mounted) {
+      // Comprobar si estamos en un chat con el usuario que ha hecho el desbloqueo
+      bool shouldUpdate = false;
+      bool shouldUpdateCurrentUserBlockedOther = false;
+      bool shouldUpdateOtherUserBlockedCurrent = false;
+
+      // Caso 1: El otro usuario (partner) nos ha desbloqueado a nosotros
+      if (unblocker == widget.username &&
+          (_currentUsername == unblocked || unblocked == null)) {
+        shouldUpdate = true;
+        shouldUpdateOtherUserBlockedCurrent = true;
+      }
+      // Caso 2: Nosotros hemos desbloqueado al otro usuario (partner)
+      else if (unblocker == _currentUsername &&
+          (widget.username == unblocked || unblocked == null)) {
+        shouldUpdate = true;
+        shouldUpdateCurrentUserBlockedOther = true;
+      }
+
+      // Actualizar estado si es necesario
+      if (shouldUpdate) {
+        setState(() {
+          if (shouldUpdateOtherUserBlockedCurrent) {
+            _otherUserBlockedCurrent = false;
+          }
+          if (shouldUpdateCurrentUserBlockedOther) {
+            _currentUserBlockedOther = false;
+          }
+        });
+      }
+    }
+  }
+
+  void _processMessageHistory(Map<String, dynamic> data) {
+    // Procesar mensajes del historial
+    if (data.containsKey('messages') && data['messages'] is List) {
+      final List<dynamic> historyMessages = data['messages'];
+
+      if (mounted) {
+        setState(() {
+          _messages =
+              historyMessages
+                  .map(
+                    (msg) => Message(
+                      senderUsername: msg['usernameSender'],
+                      receiverUsername: msg['usernameReceiver'],
+                      content: msg['missatge'],
+                      timestamp: DateTime.parse(msg['dataEnviament']),
+                    ),
+                  )
+                  .toList()
+                ..sort((a, b) => a.timestamp.compareTo(b.timestamp));
+
+          _isLoading = false;
+        });
+      }
 
         // Solo procesamos mensajes que pertenecen a esta conversación
         if ((sender == _currentUsername && receiver == widget.username) ||
@@ -89,66 +263,59 @@ class ChatDetailPageState extends State<ChatDetailPage> {
                     : DateTime.now(),
           );
 
-          // Añadimos directamente el mensaje sin verificar duplicados,
-          // permitiendo así mensajes con contenido idéntico consecutivos
-          setState(() {
-            _messages.add(newMessage);
-            // Asegurarnos de que los mensajes están ordenados por fecha
-            _messages.sort((a, b) => a.timestamp.compareTo(b.timestamp));
-          });
-
-          // Hacer scroll hacia el último mensaje
-          _scrollToBottom();
-        }
+      if (mounted) {
+        setState(() {
+          if (_isLoading) _isLoading = false;
+          _messages.add(newMessage);
+          _messages.sort((a, b) => a.timestamp.compareTo(b.timestamp));
+        });
       }
-    });
+
+      _scrollToBottom();
+    }
+  }
+
+  void _updateBlockStatus(Map<String, dynamic> blockStatus) {
+    final String user1 = blockStatus['user1'] ?? '';
+    final String user2 = blockStatus['user2'] ?? '';
+    final bool user1BlockedUser2 = blockStatus['user1BlockedUser2'] ?? false;
+    final bool user2BlockedUser1 = blockStatus['user2BlockedUser1'] ?? false;
+
+    if (user1.isEmpty || user2.isEmpty) {
+      if (_currentUsername != null) {
+        // Fallback menos fiable
+        setState(() {
+          _currentUserBlockedOther = user1BlockedUser2;
+          _otherUserBlockedCurrent = user2BlockedUser1;
+        });
+      }
+      return;
+    }
+
+    if (mounted) {
+      setState(() {
+        if (_currentUsername == user1) {
+          _currentUserBlockedOther = user1BlockedUser2;
+          _otherUserBlockedCurrent = user2BlockedUser1;
+        } else if (_currentUsername == user2) {
+          _currentUserBlockedOther = user2BlockedUser1;
+          _otherUserBlockedCurrent = user1BlockedUser2;
+        } else {
+          if (_isLoading) {
+            _currentUserBlockedOther = false;
+            _otherUserBlockedCurrent = false;
+          }
+        }
+
+        if (_isLoading) _isLoading = false;
+      });
+    }
   }
 
   void _getCurrentUsername() {
-    final user = FirebaseAuth.instance.currentUser;
-    if (user != null) {
-      _currentUsername = user.displayName;
-    }
-  }
-
-  Future<void> _loadMessages() async {
-    // Mantenemos el estado de loading solo en la primera carga
-    if (_messages.isEmpty) {
-      setState(() {
-        _isLoading = true;
-      });
-    }
-
-    try {
-      final messages = await _chatService.getConversation(widget.username);
-
-      // Solo actualizamos el estado si hay cambios en los mensajes
-      if (_messages.length != messages.length ||
-          (_messages.isNotEmpty &&
-              messages.isNotEmpty &&
-              _messages.last.timestamp != messages.last.timestamp)) {
-        setState(() {
-          _messages = messages;
-          _isLoading = false;
-        });
-
-        // Scroll to bottom after messages load
-        _scrollToBottom();
-      } else {
-        setState(() {
-          _isLoading = false;
-        });
-      }
-    } catch (e) {
-      setState(() {
-        _isLoading = false;
-      });
-      if (mounted) {
-        NotificationService.showError(
-          context,
-          'Error al cargar los mensajes: ${e.toString()}',
-        );
-      }
+    final user = _authService.getCurrentUser();
+    if (user != null && mounted) {
+      setState(() => _currentUsername = user.displayName);
     }
   }
 
@@ -168,17 +335,14 @@ class ChatDetailPageState extends State<ChatDetailPage> {
     final message = _messageController.text.trim();
     if (message.isEmpty) return;
 
-    setState(() {
-      _isSending = true;
-    });
+    setState(() => _isSending = true);
 
     try {
       DateTime timestamp = DateTime.now();
       // Enviar el mensaje usando el WebSocket a través del ChatService
       final success = await _chatService.sendMessage(widget.username, message, timestamp);
 
-      if (success) {
-        // Crear un objeto Message localmente para añadirlo inmediatamente a la UI
+      if (success && mounted) {
         final newMessage = Message(
           senderUsername: _currentUsername!,
           receiverUsername: widget.username,
@@ -187,39 +351,28 @@ class ChatDetailPageState extends State<ChatDetailPage> {
           isEdited: false,
         );
 
-        print("Mensaje enviado: ${newMessage.content}, Enviado por: ${newMessage.senderUsername}, Recibido por: ${newMessage.receiverUsername}, Timestamp: ${newMessage.timestamp}, IsEdited: ${newMessage.isEdited}");
-
         setState(() {
-          // Añadir el mensaje directamente a la lista local sin verificar duplicados
           _messages.add(newMessage);
-          // Ordenar por fecha
           _messages.sort((a, b) => a.timestamp.compareTo(b.timestamp));
-          // Limpiar el campo de texto
           _messageController.clear();
         });
 
-        // Scroll al final para ver el nuevo mensaje
         _scrollToBottom();
-
-      } else {
-        if (mounted) {
-          NotificationService.showError(
-            context,
-            'Error al enviar el mensaje. Inténtalo de nuevo.',
-          );
-        }
+      } else if (mounted) {
+        _notificationService.showError(
+          context,
+          'Error al enviar el mensaje. Inténtalo de nuevo.',
+        );
       }
     } catch (e) {
       if (mounted) {
-        NotificationService.showError(
+        _notificationService.showError(
           context,
           'Error al enviar el mensaje: ${e.toString()}',
         );
       }
     } finally {
-      setState(() {
-        _isSending = false;
-      });
+      if (mounted) setState(() => _isSending = false);
     }
   }
 
@@ -233,13 +386,10 @@ class ChatDetailPageState extends State<ChatDetailPage> {
     );
 
     if (messageDate == today) {
-      // Today, show only time
       return DateFormat.Hm().format(timestamp);
     } else if (messageDate == today.subtract(const Duration(days: 1))) {
-      // Yesterday
       return 'Ayer, ${DateFormat.Hm().format(timestamp)}';
     } else {
-      // Other dates, show full date and time
       return DateFormat.yMMMd('es').add_Hm().format(timestamp);
     }
   }
@@ -341,12 +491,8 @@ class ChatDetailPageState extends State<ChatDetailPage> {
 
   @override
   void dispose() {
-    // Cancelar la suscripción al WebSocket
     _chatSubscription?.cancel();
-
-    // Desconectar del WebSocket de chat cuando se sale de la página
     _chatService.disconnectFromChat();
-
     _messageController.dispose();
     _scrollController.dispose();
     super.dispose();
@@ -355,85 +501,184 @@ class ChatDetailPageState extends State<ChatDetailPage> {
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      appBar: AppBar(title: Text(widget.username), elevation: 1),
+      appBar: _buildAppBar(),
       body: Column(
         children: [
-          Expanded(
-            child:
-                _isLoading
-                    ? const Center(child: CircularProgressIndicator())
-                    : _messages.isEmpty
-                    ? const Center(
-                      child: Text(
-                        'No hay mensajes. ¡Envía el primero!',
-                        style: TextStyle(color: Colors.grey),
-                      ),
-                    )
-                    : ListView.builder(
-                      controller: _scrollController,
-                      padding: const EdgeInsets.all(8),
-                      itemCount: _messages.length,
-                      itemBuilder: (context, index) {
-                        final message = _messages[index];
-                        // print ('Mensaje: ${message.content}, Enviado por: ${message.senderUsername}, Recibido por: ${message.receiverUsername}, Timestamp: ${message.timestamp}, IsEdited: ${message.isEdited}',);
-                        final isMe = message.senderUsername == _currentUsername;
+          if (_isChatBlocked) _buildBlockBanner(),
+          Expanded(child: _buildMessageList()),
+          if (!_isChatBlocked) _buildMessageInput(),
+        ],
+      ),
+    );
+  }
 
-                        return _buildMessageBubble(message, isMe);
-                      },
+  // Métodos de construcción de UI separados para mejorar la legibilidad
+  PreferredSizeWidget _buildAppBar() {
+    return AppBar(
+      title: Text(
+        widget.name ?? widget.username,
+      ), // Use name if available, otherwise username
+      elevation: 1,
+      actions: [
+        PopupMenuButton<String>(
+          onSelected: _handleMenuItemClick,
+          itemBuilder:
+              (BuildContext context) => [
+                if (_currentUserBlockedOther)
+                  const PopupMenuItem<String>(
+                    value: 'unblock',
+                    child: Row(
+                      mainAxisSize: MainAxisSize.min, // Prevent overflow
+                      children: [
+                        Icon(Icons.lock_open, color: Colors.green),
+                        SizedBox(width: 10),
+                        Flexible(
+                          child: Text(
+                            'Desbloquear usuario',
+                            style: TextStyle(color: Colors.green),
+                            overflow:
+                                TextOverflow.ellipsis, // Handle text overflow
+                          ),
+                        ),
+                      ],
                     ),
-          ),
-          Container(
-            padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
-            color: Colors.white,
-            child: Row(
+                  )
+                else
+                  const PopupMenuItem<String>(
+                    value: 'block',
+                    child: Row(
+                      mainAxisSize: MainAxisSize.min, // Prevent overflow
+                      children: [
+                        Icon(Icons.block, color: Colors.red),
+                        SizedBox(width: 10),
+                        Flexible(
+                          child: Text(
+                            'Bloquear usuario',
+                            style: TextStyle(color: Colors.red),
+                            overflow:
+                                TextOverflow.ellipsis, // Handle text overflow
+                          ),
+                        ),
+                      ],
+                    ),
+                  ),
+              ],
+        ),
+      ],
+    );
+  }
+
+  Widget _buildBlockBanner() {
+    return Container(
+      padding: const EdgeInsets.symmetric(vertical: 10, horizontal: 16),
+      color: Colors.red.withAlpha(
+        25,
+      ), // Reemplazado withOpacity(0.1) por withAlpha(25)
+      child: Row(
+        children: [
+          const Icon(Icons.block, color: Colors.red),
+          const SizedBox(width: 12),
+          Expanded(
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
               children: [
-                Expanded(
-                  child: TextField(
-                    controller: _messageController,
-                    decoration: const InputDecoration(
-                      hintText: 'Escribe un mensaje...',
-                      border: OutlineInputBorder(
-                        borderRadius: BorderRadius.all(Radius.circular(25)),
-                        borderSide: BorderSide.none,
-                      ),
-                      filled: true,
-                      fillColor: Color(0xFFEEEEEE),
-                      contentPadding: EdgeInsets.symmetric(
-                        horizontal: 20,
-                        vertical: 10,
-                      ),
-                    ),
-                    textInputAction: TextInputAction.send,
-                    onSubmitted: (_) => _sendMessage(),
-                    maxLines: null,
+                Text(
+                  'Chat bloqueado',
+                  style: TextStyle(
+                    color: Colors.red[700],
+                    fontWeight: FontWeight.bold,
                   ),
                 ),
-                const SizedBox(width: 8),
-                Material(
-                  color: Colors.blue,
-                  borderRadius: BorderRadius.circular(30),
-                  child: InkWell(
-                    borderRadius: BorderRadius.circular(30),
-                    onTap: _isSending ? null : _sendMessage,
-                    child: Container(
-                      width: 48,
-                      height: 48,
-                      alignment: Alignment.center,
-                      child:
-                          _isSending
-                              ? const SizedBox(
-                                width: 24,
-                                height: 24,
-                                child: CircularProgressIndicator(
-                                  color: Colors.white,
-                                  strokeWidth: 2,
-                                ),
-                              )
-                              : const Icon(Icons.send, color: Colors.white),
-                    ),
-                  ),
+                Text(
+                  _currentUserBlockedOther
+                      ? 'Has bloqueado a este usuario.'
+                      : 'Este usuario te ha bloqueado.',
+                  style: const TextStyle(fontSize: 12),
                 ),
               ],
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+
+  Widget _buildMessageList() {
+    if (_isInitializing || _isLoading) {
+      return const Center(child: CircularProgressIndicator());
+    }
+
+    if (_messages.isEmpty) {
+      return const Center(
+        child: Text(
+          'No hay mensajes en esta conversación.',
+          style: TextStyle(color: Colors.grey),
+        ),
+      );
+    }
+
+    return ListView.builder(
+      controller: _scrollController,
+      padding: const EdgeInsets.all(8),
+      itemCount: _messages.length,
+      itemBuilder: (context, index) {
+        final message = _messages[index];
+        final isMe = message.senderUsername == _currentUsername;
+        return _buildMessageBubble(message, isMe);
+      },
+    );
+  }
+
+  Widget _buildMessageInput() {
+    return Container(
+      padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
+      color: Colors.white,
+      child: Row(
+        children: [
+          Expanded(
+            child: TextField(
+              controller: _messageController,
+              decoration: const InputDecoration(
+                hintText: 'Escribe un mensaje...',
+                border: OutlineInputBorder(
+                  borderRadius: BorderRadius.all(Radius.circular(25)),
+                  borderSide: BorderSide.none,
+                ),
+                filled: true,
+                fillColor: Color(0xFFEEEEEE),
+                contentPadding: EdgeInsets.symmetric(
+                  horizontal: 20,
+                  vertical: 10,
+                ),
+              ),
+              textInputAction: TextInputAction.send,
+              onSubmitted: (_) => _sendMessage(),
+              maxLines: null,
+            ),
+          ),
+          const SizedBox(width: 8),
+          Material(
+            color: Colors.blue,
+            borderRadius: BorderRadius.circular(30),
+            child: InkWell(
+              borderRadius: BorderRadius.circular(30),
+              onTap: _isSending ? null : _sendMessage,
+              child: Container(
+                width: 48,
+                height: 48,
+                alignment: Alignment.center,
+                child:
+                    _isSending
+                        ? const SizedBox(
+                          width: 24,
+                          height: 24,
+                          child: CircularProgressIndicator(
+                            color: Colors.white,
+                            strokeWidth: 2,
+                          ),
+                        )
+                        : const Icon(Icons.send, color: Colors.white),
+              ),
             ),
           ),
         ],
@@ -475,7 +720,11 @@ class ChatDetailPageState extends State<ChatDetailPage> {
                   Text(
                     _formatTimestamp(message.timestamp),
                     style: TextStyle(
-                      color: isMe ? Colors.white.withAlpha(204) : Colors.black54,
+                      color:
+                    isMe
+                        ? Colors.white70
+                        : Colors
+                            .black54, // Reemplazado withAlpha(204) por Colors.white70
                       fontSize: 12,
                     ),
                   ),
@@ -493,6 +742,196 @@ class ChatDetailPageState extends State<ChatDetailPage> {
             ],
           ),
         ),
+      ),
+    );
+  }
+
+  void _handleMenuItemClick(String value) {
+    switch (value) {
+      case 'block':
+        _showBlockUserDialog();
+        break;
+      case 'unblock':
+        _showUnblockUserDialog();
+        break;
+    }
+  }
+
+  Future<void> _showBlockUserDialog() async {
+    final confirmResult = await showDialog<bool>(
+      context: context,
+      builder:
+          (context) => AlertDialog(
+            title: Text('Bloquear a ${widget.username}'),
+            content: const Text(
+              'Si bloqueas a este usuario, no podrás recibir ni enviarle mensajes. ¿Estás seguro?',
+            ),
+            actions: [
+              TextButton(
+                onPressed: () => Navigator.of(context).pop(false),
+                child: const Text('Cancelar'),
+              ),
+              TextButton(
+                onPressed: () => Navigator.of(context).pop(true),
+                style: TextButton.styleFrom(foregroundColor: Colors.red),
+                child: const Text('Bloquear'),
+              ),
+            ],
+          ),
+    );
+
+    if (confirmResult == true) {
+      await _blockUser();
+    }
+  }
+
+  Future<void> _blockUser() async {
+    final user = _authService.getCurrentUser();
+
+    if (user == null || user.displayName == null) {
+      _notificationService.showError(
+        context,
+        'No se pudo identificar tu usuario. Por favor, inicia sesión nuevamente.',
+      );
+      return;
+    }
+
+    _showProgressSnackbar('Bloqueando usuario...');
+
+    try {
+      // Usar UserBlockService que ahora envía directamente por WebSocket
+      final result = await _userBlockService.blockUser(
+        user.displayName!,
+        widget.username,
+      );
+
+      if (mounted) {
+        ScaffoldMessenger.of(context).hideCurrentSnackBar();
+
+        if (result) {
+          // Actualizar el estado local
+          setState(() => _currentUserBlockedOther = true);
+
+          // Ya no es necesario enviar otra notificación por WebSocket aquí
+          // porque UserBlockService ya lo hizo internamente
+
+          _notificationService.showSuccess(
+            context,
+            'Has bloqueado a ${widget.username}',
+          );
+        } else {
+          _notificationService.showError(
+            context,
+            'No se pudo bloquear al usuario. Inténtalo de nuevo más tarde.',
+          );
+        }
+      }
+    } catch (e) {
+      if (mounted) {
+        ScaffoldMessenger.of(context).hideCurrentSnackBar();
+        _notificationService.showError(
+          context,
+          'Error al bloquear usuario: ${e.toString()}',
+        );
+      }
+    }
+  }
+
+  Future<void> _showUnblockUserDialog() async {
+    final confirmResult = await showDialog<bool>(
+      context: context,
+      builder:
+          (context) => AlertDialog(
+            title: Text('Desbloquear a ${widget.username}'),
+            content: const Text(
+              'Si desbloqueas a este usuario, podrás volver a enviar y recibir mensajes. ¿Estás seguro?',
+            ),
+            actions: [
+              TextButton(
+                onPressed: () => Navigator.of(context).pop(false),
+                child: const Text('Cancelar'),
+              ),
+              TextButton(
+                onPressed: () => Navigator.of(context).pop(true),
+                style: TextButton.styleFrom(foregroundColor: Colors.green),
+                child: const Text('Desbloquear'),
+              ),
+            ],
+          ),
+    );
+
+    if (confirmResult == true) {
+      await _unblockUser();
+    }
+  }
+
+  Future<void> _unblockUser() async {
+    final user = _authService.getCurrentUser();
+
+    if (user == null || user.displayName == null) {
+      _notificationService.showError(
+        context,
+        'No se pudo identificar tu usuario. Por favor, inicia sesión nuevamente.',
+      );
+      return;
+    }
+
+    _showProgressSnackbar('Desbloqueando usuario...');
+
+    try {
+      // Usar UserBlockService que ahora envía directamente por WebSocket
+      final result = await _userBlockService.unblockUser(
+        user.displayName!,
+        widget.username,
+      );
+
+      if (mounted) {
+        ScaffoldMessenger.of(context).hideCurrentSnackBar();
+
+        if (result) {
+          // Actualizar el estado local
+          setState(() => _currentUserBlockedOther = false);
+
+          // Ya no es necesario enviar otra notificación por WebSocket aquí
+          // porque UserBlockService ya lo hizo internamente
+
+          _notificationService.showSuccess(
+            context,
+            'Has desbloqueado a ${widget.username}',
+          );
+        } else {
+          _notificationService.showError(
+            context,
+            'No se pudo desbloquear al usuario. Inténtalo de nuevo más tarde.',
+          );
+        }
+      }
+    } catch (e) {
+      if (mounted) {
+        ScaffoldMessenger.of(context).hideCurrentSnackBar();
+        _notificationService.showError(
+          context,
+          'Error al desbloquear usuario: ${e.toString()}',
+        );
+      }
+    }
+  }
+
+  // Helper para mostrar un SnackBar de progreso
+  void _showProgressSnackbar(String message) {
+    ScaffoldMessenger.of(context).showSnackBar(
+      SnackBar(
+        content: Row(
+          children: [
+            const CircularProgressIndicator(
+              color: Colors.white,
+              strokeWidth: 2,
+            ),
+            const SizedBox(width: 16),
+            Text(message),
+          ],
+        ),
+        duration: const Duration(seconds: 10),
       ),
     );
   }
