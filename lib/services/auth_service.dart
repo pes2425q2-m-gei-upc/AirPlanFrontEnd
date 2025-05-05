@@ -55,6 +55,8 @@ class AuthService {
     );
   }
 
+
+
   // Método para iniciar sesión con un token personalizado
   Future<UserCredential> signInWithCustomToken(String token) {
     return _auth.signInWithCustomToken(token);
@@ -108,5 +110,13 @@ class AuthService {
   // Método para eliminar la cuenta del usuario actual
   Future<void> deleteCurrentUser() async {
     await _auth.currentUser?.delete();
+  }
+
+  Future<UserCredential> signInWithPopup(GithubAuthProvider githubProvider) async {
+    return await _auth.signInWithPopup(githubProvider);
+  }
+
+  Future<UserCredential> signInWithProvider(GithubAuthProvider githubProvider) async {
+    return await _auth.signInWithProvider(githubProvider);
   }
 }
