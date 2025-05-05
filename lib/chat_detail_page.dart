@@ -101,6 +101,18 @@ class ChatDetailPageState extends State<ChatDetailPage> {
     if (messageData.containsKey('type')) {
       final messageType = messageData['type'];
 
+      if (messageType == 'DELETE') {
+        final sender = messageData['usernameSender'];
+        final originalTimestamp = messageData['originalTimestamp'];
+
+        setState(() {
+          _messages.removeWhere((message) =>
+          message.senderUsername == sender &&
+              message.timestamp.toIso8601String() == originalTimestamp);
+        });
+        return;
+      }
+
       // Manejar actualizaciones de estado de bloqueo
       if (messageType == 'blockStatusUpdate' &&
           messageData.containsKey('blockStatus')) {
@@ -434,14 +446,57 @@ class ChatDetailPageState extends State<ChatDetailPage> {
       context: context,
       builder: (context) => AlertDialog(
         title: const Text('Editar mensaje'),
-        content: TextField(
-          controller: editingController,
-          decoration: const InputDecoration(
-            hintText: 'Edita tu mensaje...',
+        content: SizedBox(
+          width: 250, // Ajusta el ancho del campo de texto
+          child: TextField(
+            controller: editingController,
+            decoration: const InputDecoration(
+              hintText: 'Edita tu mensaje...',
+            ),
+            autofocus: true,
+            maxLines: null,
           ),
-          autofocus: true,
-          maxLines: null,
         ),
+        actions: [
+          Row(
+            mainAxisAlignment: MainAxisAlignment.spaceBetween, // Alinear a la izquierda y derecha
+            children: [
+              IconButton(
+                onPressed: () {
+                  Navigator.of(context).pop();
+                  _showDeleteConfirmationDialog(message);
+                },
+                icon: const Icon(Icons.delete, color: Colors.red),
+                tooltip: 'Eliminar mensaje',
+              ),
+              Row(
+                children: [
+                  TextButton(
+                    onPressed: () => Navigator.of(context).pop(),
+                    child: const Text('Cancelar'),
+                  ),
+                  TextButton(
+                    onPressed: () {
+                      Navigator.of(context).pop();
+                      _updateMessage(message, editingController.text.trim());
+                    },
+                    child: const Text('Guardar'),
+                  ),
+                ],
+              ),
+            ],
+          ),
+        ],
+      ),
+    );
+  }
+
+  void _showDeleteConfirmationDialog(Message message) {
+    showDialog(
+      context: context,
+      builder: (context) => AlertDialog(
+        title: const Text('Eliminar mensaje'),
+        content: const Text('¿Estás seguro de que deseas eliminar este mensaje?'),
         actions: [
           TextButton(
             onPressed: () => Navigator.of(context).pop(),
@@ -450,12 +505,19 @@ class ChatDetailPageState extends State<ChatDetailPage> {
           TextButton(
             onPressed: () {
               Navigator.of(context).pop();
-              _updateMessage(message, editingController.text.trim());
+              _deleteMessage(message);
             },
-            child: const Text('Guardar'),
+            child: const Text('Eliminar', style: TextStyle(color: Colors.red)),
           ),
         ],
       ),
+    );
+  }
+
+  void _deleteMessage(Message message) {
+    _chatService.deleteMessage(
+      message.receiverUsername,
+      message.timestamp.toIso8601String(),
     );
   }
 

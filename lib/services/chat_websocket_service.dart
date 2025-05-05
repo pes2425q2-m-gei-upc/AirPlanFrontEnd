@@ -120,6 +120,28 @@ class ChatWebSocketService {
     }
   }
 
+  Future<bool> sendDeleteMessage(String receiverUsername, String timestamp) async {
+    if (!_isChatConnected || _chatChannel == null) {
+      debugPrint('WebSocket is not connected. Cannot send delete message.');
+      return false;
+    }
+
+    try {
+      final deleteMessage = {
+        'type': 'DELETE',
+        'usernameSender': _currentUsername,
+        'usernameReceiver': receiverUsername,
+        'timestamp': timestamp,
+      };
+
+      _chatChannel!.sink.add(jsonEncode(deleteMessage));
+      return true;
+    } catch (e) {
+      debugPrint('Error sending delete message: $e');
+      return false;
+    }
+  }
+
   Future<bool> sendEditMessage(
       String receiverUsername,
       String originalTimestamp,
@@ -314,10 +336,46 @@ class ChatWebSocketService {
         return;
       }
 
+      // Handle DELETE message type
+      if (messageData['type'] == 'DELETE') {
+        debugPrint('Processing DELETE message');
+
+        final deleteData = {
+          'type': 'DELETE',
+          'usernameSender': messageData['usernameSender'],
+          'originalTimestamp': messageData['originalTimestamp'],
+        };
+
+        _chatMessageController.add(deleteData);
+        return;
+      }
+
       // Handle Regular Chat Messages
       if (_isValidChatMessage(messageData)) {
         _chatMessageController.add(messageData);
         debugPrint('Processed regular chat message.');
+        return;
+      }
+
+      // Verificar si es un mensaje individual en formato JSON
+      if (messageData.containsKey('usernameSender') &&
+          messageData.containsKey('usernameReceiver') &&
+          messageData.containsKey('dataEnviament') &&
+          messageData.containsKey('missatge')) {
+        // Enviar el mensaje al controlador de mensajes de chat
+        _chatMessageController.add({
+          'usernameSender': messageData['usernameSender'],
+          'usernameReceiver': messageData['usernameReceiver'],
+          'dataEnviament': messageData['dataEnviament'],
+          'missatge': messageData['missatge'],
+          'isEdited': messageData['isEdited'] ?? false,
+        });
+        return;
+      }
+
+      // Si el mensaje contiene un error, registrarlo
+      if (messageData.containsKey('error')) {
+        debugPrint('Error recibido del servidor: ${messageData['error']}');
         return;
       }
 
