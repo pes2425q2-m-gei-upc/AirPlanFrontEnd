@@ -27,7 +27,7 @@ class ApiConfig {
   // Variables privadas para inyección
   bool _isWebPlatform = kIsWeb;
   String _defaultWebUrl = 'http://localhost:8080';
-  String _defaultMobileUrl = 'http://192.168.1.69:8080';
+  String _defaultMobileUrl = 'http://192.168.1.142:8080';
 
   // Constructor interno
   ApiConfig._internal();

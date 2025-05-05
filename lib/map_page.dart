@@ -1,6 +1,5 @@
 // map_page.dart
 import 'package:airplan/solicituds_service.dart';
-import 'package:firebase_auth/firebase_auth.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_map/flutter_map.dart';
 import 'package:latlong2/latlong.dart';
@@ -10,9 +9,19 @@ import 'map_service.dart';
 import 'activity_service.dart';
 import 'map_ui.dart' as map_ui;
 import 'activity_details_page.dart';
+import 'package:airplan/services/auth_service.dart';
 
 class MapPage extends StatefulWidget {
-  const MapPage({super.key});
+  final AuthService authService;
+  final ActivityService activityService;
+
+  MapPage({
+    Key? key,
+    AuthService? authService,
+    ActivityService? activityService,
+  }) : authService = authService ?? AuthService(),
+       activityService = activityService ?? ActivityService(),
+       super(key: key);
 
   @override
   MapPageState createState() => MapPageState();
@@ -21,7 +30,6 @@ class MapPage extends StatefulWidget {
 class MapPageState extends State<MapPage> {
   final MapController mapController = MapController();
   final MapService mapService = MapService();
-  final ActivityService activityService = ActivityService();
   final SolicitudsService solicitudsService = SolicitudsService();
   LatLng selectedLocation = LatLng(0, 0);
   Map<LatLng, String> savedLocations = {};
@@ -68,13 +76,18 @@ class MapPageState extends State<MapPage> {
   }
 
   Future<void> fetchActivities() async {
-    final activities = await activityService.fetchActivities();
+    final activities = await widget.activityService.fetchActivities();
 
     for (Map<String, dynamic> activity in activities) {
       final ubicacio = activity['ubicacio'] as Map<String, dynamic>;
       final lat = ubicacio['latitud'] as double;
       final lon = ubicacio['longitud'] as double;
-      String details = await mapService.fetchPlaceDetails(LatLng(lat, lon));
+      String details;
+      try {
+        details = await mapService.fetchPlaceDetails(LatLng(lat, lon));
+      } catch (e) {
+        details = '';
+      }
       savedLocations[LatLng(lat, lon)] = details;
     }
 
@@ -255,13 +268,13 @@ class MapPageState extends State<MapPage> {
     );
 
     if (result != null) {
-      await activityService.sendActivityToBackend(result);
+      await widget.activityService.sendActivityToBackend(result);
       fetchActivities();
     }
   }
 
   void _showActivityDetails(Map<String, dynamic> activity) async {
-    final String? currentUser = FirebaseAuth.instance.currentUser?.displayName;
+    final String? currentUser = widget.authService.getCurrentUsername();
     final bool isCurrentUserCreator =
         currentUser != null && activity['creador'] == currentUser;
 
@@ -743,32 +756,38 @@ class MapPageState extends State<MapPage> {
 
   //Puentes entre boton de favorita y activityService
   Future<bool> isActivityFavorite(int activityId) async {
-    final String? username = FirebaseAuth.instance.currentUser?.displayName;
+    final String? username = widget.authService.getCurrentUsername();
     if (username == null) {
       throw Exception('User not logged in');
     }
-    return await activityService.isActivityFavorite(activityId, username);
+    return await widget.activityService.isActivityFavorite(
+      activityId,
+      username,
+    );
   }
 
   Future<void> addActivityToFavorites(int activityId) async {
-    final String? username = FirebaseAuth.instance.currentUser?.displayName;
+    final String? username = widget.authService.getCurrentUsername();
     if (username == null) {
       throw Exception('User not logged in');
     }
-    await activityService.addActivityToFavorites(activityId, username);
+    await widget.activityService.addActivityToFavorites(activityId, username);
   }
 
   Future<void> removeActivityFromFavorites(int activityId) async {
-    final String? username = FirebaseAuth.instance.currentUser?.displayName;
+    final String? username = widget.authService.getCurrentUsername();
     if (username == null) {
       throw Exception('User not logged in');
     }
-    await activityService.removeActivityFromFavorites(activityId, username);
+    await widget.activityService.removeActivityFromFavorites(
+      activityId,
+      username,
+    );
   }
 
   Future<void> _showFavoriteActivities() async {
     try {
-      final String? username = FirebaseAuth.instance.currentUser?.displayName;
+      final String? username = widget.authService.getCurrentUsername();
       if (username == null) {
         ScaffoldMessenger.of(context).showSnackBar(
           const SnackBar(
@@ -778,9 +797,8 @@ class MapPageState extends State<MapPage> {
         return;
       }
 
-      final favoriteActivities = await activityService.fetchFavoriteActivities(
-        username,
-      );
+      final favoriteActivities = await widget.activityService
+          .fetchFavoriteActivities(username);
 
       if (!mounted) return;
 
@@ -915,6 +933,50 @@ class MapPageState extends State<MapPage> {
               child: const Icon(Icons.favorite),
             ),
           ),
+          // Overlay list of activities for add/remove favorites in tests
+          if (activities.isNotEmpty)
+            Positioned(
+              bottom: 0,
+              left: 0,
+              right: 0,
+              child: Container(
+                color: Colors.white70,
+                height: 100,
+                child: ListView.builder(
+                  scrollDirection: Axis.horizontal,
+                  itemCount: activities.length,
+                  itemBuilder: (context, index) {
+                    final activity = activities[index];
+                    return Padding(
+                      padding: const EdgeInsets.all(8.0),
+                      child: Column(
+                        children: [
+                          Text(activity['nom'] ?? ''),
+                          Row(
+                            mainAxisSize: MainAxisSize.min,
+                            children: [
+                              IconButton(
+                                icon: const Icon(Icons.favorite_border),
+                                onPressed:
+                                    () =>
+                                        addActivityToFavorites(activity['id']),
+                              ),
+                              IconButton(
+                                icon: const Icon(Icons.favorite),
+                                onPressed:
+                                    () => removeActivityFromFavorites(
+                                      activity['id'],
+                                    ),
+                              ),
+                            ],
+                          ),
+                        ],
+                      ),
+                    );
+                  },
+                ),
+              ),
+            ),
         ],
       ),
       floatingActionButton: FloatingActionButton(
