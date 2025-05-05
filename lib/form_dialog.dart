@@ -52,7 +52,10 @@ class FormDialogState extends State<FormDialog> {
     }
   }
 
+// ignore: use_build_context_synchronously
   Future<void> _selectDateTime(TextEditingController controller) async {
+    if (!mounted) return;
+
     DateTime? pickedDate = await showDatePicker(
       context: context,
       initialDate: DateTime.now(),
@@ -60,17 +63,27 @@ class FormDialogState extends State<FormDialog> {
       lastDate: DateTime(2101),
     );
 
-    if (pickedDate != null) {
-      TimeOfDay? pickedTime = TimeOfDay.now();
+    if (!mounted) return;
 
-      final DateTime fullDateTime = DateTime(
-        pickedDate.year,
-        pickedDate.month,
-        pickedDate.day,
-        pickedTime.hour,
-        pickedTime.minute,
+    if (pickedDate != null) {
+      // ignore: use_build_context_synchronously
+      TimeOfDay? pickedTime = await showTimePicker(
+        context: context,
+        initialTime: TimeOfDay.now(),
       );
-      controller.text = DateFormat('yyyy-MM-dd HH:mm').format(fullDateTime);
+
+      if (!mounted) return;
+
+      if (pickedTime != null) {
+        final DateTime fullDateTime = DateTime(
+          pickedDate.year,
+          pickedDate.month,
+          pickedDate.day,
+          pickedTime.hour,
+          pickedTime.minute,
+        );
+        controller.text = DateFormat('yyyy-MM-dd HH:mm').format(fullDateTime);
+      }
     }
   }
 
@@ -83,6 +96,7 @@ class FormDialogState extends State<FormDialog> {
         children: [
           Flexible(
             child: DropdownButtonFormField<LatLng>(
+              isExpanded: true,
               value: _selectedLocation,
               items: widget.savedLocations.entries.map((entry) {
                 String displayText = entry.value.isNotEmpty
@@ -163,10 +177,8 @@ class FormDialogState extends State<FormDialog> {
           ElevatedButton(
             onPressed: () {
               String? nom = FirebaseAuth.instance.currentUser?.displayName;
-              print ('User1: $nom');
               if (nom != null) {
                 _userController.text = nom;
-                print ('User2: $nom');
               }
               if (_formKey.currentState!.validate()) {
                 Navigator.of(context).pop({

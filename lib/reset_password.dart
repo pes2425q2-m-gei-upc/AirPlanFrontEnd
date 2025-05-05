@@ -1,27 +1,40 @@
 import 'package:flutter/material.dart';
-import 'package:firebase_auth/firebase_auth.dart';
+import 'services/auth_service.dart';
 
 class ResetPasswordPage extends StatefulWidget {
-  const ResetPasswordPage({super.key});
+  // Añadimos la posibilidad de inyectar el AuthService
+  final AuthService? authService;
+
+  const ResetPasswordPage({super.key, this.authService});
 
   @override
   ResetPasswordPageState createState() => ResetPasswordPageState();
 }
 
 class ResetPasswordPageState extends State<ResetPasswordPage> {
-  final FirebaseAuth _auth = FirebaseAuth.instance;
+  // Usamos late para inicializar en initState
+  late final AuthService _authService;
   final TextEditingController _emailController = TextEditingController();
   String _message = '';
 
+  @override
+  void initState() {
+    super.initState();
+    // Inicializamos el servicio usando el proporcionado o creando uno nuevo
+    _authService = widget.authService ?? AuthService();
+  }
+
   Future<void> _resetPassword() async {
     try {
-      await _auth.sendPasswordResetEmail(email: _emailController.text.trim());
+      // Usamos el servicio AuthService en lugar de Firebase directamente
+      await _authService.resetPassword(_emailController.text.trim());
       setState(() {
-        _message = "Correu de restabliment enviat! Revisa la teva safata d'entrada.";
+        _message =
+            "Correu de restabliment enviat! Revisa la teva safata d'entrada.";
       });
-    } on FirebaseAuthException catch (e) {
+    } catch (e) {
       setState(() {
-        _message = "Error: ${e.message}";
+        _message = "Error: ${e.toString()}";
       });
     }
   }
