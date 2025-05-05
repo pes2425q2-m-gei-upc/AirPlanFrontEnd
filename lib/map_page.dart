@@ -2,7 +2,6 @@
 import 'package:airplan/solicituds_service.dart';
 import 'dart:async';
 import 'package:airplan/transit_service.dart';
-import 'package:firebase_auth/firebase_auth.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_map/flutter_map.dart';
 import 'package:geolocator/geolocator.dart';
@@ -24,12 +23,11 @@ class MapPage extends StatefulWidget {
   final ActivityService activityService;
 
   MapPage({
-    Key? key,
+    super.key,
     AuthService? authService,
     ActivityService? activityService,
   }) : authService = authService ?? AuthService(),
-       activityService = activityService ?? ActivityService(),
-       super(key: key);
+       activityService = activityService ?? ActivityService();
 
   @override
   MapPageState createState() => MapPageState();
@@ -2182,50 +2180,6 @@ class MapPageState extends State<MapPage> {
               child: FloatingActionButton(
                 onPressed: _showFavoriteActivities,
                 child: const Icon(Icons.favorite),
-              ),
-            ),
-          // Overlay list of activities for add/remove favorites in tests
-          if (activities.isNotEmpty)
-            Positioned(
-              bottom: 0,
-              left: 0,
-              right: 0,
-              child: Container(
-                color: Colors.white70,
-                height: 100,
-                child: ListView.builder(
-                  scrollDirection: Axis.horizontal,
-                  itemCount: activities.length,
-                  itemBuilder: (context, index) {
-                    final activity = activities[index];
-                    return Padding(
-                      padding: const EdgeInsets.all(8.0),
-                      child: Column(
-                        children: [
-                          Text(activity['nom'] ?? ''),
-                          Row(
-                            mainAxisSize: MainAxisSize.min,
-                            children: [
-                              IconButton(
-                                icon: const Icon(Icons.favorite_border),
-                                onPressed:
-                                    () =>
-                                        addActivityToFavorites(activity['id']),
-                              ),
-                              IconButton(
-                                icon: const Icon(Icons.favorite),
-                                onPressed:
-                                    () => removeActivityFromFavorites(
-                                      activity['id'],
-                                    ),
-                              ),
-                            ],
-                          ),
-                        ],
-                      ),
-                    );
-                  },
-                ),
               ),
             ),
         ],
