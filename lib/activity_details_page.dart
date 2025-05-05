@@ -445,8 +445,7 @@ class ActivityDetailsPageState extends State<ActivityDetailsPage> {
                         );
 
                         if (confirm == true) {
-                          final url = Uri.parse(
-                              'http://localhost:8080/api/activitats/${widget.id}/participants/$p');
+                          final url = Uri.parse(ApiConfig().buildUrl('api/activitats/${widget.id}/participants/$p'));
 
                           try {
                             final response = await http.delete(url);

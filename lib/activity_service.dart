@@ -159,10 +159,7 @@ class ActivityService {
   }
 
   Future<bool> isActivityFavorite(int activityId, String username) async {
-    //final url = Uri.parse('http://nattech.fib.upc.edu:40350/api/activitats/favorita/$activityId/$username');
-    final url = Uri.parse(
-      'http://127.0.0.1:8080/api/activitats/favorita/$activityId/$username',
-    );
+    final url = Uri.parse(ApiConfig().buildUrl('api/activitats/favorita/$activityId/$username'));
     final response = await http.get(url);
 
     if (response.statusCode == 200) {
@@ -175,10 +172,7 @@ class ActivityService {
   }
 
   Future<void> addActivityToFavorites(int activityId, String username) async {
-    //final url = Uri.parse('http://nattech.fib.upc.edu:40350/api/activitats/favorita/anadir/$activityId/$username');
-    final url = Uri.parse(
-      'http://127.0.0.1:8080/api/activitats/favorita/anadir/$activityId/$username',
-    );
+    final url = Uri.parse(ApiConfig().buildUrl('api/activitats/favorita/anadir/$activityId/$username'));
     final response = await http.post(url);
 
     if (response.statusCode != 201) {
@@ -190,10 +184,7 @@ class ActivityService {
     int activityId,
     String username,
   ) async {
-    //final url = Uri.parse('http://nattech.fib.upc.edu:40350/api/activitats/favorita/eliminar/$activityId/$username');
-    final url = Uri.parse(
-      'http://127.0.0.1:8080/api/activitats/favorita/eliminar/$activityId/$username',
-    );
+    final url = Uri.parse(ApiConfig().buildUrl('api/activitats/favorita/eliminar/$activityId/$username'));
     final response = await http.delete(url);
 
     if (response.statusCode != 200) {
@@ -206,10 +197,7 @@ class ActivityService {
   Future<List<Map<String, dynamic>>> fetchFavoriteActivities(
     String username,
   ) async {
-    //final url = Uri.parse('http://nattech.fib.upc.edu:40350/api/activitats/favoritas/$username');
-    final url = Uri.parse(
-      'http://127.0.0.1:8080/api/activitats/favoritas/$username',
-    );
+    final url = Uri.parse(ApiConfig().buildUrl('api/activitats/favoritas/$username'));
     final response = await http.get(url);
 
     if (response.statusCode == 200) {
