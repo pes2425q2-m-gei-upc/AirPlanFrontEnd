@@ -2,14 +2,25 @@ import 'package:flutter/material.dart';
 import 'form_content_register.dart';
 import 'logo_widget.dart';
 import 'rive_controller.dart';
+import 'services/auth_service.dart';
 
 class SignUpPage extends StatelessWidget {
-  const SignUpPage({super.key});
+  // Añadimos la posibilidad de inyectar el AuthService
+  final AuthService? authService;
+
+  const SignUpPage({super.key, this.authService});
 
   @override
   Widget build(BuildContext context) {
     final bool isSmallScreen = MediaQuery.of(context).size.width < 600;
-    final RiveAnimationControllerHelper riveHelper = RiveAnimationControllerHelper();
+    final RiveAnimationControllerHelper riveHelper =
+        RiveAnimationControllerHelper();
+
+    // Pasamos el authService inyectado al FormContentRegister
+    final formContent = FormContentRegister(
+      riveHelper: riveHelper,
+      authService: authService,
+    );
 
     return Scaffold(
       appBar: AppBar(
@@ -20,28 +31,24 @@ class SignUpPage extends StatelessWidget {
         ),
       ),
       body: Center(
-        child: isSmallScreen
-            ? SingleChildScrollView(  // Añadido SingleChildScrollView
-          child: Column(
-            mainAxisSize: MainAxisSize.min,
-            children: [
-              LogoWidget(riveHelper: riveHelper),
-              FormContentRegister(riveHelper: riveHelper),
-            ],
-          ),
-        )
-            : Container(
-          padding: const EdgeInsets.all(32.0),
-          constraints: const BoxConstraints(maxWidth: 800),
-          child: Row(
-            children: [
-              Expanded(child: LogoWidget(riveHelper: riveHelper)),
-              Expanded(
-                child: Center(child: FormContentRegister(riveHelper: riveHelper)),
-              ),
-            ],
-          ),
-        ),
+        child:
+            isSmallScreen
+                ? SingleChildScrollView(
+                  child: Column(
+                    mainAxisSize: MainAxisSize.min,
+                    children: [LogoWidget(riveHelper: riveHelper), formContent],
+                  ),
+                )
+                : Container(
+                  padding: const EdgeInsets.all(32.0),
+                  constraints: const BoxConstraints(maxWidth: 800),
+                  child: Row(
+                    children: [
+                      Expanded(child: LogoWidget(riveHelper: riveHelper)),
+                      Expanded(child: Center(child: formContent)),
+                    ],
+                  ),
+                ),
       ),
     );
   }
