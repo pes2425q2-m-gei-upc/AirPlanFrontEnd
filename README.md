@@ -1,16 +1,4 @@
 # AirPlan
 
-A new Flutter project.
-
-## Getting Started
-
-This project is a starting point for a Flutter application.
-
-A few resources to get you started if this is your first Flutter project:
-
-- [Lab: Write your first Flutter app](https://docs.flutter.dev/get-started/codelab)
-- [Cookbook: Useful Flutter samples](https://docs.flutter.dev/cookbook)
-
-For help getting started with Flutter development, view the
-[online documentation](https://docs.flutter.dev/), which offers tutorials,
-samples, guidance on mobile development, and a full API reference.
+## Overview
+AirPlan és una aplicació mòbil i web dissenyada per ajudar els usuaris a trobar o fer activitats a l'aire lliure. L'aplicació ofereix funcions com ara informació sobre la qualitat de l'aire i gestió d'itineraris.
