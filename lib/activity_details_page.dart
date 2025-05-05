@@ -8,6 +8,7 @@ import 'package:airplan/services/notification_service.dart';
 import 'package:flutter_rating_bar/flutter_rating_bar.dart';
 import 'package:http/http.dart' as http;
 import 'package:airplan/chat_detail_page.dart';
+import 'invite_users_dialog.dart';
 
 class Valoracio {
   final String username;
@@ -67,6 +68,33 @@ class ActivityDetailsPage extends StatefulWidget {
 
 class ActivityDetailsPageState extends State<ActivityDetailsPage> {
   late Future<bool> _solicitudExistente;
+  final NotificationService _notificationService = NotificationService();
+  bool showParticipants = false;
+  List<String> participants = []; // Aquí se cargan los participantes
+
+  // Simulación de carga de participantes
+  Future<void> loadParticipants() async {
+    final url = Uri.parse('http://127.0.0.1:8080/api/activitats/${widget.id}/participants'); // Asegúrate que el host es accesible
+
+    try {
+      final response = await http.get(url);
+
+      if (response.statusCode == 200) {
+        final List<dynamic> jsonList = json.decode(response.body);
+        setState(() {
+          participants = jsonList.map((e) => e.toString()).toList();
+          showParticipants = true;
+        });
+      }
+    } catch (e) {
+      final actualContext = context;
+      if (actualContext.mounted) {
+        ScaffoldMessenger.of(actualContext).showSnackBar(
+          SnackBar(content: Text('Error al cargar los participantes')),
+        );
+      }
+    }
+  }
 
   @override
   void initState() {
@@ -90,7 +118,10 @@ class ActivityDetailsPageState extends State<ActivityDetailsPage> {
 
     if (solicitudExistente) {
       // Cancelar solicitud
-      await SolicitudsService().cancelarSolicitud(int.parse(widget.id), currentUser);
+      await SolicitudsService().cancelarSolicitud(
+        int.parse(widget.id),
+        currentUser,
+      );
       if (!mounted) return;
       ScaffoldMessenger.of(context).showSnackBar(
         const SnackBar(content: Text('Solicitud cancelada correctamente.')),
@@ -116,14 +147,17 @@ class ActivityDetailsPageState extends State<ActivityDetailsPage> {
 
   // Rating functionality methods
   Future<List<Valoracio>> fetchValoracions(String activityId) async {
-    final backendUrl = Uri.parse(ApiConfig().buildUrl('valoracions/activitat/$activityId'));
+    final backendUrl = Uri.parse(
+      ApiConfig().buildUrl('valoracions/activitat/$activityId'),
+    );
 
     try {
       final response = await http.get(backendUrl);
 
       if (response.statusCode == 200) {
         final List<dynamic> data = jsonDecode(response.body);
-        final List<Valoracio> valoracions = data.map((json) => Valoracio.fromJson(json)).toList();
+        final List<Valoracio> valoracions =
+            data.map((json) => Valoracio.fromJson(json)).toList();
         // Sort from newest to oldest
         valoracions.sort((a, b) => b.fecha.compareTo(a.fecha));
         return valoracions;
@@ -136,7 +170,9 @@ class ActivityDetailsPageState extends State<ActivityDetailsPage> {
   }
 
   Future<bool> checkUserHasRated(String activityId, String userId) async {
-    final backendUrl = Uri.parse(ApiConfig().buildUrl('valoracions/usuario/$userId/activitat/$activityId'));
+    final backendUrl = Uri.parse(
+      ApiConfig().buildUrl('valoracions/usuario/$userId/activitat/$activityId'),
+    );
 
     try {
       final response = await http.get(backendUrl);
@@ -158,9 +194,7 @@ class ActivityDetailsPageState extends State<ActivityDetailsPage> {
     try {
       final response = await http.post(
         backendUrl,
-        headers: {
-          'Content-Type': 'application/json',
-        },
+        headers: {'Content-Type': 'application/json'},
         body: jsonEncode({
           'username': userId,
           'idActivitat': activityId,
@@ -171,49 +205,41 @@ class ActivityDetailsPageState extends State<ActivityDetailsPage> {
 
       if (response.statusCode >= 200 && response.statusCode < 300) {
         final String message = 'Valoración guardada con éxito';
-        if(!context.mounted) return;
-        NotificationService.showSuccess(context, message);
+        if (!context.mounted) return;
+        _notificationService.showSuccess(context, message);
       } else {
         final String message = 'Error al guardar la valoración';
-        if(!context.mounted) return;
-        NotificationService.showError(context, message);
+        if (!context.mounted) return;
+        _notificationService.showError(context, message);
       }
     } catch (e) {
       final String message = 'Error al conectar con el backend';
-      if(!context.mounted) return;
-      NotificationService.showError(context, message);
+      if (!context.mounted) return;
+      _notificationService.showError(context, message);
     }
   }
 
   Widget buildRatingAverage(List<Valoracio> valoracions) {
     if (valoracions.isEmpty) {
-      return Text(
-        'No hay valoraciones aún',
-        style: TextStyle(fontSize: 16),
-      );
+      return Text('No hay valoraciones aún', style: TextStyle(fontSize: 16));
     }
 
-    final double average = valoracions
-        .map((v) => v.valoracion)
-        .reduce((a, b) => a + b) / valoracions.length;
+    final double average =
+        valoracions.map((v) => v.valoracion).reduce((a, b) => a + b) /
+        valoracions.length;
 
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
         Text(
           'Valoración media:',
-          style: TextStyle(
-            fontWeight: FontWeight.bold,
-            fontSize: 18,
-          ),
+          style: TextStyle(fontWeight: FontWeight.bold, fontSize: 18),
         ),
         SizedBox(height: 8),
         RatingBarIndicator(
           rating: average,
-          itemBuilder: (context, index) => Icon(
-            Icons.star,
-            color: Colors.amber,
-          ),
+          itemBuilder:
+              (context, index) => Icon(Icons.star, color: Colors.amber),
           itemCount: 5,
           itemSize: 30.0,
           direction: Axis.horizontal,
@@ -239,37 +265,27 @@ class ActivityDetailsPageState extends State<ActivityDetailsPage> {
               children: [
                 Text(
                   valoracio.username,
-                  style: TextStyle(
-                    fontWeight: FontWeight.bold,
-                    fontSize: 16,
-                  ),
+                  style: TextStyle(fontWeight: FontWeight.bold, fontSize: 16),
                 ),
                 Text(
                   '${valoracio.fecha.day}/${valoracio.fecha.month}/${valoracio.fecha.year}',
-                  style: TextStyle(
-                    color: Colors.grey,
-                    fontSize: 14,
-                  ),
+                  style: TextStyle(color: Colors.grey, fontSize: 14),
                 ),
               ],
             ),
             SizedBox(height: 8),
             RatingBarIndicator(
               rating: valoracio.valoracion,
-              itemBuilder: (context, index) => Icon(
-                Icons.star,
-                color: Colors.amber,
-              ),
+              itemBuilder:
+                  (context, index) => Icon(Icons.star, color: Colors.amber),
               itemCount: 5,
               itemSize: 20.0,
               direction: Axis.horizontal,
             ),
-            if (valoracio.comentario != null && valoracio.comentario!.isNotEmpty) ...[
+            if (valoracio.comentario != null &&
+                valoracio.comentario!.isNotEmpty) ...[
               SizedBox(height: 8),
-              Text(
-                valoracio.comentario!,
-                style: TextStyle(fontSize: 14),
-              ),
+              Text(valoracio.comentario!, style: TextStyle(fontSize: 14)),
             ],
           ],
         ),
@@ -277,50 +293,15 @@ class ActivityDetailsPageState extends State<ActivityDetailsPage> {
     );
   }
 
-  String traduirContaminant(Contaminant contaminant) {
-    switch (contaminant) {
-      case Contaminant.so2:
-        return 'SO2';
-      case Contaminant.pm10:
-        return 'PM10';
-      case Contaminant.pm2_5:
-        return 'PM2.5';
-      case Contaminant.no2:
-        return 'NO2';
-      case Contaminant.o3:
-        return 'O3';
-      case Contaminant.h2s:
-        return 'H2S';
-      case Contaminant.co:
-        return 'CO';
-      case Contaminant.c6h6:
-        return 'C6H6';
-    }
-  }
-
-  String traduirAQI(AirQuality aqi) {
-    switch (aqi) {
-      case AirQuality.excelent:
-        return 'Excelent';
-      case AirQuality.bona:
-        return 'Bona';
-      case AirQuality.dolenta:
-        return 'Dolenta';
-      case AirQuality.pocSaludable:
-        return 'Poc Saludable';
-      case AirQuality.moltPocSaludable:
-        return 'Molt Poc Saludable';
-      case AirQuality.perillosa:
-        return 'Perillosa';
-    }
-  }
-
   @override
   Widget build(BuildContext context) {
     final String? currentUser = FirebaseAuth.instance.currentUser?.displayName;
-    final bool isCurrentUserCreator = currentUser != null && widget.creator == currentUser;
+    final bool isCurrentUserCreator =
+        currentUser != null && widget.creator == currentUser;
     final bool canSendMessage = !isCurrentUserCreator && currentUser != null;
-    final bool isActivityFinished = DateTime.now().isAfter(DateTime.parse(widget.endDate));
+    final bool isActivityFinished = DateTime.now().isAfter(
+      DateTime.parse(widget.endDate),
+    );
 
     return Scaffold(
       appBar: AppBar(title: Text('Activity Details')),
@@ -345,29 +326,33 @@ class ActivityDetailsPageState extends State<ActivityDetailsPage> {
               Text(widget.description, style: TextStyle(fontSize: 16)),
               SizedBox(height: 16),
               Column(
-                children: widget.airQualityData.map((data) {
-                  return Row(
-                    children: [
-                      Icon(Icons.air),
-                      SizedBox(width: 8),
-                      Text(
-                        '${traduirContaminant(data.contaminant)}: ${traduirAQI(data.aqi)} (${data.value} ${data.units})',
-                        style: TextStyle(
-                          color: getColorForAirQuality(data.aqi),
-                          fontWeight: FontWeight.bold,
-                          fontSize: 16,
-                        ),
-                      ),
-                    ],
-                  );
-                }).toList(),
+                children:
+                    widget.airQualityData.map((data) {
+                      return Row(
+                        children: [
+                          Icon(Icons.air),
+                          SizedBox(width: 8),
+                          Text(
+                            '${traduirContaminant(data.contaminant)}: ${traduirAQI(data.aqi)} (${data.value} ${data.units})',
+                            style: TextStyle(
+                              color: getColorForAirQuality(data.aqi),
+                              fontWeight: FontWeight.bold,
+                              fontSize: 16,
+                            ),
+                          ),
+                        ],
+                      );
+                    }).toList(),
               ),
               SizedBox(height: 16),
               Row(
                 children: [
                   Icon(Icons.calendar_today),
                   SizedBox(width: 8),
-                  Text('Start: ${widget.startDate}', style: TextStyle(fontSize: 16)),
+                  Text(
+                    'Start: ${widget.startDate}',
+                    style: TextStyle(fontSize: 16),
+                  ),
                 ],
               ),
               SizedBox(height: 8),
@@ -375,7 +360,10 @@ class ActivityDetailsPageState extends State<ActivityDetailsPage> {
                 children: [
                   Icon(Icons.calendar_today),
                   SizedBox(width: 8),
-                  Text('End: ${widget.endDate}', style: TextStyle(fontSize: 16)),
+                  Text(
+                    'End: ${widget.endDate}',
+                    style: TextStyle(fontSize: 16),
+                  ),
                 ],
               ),
               SizedBox(height: 16),
@@ -398,7 +386,9 @@ class ActivityDetailsPageState extends State<ActivityDetailsPage> {
                         Navigator.push(
                           context,
                           MaterialPageRoute(
-                            builder: (context) => ChatDetailPage(username: widget.creator),
+                            builder:
+                                (context) =>
+                                    ChatDetailPage(username: widget.creator),
                           ),
                         );
                       },
@@ -406,10 +396,93 @@ class ActivityDetailsPageState extends State<ActivityDetailsPage> {
                       label: Text('Enviar mensaje'),
                       style: ElevatedButton.styleFrom(
                         backgroundColor: Colors.green,
+                        foregroundColor: Colors.white,
                       ),
                     ),
                 ],
               ),
+              SizedBox(height: 16),
+
+              // 🔽 BOTÓN "SHOW PARTICIPANTS"
+              ElevatedButton(
+                onPressed: () {
+                  if (!showParticipants) {
+                    loadParticipants();
+                  } else {
+                    setState(() {
+                      showParticipants = false;
+                    });
+                  }
+                },
+                child: Text(showParticipants ? 'Hide Participants' : 'Show Participants'),
+              ),
+              if (showParticipants)
+                ...participants.map((p) {
+                  bool isCurrentUser = p == currentUser; // Verificamos si el participante es el usuario actual
+                  return ListTile(
+                    dense: true,
+                    title: Text(p),
+                    trailing: isCurrentUserCreator && !isCurrentUser
+                        ? IconButton(
+                      icon: Icon(Icons.delete, color: Colors.red),
+                      onPressed: () async {
+                        final confirm = await showDialog<bool>(
+                          context: context,
+                          builder: (context) => AlertDialog(
+                            title: Text('Eliminar participante'),
+                            content: Text('¿Estás seguro de que quieres eliminar a $p de la actividad?'),
+                            actions: [
+                              TextButton(
+                                onPressed: () => Navigator.pop(context, false),
+                                child: Text('No'),
+                              ),
+                              TextButton(
+                                onPressed: () => Navigator.pop(context, true),
+                                child: Text('Sí'),
+                              ),
+                            ],
+                          ),
+                        );
+
+                        if (confirm == true) {
+                          final url = Uri.parse(ApiConfig().buildUrl('api/activitats/${widget.id}/participants/$p'));
+
+                          try {
+                            final response = await http.delete(url);
+                            if (response.statusCode == 200) {
+                              setState(() {
+                                participants.remove(p);
+                              });
+                              final actualContext = context;
+                              if (actualContext.mounted) {
+                                ScaffoldMessenger.of(context).showSnackBar(
+                                  SnackBar(content: Text(
+                                      '$p eliminado correctamente')),
+                                );
+                              }
+                            } else {
+                              final actualContext = context;
+                              if (actualContext.mounted) {
+                                ScaffoldMessenger.of(context).showSnackBar(
+                                  SnackBar(content: Text('Error al eliminar $p')),
+                                );
+                              }
+                            }
+                          } catch (e) {
+                            final actualContext = context;
+                            if (actualContext.mounted) {
+                              ScaffoldMessenger.of(context).showSnackBar(
+                                SnackBar(content: Text('Error de red al eliminar $p')),
+                              );
+                            }
+                          }
+                        }
+                      },
+                    )
+                        : null,
+                  );
+                }),
+
               SizedBox(height: 16),
               Row(
                 children: [
@@ -426,17 +499,34 @@ class ActivityDetailsPageState extends State<ActivityDetailsPage> {
                     if (snapshot.connectionState == ConnectionState.waiting) {
                       return const CircularProgressIndicator();
                     } else if (snapshot.hasError) {
-                      return const Text('Error al cargar el estado de la solicitud.');
+                      return const Text(
+                        'Error al cargar el estado de la solicitud.',
+                      );
                     }
 
                     final solicitudExistente = snapshot.data ?? false;
                     return ElevatedButton(
-                      onPressed: () => _handleSolicitudAction(solicitudExistente),
-                      child: Text(solicitudExistente ? 'Cancelar solicitud' : 'Solicitar unirse'),
+                      onPressed:
+                          () => _handleSolicitudAction(solicitudExistente),
+                      child: Text(
+                        solicitudExistente
+                            ? 'Cancelar solicitud'
+                            : 'Solicitar unirse',
+                      ),
                     );
                   },
                 ),
               if (isCurrentUserCreator) ...[
+                SizedBox(height: 16),
+                ElevatedButton(
+                  onPressed: () {
+                    showDialog(
+                      context: context,
+                      builder: (context) => InviteUsersDialog(activityId: widget.id, creator: widget.creator),
+                    );
+                  },
+                  child: const Text('Invitar Usuarios'),
+                ),
                 SizedBox(height: 16),
                 Row(
                   mainAxisAlignment: MainAxisAlignment.spaceEvenly,
@@ -449,6 +539,7 @@ class ActivityDetailsPageState extends State<ActivityDetailsPage> {
                       onPressed: widget.onDelete,
                       style: ElevatedButton.styleFrom(
                         backgroundColor: Colors.red,
+                        foregroundColor: Colors.white,
                       ),
                       child: Text('Delete Activity'),
                     ),
@@ -460,7 +551,10 @@ class ActivityDetailsPageState extends State<ActivityDetailsPage> {
               if (isActivityFinished) ...[
                 SizedBox(height: 16),
                 FutureBuilder<bool>(
-                  future: currentUser != null ? checkUserHasRated(widget.id, currentUser) : Future.value(false),
+                  future:
+                      currentUser != null
+                          ? checkUserHasRated(widget.id, currentUser)
+                          : Future.value(false),
                   builder: (context, snapshot) {
                     if (snapshot.connectionState == ConnectionState.waiting) {
                       return Center(child: CircularProgressIndicator());
@@ -494,7 +588,8 @@ class ActivityDetailsPageState extends State<ActivityDetailsPage> {
                           context: context,
                           builder: (BuildContext context) {
                             double rating = 0;
-                            TextEditingController commentController = TextEditingController();
+                            TextEditingController commentController =
+                                TextEditingController();
 
                             return AlertDialog(
                               title: Text('Rate Activity'),
@@ -507,10 +602,11 @@ class ActivityDetailsPageState extends State<ActivityDetailsPage> {
                                     direction: Axis.horizontal,
                                     allowHalfRating: false,
                                     itemCount: 5,
-                                    itemBuilder: (context, _) => Icon(
-                                      Icons.star,
-                                      color: Colors.amber,
-                                    ),
+                                    itemBuilder:
+                                        (context, _) => Icon(
+                                          Icons.star,
+                                          color: Colors.amber,
+                                        ),
                                     onRatingUpdate: (value) {
                                       rating = value;
                                     },
@@ -561,10 +657,7 @@ class ActivityDetailsPageState extends State<ActivityDetailsPage> {
               SizedBox(height: 24),
               Text(
                 'Valoraciones',
-                style: TextStyle(
-                  fontWeight: FontWeight.bold,
-                  fontSize: 20,
-                ),
+                style: TextStyle(fontWeight: FontWeight.bold, fontSize: 20),
               ),
               Divider(),
               FutureBuilder<List<Valoracio>>(
@@ -573,7 +666,9 @@ class ActivityDetailsPageState extends State<ActivityDetailsPage> {
                   if (snapshot.connectionState == ConnectionState.waiting) {
                     return Center(child: CircularProgressIndicator());
                   } else if (snapshot.hasError) {
-                    return Text('Error al cargar valoraciones: ${snapshot.error}');
+                    return Text(
+                      'Error al cargar valoraciones: ${snapshot.error}',
+                    );
                   } else if (!snapshot.hasData || snapshot.data!.isEmpty) {
                     return Column(
                       children: [
@@ -597,7 +692,10 @@ class ActivityDetailsPageState extends State<ActivityDetailsPage> {
                         ),
                         SizedBox(height: 8),
                         Column(
-                          children: valoracions.map((v) => buildValoracionItem(v)).toList(),
+                          children:
+                              valoracions
+                                  .map((v) => buildValoracionItem(v))
+                                  .toList(),
                         ),
                       ],
                     );
@@ -609,5 +707,43 @@ class ActivityDetailsPageState extends State<ActivityDetailsPage> {
         ),
       ),
     );
+  }
+
+  String traduirContaminant(Contaminant contaminant) {
+    switch (contaminant) {
+      case Contaminant.so2:
+        return 'SO2';
+      case Contaminant.pm10:
+        return 'PM10';
+      case Contaminant.pm2_5:
+        return 'PM2.5';
+      case Contaminant.no2:
+        return 'NO2';
+      case Contaminant.o3:
+        return 'O3';
+      case Contaminant.h2s:
+        return 'H2S';
+      case Contaminant.co:
+        return 'CO';
+      case Contaminant.c6h6:
+        return 'C6H6';
+    }
+  }
+
+  String traduirAQI(AirQuality aqi) {
+    switch (aqi) {
+      case AirQuality.excelent:
+        return 'Excelent';
+      case AirQuality.bona:
+        return 'Bona';
+      case AirQuality.dolenta:
+        return 'Dolenta';
+      case AirQuality.pocSaludable:
+        return 'Poc Saludable';
+      case AirQuality.moltPocSaludable:
+        return 'Molt Poc Saludable';
+      case AirQuality.perillosa:
+        return 'Perillosa';
+    }
   }
 }

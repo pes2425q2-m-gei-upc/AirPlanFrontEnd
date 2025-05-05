@@ -3,16 +3,11 @@
 // Do not manually edit this file.
 
 // ignore_for_file: no_leading_underscores_for_library_prefixes
-import 'dart:async' as _i3;
-import 'dart:convert' as _i4;
-import 'dart:typed_data' as _i6;
+import 'dart:async' as _i4;
 
-import 'package:airplan/rive_controller.dart' as _i7;
-import 'package:airplan/user_services.dart' as _i9;
-import 'package:http/http.dart' as _i2;
+import 'package:airplan/services/auth_service.dart' as _i3;
+import 'package:firebase_auth/firebase_auth.dart' as _i2;
 import 'package:mockito/mockito.dart' as _i1;
-import 'package:mockito/src/dummies.dart' as _i5;
-import 'package:rive/rive.dart' as _i8;
 
 // ignore_for_file: type=lint
 // ignore_for_file: avoid_redundant_argument_values
@@ -28,356 +23,174 @@ import 'package:rive/rive.dart' as _i8;
 // ignore_for_file: camel_case_types
 // ignore_for_file: subtype_of_sealed_class
 
-class _FakeResponse_0 extends _i1.SmartFake implements _i2.Response {
-  _FakeResponse_0(Object parent, Invocation parentInvocation)
+class _FakeUserCredential_0 extends _i1.SmartFake
+    implements _i2.UserCredential {
+  _FakeUserCredential_0(Object parent, Invocation parentInvocation)
     : super(parent, parentInvocation);
 }
 
-class _FakeStreamedResponse_1 extends _i1.SmartFake
-    implements _i2.StreamedResponse {
-  _FakeStreamedResponse_1(Object parent, Invocation parentInvocation)
-    : super(parent, parentInvocation);
-}
-
-/// A class which mocks [Client].
+/// A class which mocks [AuthService].
 ///
 /// See the documentation for Mockito's code generation for more information.
-class MockClient extends _i1.Mock implements _i2.Client {
-  MockClient() {
+class MockAuthService extends _i1.Mock implements _i3.AuthService {
+  MockAuthService() {
     _i1.throwOnMissingStub(this);
   }
 
   @override
-  _i3.Future<_i2.Response> head(Uri? url, {Map<String, String>? headers}) =>
+  _i4.Stream<_i2.User?> get authStateChanges =>
       (super.noSuchMethod(
-            Invocation.method(#head, [url], {#headers: headers}),
-            returnValue: _i3.Future<_i2.Response>.value(
-              _FakeResponse_0(
-                this,
-                Invocation.method(#head, [url], {#headers: headers}),
-              ),
-            ),
+            Invocation.getter(#authStateChanges),
+            returnValue: _i4.Stream<_i2.User?>.empty(),
           )
-          as _i3.Future<_i2.Response>);
+          as _i4.Stream<_i2.User?>);
 
   @override
-  _i3.Future<_i2.Response> get(Uri? url, {Map<String, String>? headers}) =>
+  bool isAuthenticated() =>
       (super.noSuchMethod(
-            Invocation.method(#get, [url], {#headers: headers}),
-            returnValue: _i3.Future<_i2.Response>.value(
-              _FakeResponse_0(
-                this,
-                Invocation.method(#get, [url], {#headers: headers}),
-              ),
-            ),
-          )
-          as _i3.Future<_i2.Response>);
-
-  @override
-  _i3.Future<_i2.Response> post(
-    Uri? url, {
-    Map<String, String>? headers,
-    Object? body,
-    _i4.Encoding? encoding,
-  }) =>
-      (super.noSuchMethod(
-            Invocation.method(
-              #post,
-              [url],
-              {#headers: headers, #body: body, #encoding: encoding},
-            ),
-            returnValue: _i3.Future<_i2.Response>.value(
-              _FakeResponse_0(
-                this,
-                Invocation.method(
-                  #post,
-                  [url],
-                  {#headers: headers, #body: body, #encoding: encoding},
-                ),
-              ),
-            ),
-          )
-          as _i3.Future<_i2.Response>);
-
-  @override
-  _i3.Future<_i2.Response> put(
-    Uri? url, {
-    Map<String, String>? headers,
-    Object? body,
-    _i4.Encoding? encoding,
-  }) =>
-      (super.noSuchMethod(
-            Invocation.method(
-              #put,
-              [url],
-              {#headers: headers, #body: body, #encoding: encoding},
-            ),
-            returnValue: _i3.Future<_i2.Response>.value(
-              _FakeResponse_0(
-                this,
-                Invocation.method(
-                  #put,
-                  [url],
-                  {#headers: headers, #body: body, #encoding: encoding},
-                ),
-              ),
-            ),
-          )
-          as _i3.Future<_i2.Response>);
-
-  @override
-  _i3.Future<_i2.Response> patch(
-    Uri? url, {
-    Map<String, String>? headers,
-    Object? body,
-    _i4.Encoding? encoding,
-  }) =>
-      (super.noSuchMethod(
-            Invocation.method(
-              #patch,
-              [url],
-              {#headers: headers, #body: body, #encoding: encoding},
-            ),
-            returnValue: _i3.Future<_i2.Response>.value(
-              _FakeResponse_0(
-                this,
-                Invocation.method(
-                  #patch,
-                  [url],
-                  {#headers: headers, #body: body, #encoding: encoding},
-                ),
-              ),
-            ),
-          )
-          as _i3.Future<_i2.Response>);
-
-  @override
-  _i3.Future<_i2.Response> delete(
-    Uri? url, {
-    Map<String, String>? headers,
-    Object? body,
-    _i4.Encoding? encoding,
-  }) =>
-      (super.noSuchMethod(
-            Invocation.method(
-              #delete,
-              [url],
-              {#headers: headers, #body: body, #encoding: encoding},
-            ),
-            returnValue: _i3.Future<_i2.Response>.value(
-              _FakeResponse_0(
-                this,
-                Invocation.method(
-                  #delete,
-                  [url],
-                  {#headers: headers, #body: body, #encoding: encoding},
-                ),
-              ),
-            ),
-          )
-          as _i3.Future<_i2.Response>);
-
-  @override
-  _i3.Future<String> read(Uri? url, {Map<String, String>? headers}) =>
-      (super.noSuchMethod(
-            Invocation.method(#read, [url], {#headers: headers}),
-            returnValue: _i3.Future<String>.value(
-              _i5.dummyValue<String>(
-                this,
-                Invocation.method(#read, [url], {#headers: headers}),
-              ),
-            ),
-          )
-          as _i3.Future<String>);
-
-  @override
-  _i3.Future<_i6.Uint8List> readBytes(
-    Uri? url, {
-    Map<String, String>? headers,
-  }) =>
-      (super.noSuchMethod(
-            Invocation.method(#readBytes, [url], {#headers: headers}),
-            returnValue: _i3.Future<_i6.Uint8List>.value(_i6.Uint8List(0)),
-          )
-          as _i3.Future<_i6.Uint8List>);
-
-  @override
-  _i3.Future<_i2.StreamedResponse> send(_i2.BaseRequest? request) =>
-      (super.noSuchMethod(
-            Invocation.method(#send, [request]),
-            returnValue: _i3.Future<_i2.StreamedResponse>.value(
-              _FakeStreamedResponse_1(
-                this,
-                Invocation.method(#send, [request]),
-              ),
-            ),
-          )
-          as _i3.Future<_i2.StreamedResponse>);
-
-  @override
-  void close() => super.noSuchMethod(
-    Invocation.method(#close, []),
-    returnValueForMissingStub: null,
-  );
-}
-
-/// A class which mocks [RiveAnimationControllerHelper].
-///
-/// See the documentation for Mockito's code generation for more information.
-class MockRiveAnimationControllerHelper extends _i1.Mock
-    implements _i7.RiveAnimationControllerHelper {
-  MockRiveAnimationControllerHelper() {
-    _i1.throwOnMissingStub(this);
-  }
-
-  @override
-  bool get isLookingRight =>
-      (super.noSuchMethod(
-            Invocation.getter(#isLookingRight),
+            Invocation.method(#isAuthenticated, []),
             returnValue: false,
           )
           as bool);
 
   @override
-  bool get isLookingLeft =>
-      (super.noSuchMethod(Invocation.getter(#isLookingLeft), returnValue: false)
-          as bool);
-
-  @override
-  bool get isHandsUp =>
-      (super.noSuchMethod(Invocation.getter(#isHandsUp), returnValue: false)
-          as bool);
-
-  @override
-  set isLookingRight(bool? _isLookingRight) => super.noSuchMethod(
-    Invocation.setter(#isLookingRight, _isLookingRight),
-    returnValueForMissingStub: null,
-  );
-
-  @override
-  set isLookingLeft(bool? _isLookingLeft) => super.noSuchMethod(
-    Invocation.setter(#isLookingLeft, _isLookingLeft),
-    returnValueForMissingStub: null,
-  );
-
-  @override
-  set isHandsUp(bool? _isHandsUp) => super.noSuchMethod(
-    Invocation.setter(#isHandsUp, _isHandsUp),
-    returnValueForMissingStub: null,
-  );
-
-  @override
-  void initialize(_i8.Artboard? artboard) => super.noSuchMethod(
-    Invocation.method(#initialize, [artboard]),
-    returnValueForMissingStub: null,
-  );
-
-  @override
-  void setHandsUp() => super.noSuchMethod(
-    Invocation.method(#setHandsUp, []),
-    returnValueForMissingStub: null,
-  );
-
-  @override
-  void setHandsDown() => super.noSuchMethod(
-    Invocation.method(#setHandsDown, []),
-    returnValueForMissingStub: null,
-  );
-
-  @override
-  void setLookRight() => super.noSuchMethod(
-    Invocation.method(#setLookRight, []),
-    returnValueForMissingStub: null,
-  );
-
-  @override
-  void setLookLeft() => super.noSuchMethod(
-    Invocation.method(#setLookLeft, []),
-    returnValueForMissingStub: null,
-  );
-
-  @override
-  void setIdle() => super.noSuchMethod(
-    Invocation.method(#setIdle, []),
-    returnValueForMissingStub: null,
-  );
-
-  @override
-  void resetState() => super.noSuchMethod(
-    Invocation.method(#resetState, []),
-    returnValueForMissingStub: null,
-  );
-
-  @override
-  void addController(_i8.RiveAnimationController<dynamic>? controller) =>
-      super.noSuchMethod(
-        Invocation.method(#addController, [controller]),
-        returnValueForMissingStub: null,
-      );
-
-  @override
-  void addDownLeftController() => super.noSuchMethod(
-    Invocation.method(#addDownLeftController, []),
-    returnValueForMissingStub: null,
-  );
-
-  @override
-  void addDownRightController() => super.noSuchMethod(
-    Invocation.method(#addDownRightController, []),
-    returnValueForMissingStub: null,
-  );
-
-  @override
-  void addFailController() => super.noSuchMethod(
-    Invocation.method(#addFailController, []),
-    returnValueForMissingStub: null,
-  );
-
-  @override
-  void addHandsDownController() => super.noSuchMethod(
-    Invocation.method(#addHandsDownController, []),
-    returnValueForMissingStub: null,
-  );
-
-  @override
-  void addHandsUpController() => super.noSuchMethod(
-    Invocation.method(#addHandsUpController, []),
-    returnValueForMissingStub: null,
-  );
-
-  @override
-  void addSuccessController() => super.noSuchMethod(
-    Invocation.method(#addSuccessController, []),
-    returnValueForMissingStub: null,
-  );
-
-  @override
-  _i3.Future<void> loadRiveFile(String? assetPath) =>
+  _i4.Future<void> signOut() =>
       (super.noSuchMethod(
-            Invocation.method(#loadRiveFile, [assetPath]),
-            returnValue: _i3.Future<void>.value(),
-            returnValueForMissingStub: _i3.Future<void>.value(),
+            Invocation.method(#signOut, []),
+            returnValue: _i4.Future<void>.value(),
+            returnValueForMissingStub: _i4.Future<void>.value(),
           )
-          as _i3.Future<void>);
+          as _i4.Future<void>);
 
   @override
-  void removeAllControllers() => super.noSuchMethod(
-    Invocation.method(#removeAllControllers, []),
-    returnValueForMissingStub: null,
-  );
+  _i4.Future<_i2.UserCredential> signInWithEmailAndPassword(
+    String? email,
+    String? password,
+  ) =>
+      (super.noSuchMethod(
+            Invocation.method(#signInWithEmailAndPassword, [email, password]),
+            returnValue: _i4.Future<_i2.UserCredential>.value(
+              _FakeUserCredential_0(
+                this,
+                Invocation.method(#signInWithEmailAndPassword, [
+                  email,
+                  password,
+                ]),
+              ),
+            ),
+          )
+          as _i4.Future<_i2.UserCredential>);
 
   @override
-  void dispose() => super.noSuchMethod(
-    Invocation.method(#dispose, []),
-    returnValueForMissingStub: null,
-  );
-}
+  _i4.Future<_i2.UserCredential> createUserWithEmailAndPassword(
+    String? email,
+    String? password,
+  ) =>
+      (super.noSuchMethod(
+            Invocation.method(#createUserWithEmailAndPassword, [
+              email,
+              password,
+            ]),
+            returnValue: _i4.Future<_i2.UserCredential>.value(
+              _FakeUserCredential_0(
+                this,
+                Invocation.method(#createUserWithEmailAndPassword, [
+                  email,
+                  password,
+                ]),
+              ),
+            ),
+          )
+          as _i4.Future<_i2.UserCredential>);
 
-/// A class which mocks [UserService].
-///
-/// See the documentation for Mockito's code generation for more information.
-class MockUserService extends _i1.Mock implements _i9.UserService {
-  MockUserService() {
-    _i1.throwOnMissingStub(this);
-  }
+  @override
+  _i4.Future<_i2.UserCredential> signInWithCustomToken(String? token) =>
+      (super.noSuchMethod(
+            Invocation.method(#signInWithCustomToken, [token]),
+            returnValue: _i4.Future<_i2.UserCredential>.value(
+              _FakeUserCredential_0(
+                this,
+                Invocation.method(#signInWithCustomToken, [token]),
+              ),
+            ),
+          )
+          as _i4.Future<_i2.UserCredential>);
+
+  @override
+  _i4.Future<void> updateDisplayName(String? displayName) =>
+      (super.noSuchMethod(
+            Invocation.method(#updateDisplayName, [displayName]),
+            returnValue: _i4.Future<void>.value(),
+            returnValueForMissingStub: _i4.Future<void>.value(),
+          )
+          as _i4.Future<void>);
+
+  @override
+  _i4.Future<void> resetPassword(String? email) =>
+      (super.noSuchMethod(
+            Invocation.method(#resetPassword, [email]),
+            returnValue: _i4.Future<void>.value(),
+            returnValueForMissingStub: _i4.Future<void>.value(),
+          )
+          as _i4.Future<void>);
+
+  @override
+  _i4.Future<void> sendEmailVerification() =>
+      (super.noSuchMethod(
+            Invocation.method(#sendEmailVerification, []),
+            returnValue: _i4.Future<void>.value(),
+            returnValueForMissingStub: _i4.Future<void>.value(),
+          )
+          as _i4.Future<void>);
+
+  @override
+  _i4.Future<void> updatePhotoURL(String? photoURL) =>
+      (super.noSuchMethod(
+            Invocation.method(#updatePhotoURL, [photoURL]),
+            returnValue: _i4.Future<void>.value(),
+            returnValueForMissingStub: _i4.Future<void>.value(),
+          )
+          as _i4.Future<void>);
+
+  @override
+  _i4.Future<void> updatePassword(String? newPassword) =>
+      (super.noSuchMethod(
+            Invocation.method(#updatePassword, [newPassword]),
+            returnValue: _i4.Future<void>.value(),
+            returnValueForMissingStub: _i4.Future<void>.value(),
+          )
+          as _i4.Future<void>);
+
+  @override
+  _i4.Future<_i2.UserCredential> reauthenticateWithCredential(
+    _i2.AuthCredential? credential,
+  ) =>
+      (super.noSuchMethod(
+            Invocation.method(#reauthenticateWithCredential, [credential]),
+            returnValue: _i4.Future<_i2.UserCredential>.value(
+              _FakeUserCredential_0(
+                this,
+                Invocation.method(#reauthenticateWithCredential, [credential]),
+              ),
+            ),
+          )
+          as _i4.Future<_i2.UserCredential>);
+
+  @override
+  _i4.Future<void> reloadCurrentUser() =>
+      (super.noSuchMethod(
+            Invocation.method(#reloadCurrentUser, []),
+            returnValue: _i4.Future<void>.value(),
+            returnValueForMissingStub: _i4.Future<void>.value(),
+          )
+          as _i4.Future<void>);
+
+  @override
+  _i4.Future<void> deleteCurrentUser() =>
+      (super.noSuchMethod(
+            Invocation.method(#deleteCurrentUser, []),
+            returnValue: _i4.Future<void>.value(),
+            returnValueForMissingStub: _i4.Future<void>.value(),
+          )
+          as _i4.Future<void>);
 }

@@ -1,6 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:firebase_auth/firebase_auth.dart';
-import 'dart:io';
+import 'dart:io'; // Keep for File type
 import 'package:image_picker/image_picker.dart';
 import 'package:http/http.dart' as http;
 import 'dart:typed_data';
@@ -11,10 +11,16 @@ import 'dart:convert';
 import 'services/websocket_service.dart';
 import 'services/notification_service.dart';
 import 'services/api_config.dart'; // Importar la configuración de API
+import 'services/auth_service.dart'; // Import AuthService
 import 'main.dart'; // Importamos main.dart para acceder a profileUpdateStreamController
 
 class EditProfilePage extends StatefulWidget {
-  const EditProfilePage({super.key});
+  final AuthService?
+  authService; // Add AuthService parameter for dependency injection
+  final WebSocketService?
+  webSocketService; // Add WebSocketService parameter for testing
+
+  const EditProfilePage({super.key, this.authService, this.webSocketService});
 
   @override
   State<EditProfilePage> createState() => EditProfilePageState();
@@ -42,12 +48,21 @@ class EditProfilePageState extends State<EditProfilePage> {
   StreamSubscription<Map<String, dynamic>>?
   _globalUpdateSubscription; // Para eventos globales
 
+  // Auth service instance
+  late final AuthService _authService;
+
   final List<String> _languages = ['Castellano', 'Catalan', 'English'];
+
+  // Notification service instance
+  final NotificationService _notificationService = NotificationService();
 
   @override
   void initState() {
     super.initState();
-    final user = FirebaseAuth.instance.currentUser;
+    // Initialize the AuthService with the provided one or create a new one
+    _authService = widget.authService ?? AuthService();
+
+    final user = _authService.getCurrentUser();
     if (user != null) {
       _emailController.text = user.email ?? '';
       // Intentar cargar los datos actuales del usuario
@@ -55,9 +70,7 @@ class EditProfilePageState extends State<EditProfilePage> {
     }
 
     // Añadir listener para los cambios de autenticación
-    _authStateSubscription = FirebaseAuth.instance.authStateChanges().listen((
-      User? user,
-    ) {
+    _authStateSubscription = _authService.authStateChanges.listen((User? user) {
       // Added mounted check
       if (user == null && mounted) {
         // Usuario ha cerrado sesión o ha cambiado su autenticación
@@ -92,11 +105,14 @@ class EditProfilePageState extends State<EditProfilePage> {
 
   // Initialize WebSocket service and subscribe to updates
   void _initWebSocketService() {
+    // Use injected webSocketService or create a new one
+    final webSocketService = widget.webSocketService ?? WebSocketService();
+
     // Connect to WebSocket for real-time updates
-    WebSocketService().connect();
+    webSocketService.connect();
 
     // Subscribe to profile update events
-    _profileUpdateSubscription = WebSocketService().profileUpdates.listen((
+    _profileUpdateSubscription = webSocketService.profileUpdates.listen((
       message,
     ) {
       try {
@@ -106,14 +122,13 @@ class EditProfilePageState extends State<EditProfilePage> {
         // Check if this is a profile update notification
         if (data['type'] == 'PROFILE_UPDATE') {
           // Check if this update is relevant for the current user
-          final currentUser = FirebaseAuth.instance.currentUser;
+          final currentUser = _authService.getCurrentUser();
           if (currentUser != null &&
               (data['username'] == currentUser.displayName ||
                   data['email'] == currentUser.email)) {
             // Reload user data from Firebase
             currentUser.reload().then((_) {
               // Then reload the updated user data from backend
-              // Added mounted check
               if (mounted) {
                 _loadUserData();
               }
@@ -127,8 +142,8 @@ class EditProfilePageState extends State<EditProfilePage> {
   }
 
   Future<void> _loadUserData() async {
-    // Obtener usuario actual de Firebase
-    final user = FirebaseAuth.instance.currentUser;
+    // Obtener usuario actual a través del servicio de autenticación
+    final user = _authService.getCurrentUser();
     if (user != null) {
       // El displayName en Firebase contiene el username
       final username = user.displayName ?? '';
@@ -174,7 +189,7 @@ class EditProfilePageState extends State<EditProfilePage> {
           _usernameController.text = username;
         });
         // Optionally show an error message
-        // NotificationService.showError(context, 'Error al cargar datos del perfil.');
+        // _notificationService.showError(context, 'Error al cargar datos del perfil.');
       }
     }
   }
@@ -198,7 +213,13 @@ class EditProfilePageState extends State<EditProfilePage> {
 
   Future<void> _pickImage() async {
     final picker = ImagePicker();
-    final pickedFile = await picker.pickImage(source: ImageSource.gallery);
+    // Configurar para seleccionar una sola imagen con opciones de calidad y tamaño
+    final pickedFile = await picker.pickImage(
+      source: ImageSource.gallery,
+      imageQuality: 85, // Calidad de imagen (0-100)
+      maxHeight: 800, // Limitar altura máxima
+      maxWidth: 800, // Limitar anchura máxima
+    );
 
     if (pickedFile != null && mounted) {
       if (kIsWeb) {
@@ -214,98 +235,14 @@ class EditProfilePageState extends State<EditProfilePage> {
     }
   }
 
-  Future<String?> _uploadImage() async {
-    String? imageUrl;
-    http.MultipartRequest request;
-
-    // Store current BuildContext before async operations
-    final currentContext = context;
-
-    if (kIsWeb) {
-      if (_webImage == null) return null;
-      request = http.MultipartRequest(
-        'POST',
-        Uri.parse(ApiConfig().buildUrl('api/uploadImage')),
-      );
-      request.files.add(
-        http.MultipartFile.fromBytes(
-          'image',
-          _webImage!,
-          filename: 'web_image_${DateTime.now().millisecondsSinceEpoch}.jpg',
-        ),
-      );
-    } else {
-      if (_selectedImage == null) return null;
-      request = http.MultipartRequest(
-        'POST',
-        Uri.parse(ApiConfig().buildUrl('api/uploadImage')),
-      );
-      request.files.add(
-        await http.MultipartFile.fromPath('image', _selectedImage!.path),
-      );
-    }
-
-    try {
-      final response = await request.send();
-      // Verify that context is still valid after await
-      if (!currentContext.mounted) return null;
-
-      if (response.statusCode == 200) {
-        // Parse the JSON response to extract the actual URL
-        final responseString = await response.stream.bytesToString();
-        // Verify that context is still valid after await
-        if (!currentContext.mounted) return null;
-
-        try {
-          final jsonResponse = json.decode(responseString);
-          if (jsonResponse.containsKey('imageUrl')) {
-            // Get the base URL from ApiConfig
-            final baseUrl = ApiConfig().buildUrl('').replaceAll('/api/', '');
-            // Combine base URL with the relative path
-            imageUrl = baseUrl + jsonResponse['imageUrl'];
-          } else {
-            // Verify context is mounted before using it
-            if (!currentContext.mounted) return null;
-            NotificationService.showError(
-              currentContext,
-              'Error: La respuesta del servidor no contiene una URL de imagen',
-            );
-          }
-        } catch (e) {
-          // Verify context is mounted before using it
-          if (!currentContext.mounted) return null;
-          NotificationService.showError(
-            currentContext,
-            'Error al procesar la respuesta del servidor: ${e.toString()}',
-          );
-        }
-      } else {
-        // Verify context is mounted before using it
-        if (!currentContext.mounted) return null;
-        NotificationService.showError(
-          currentContext,
-          'Error al subir la imagen: ${response.statusCode}',
-        );
-      }
-    } catch (e) {
-      // Verify context is mounted before using it
-      if (!currentContext.mounted) return null;
-      NotificationService.showError(
-        currentContext,
-        'Error de red al subir la imagen: ${_getFriendlyErrorMessage(e.toString())}',
-      );
-    }
-    return imageUrl;
-  }
-
   // --- Refactored _saveProfile ---
 
   void _saveProfile() async {
     if (!_validateInputFields()) return;
 
-    final currentUser = FirebaseAuth.instance.currentUser;
+    final currentUser = _authService.getCurrentUser();
     if (currentUser == null) {
-      NotificationService.showError(
+      _notificationService.showError(
         context,
         'No hay ningún usuario con sesión iniciada.',
       );
@@ -332,63 +269,69 @@ class EditProfilePageState extends State<EditProfilePage> {
     // Added mounted check
     if (!mounted) return;
 
-    // 3. Upload Image if selected
-    String? imageUrl = await _uploadImageIfNeeded();
-    // Added mounted check after potential async gap
-    if (!mounted) return;
-
-    // 4. Prepare Update Data
-    final updateData = _prepareUpdateData(
+    // 3. Prepare Update Data, incluyendo la imagen directamente en la petición
+    final updateData = await _prepareUpdateDataWithImage(
       currentEmail,
       newEmail,
       currentUsername,
       newUsername,
-      imageUrl,
       password,
     );
 
-    // 5. Perform Backend Update
+    if (!mounted) return;
+
+    // 4. Perform Backend Update
     await _performBackendUpdate(
       updateData,
       currentEmail,
       newEmail,
       currentUsername,
       newUsername,
-      imageUrl,
+      updateData['photoURL'] as String?,
       emailChanged,
     );
 
-    // 6. Hide Loading Indicator (regardless of success/failure)
+    // 5. Hide Loading Indicator (regardless of success/failure)
     if (mounted) {
       ScaffoldMessenger.of(context).hideCurrentSnackBar();
     }
   }
 
+  // Helper to display error messages in dialogs
+  void _showErrorDialog(String message) {
+    if (!mounted) return;
+    showDialog(
+      context: context,
+      builder: (dialogContext) {
+        return AlertDialog(
+          content: Text(message),
+          actions: [
+            TextButton(
+              onPressed: () => Navigator.of(dialogContext).pop(),
+              child: const Text('OK'),
+            ),
+          ],
+        );
+      },
+    );
+  }
+
   bool _validateInputFields() {
     if (_nameController.text.trim().isEmpty) {
-      NotificationService.showError(context, 'El nombre no puede estar vacío.');
+      _showErrorDialog('El nombre no puede estar vacío.');
       return false;
     }
     if (_usernameController.text.trim().isEmpty) {
-      NotificationService.showError(
-        context,
-        'El nombre de usuario no puede estar vacío.',
-      );
+      _showErrorDialog('El nombre de usuario no puede estar vacío.');
       return false;
     }
     if (_emailController.text.trim().isEmpty) {
-      NotificationService.showError(
-        context,
-        'El correo electrónico no puede estar vacío.',
-      );
+      _showErrorDialog('El correo electrónico no puede estar vacío.');
       return false;
     }
     final emailRegex = RegExp(r'^[\w-\.]+@([\w-]+\.)+[\w-]{2,4}$');
     if (!emailRegex.hasMatch(_emailController.text.trim())) {
-      NotificationService.showError(
-        context,
-        'Por favor, introduce un correo electrónico válido.',
-      );
+      _showErrorDialog('Por favor, introduce un correo electrónico válido.');
       return false;
     }
     return true;
@@ -399,7 +342,7 @@ class EditProfilePageState extends State<EditProfilePage> {
     // Added mounted check
     if (!mounted) return null;
     if (password == null || password.isEmpty) {
-      NotificationService.showInfo(context, 'Cambio de perfil cancelado.');
+      _notificationService.showInfo(context, 'Cambio de perfil cancelado.');
       return null;
     }
     final reauthSuccess = await _reauthenticateUser(password);
@@ -423,27 +366,21 @@ class EditProfilePageState extends State<EditProfilePage> {
     );
   }
 
-  Future<String?> _uploadImageIfNeeded() async {
-    if (_selectedImage != null || _webImage != null) {
-      return await _uploadImage();
-    }
-    return null;
-  }
-
-  Map<String, dynamic> _prepareUpdateData(
+  Future<Map<String, dynamic>> _prepareUpdateDataWithImage(
     String currentEmail,
     String newEmail,
     String currentUsername,
     String newUsername,
-    String? imageUrl,
     String? password,
-  ) {
-    final clientId = WebSocketService().clientId;
+  ) async {
+    // Usar el webSocketService inyectado si está disponible
+    final webSocketService = widget.webSocketService ?? WebSocketService();
+
     final updateData = {
       'currentEmail': currentEmail,
-      'clientId': clientId,
-      'username': newUsername,
-      'oldUsername': currentUsername,
+      'clientId': webSocketService.clientId,
+      'username':
+          currentUsername, // Solo enviar el username actual para identificar al usuario
       'nom': _nameController.text.trim(),
       'idioma': _selectedLanguage,
     };
@@ -454,9 +391,32 @@ class EditProfilePageState extends State<EditProfilePage> {
         updateData['password'] = password; // Password for re-authentication
       }
     }
-    if (imageUrl != null) {
-      updateData['photoURL'] = imageUrl;
+
+    // Incluir la imagen si se ha seleccionado una
+    if (_selectedImage != null || _webImage != null) {
+      // Convertir la imagen a base64 para incluirla en la petición JSON
+      String base64Image;
+
+      if (kIsWeb && _webImage != null) {
+        // Para web, ya tenemos los bytes
+        base64Image = base64Encode(_webImage!);
+      } else if (_selectedImage != null) {
+        // Para móvil, leemos los bytes del archivo
+        List<int> imageBytes = await _selectedImage!.readAsBytes();
+        base64Image = base64Encode(imageBytes);
+      } else {
+        return updateData; // No hay imagen para incluir
+      }
+
+      String fileName =
+          kIsWeb
+              ? 'web_image_${DateTime.now().millisecondsSinceEpoch}.jpg'
+              : _selectedImage!.path.split('/').last;
+
+      updateData['imageData'] = base64Image;
+      updateData['fileName'] = fileName;
     }
+
     return updateData;
   }
 
@@ -466,11 +426,13 @@ class EditProfilePageState extends State<EditProfilePage> {
     String newEmail,
     String currentUsername,
     String newUsername,
-    String? imageUrl,
+    String?
+    imageUrl, // This imageUrl is from the potential separate upload, now unused here
     bool emailChanged,
   ) async {
     final currentUser =
-        FirebaseAuth.instance.currentUser; // Re-get current user just in case
+        _authService
+            .getCurrentUser(); // Use _authService instead of direct Firebase call
     if (currentUser == null) {
       return; // Should not happen if initial check passed
     }
@@ -494,6 +456,11 @@ class EditProfilePageState extends State<EditProfilePage> {
         final String message =
             responseData['message'] ?? 'Perfil actualizado correctamente';
         final String? customToken = responseData['customToken'] as String?;
+        // Obtener la URL de la imagen desde la respuesta si se subió una imagen
+        final String? imageUrlFromResponse =
+            responseData['imageUrl'] as String?;
+        // Use the URL from the response if available
+        final String? photoURL = imageUrlFromResponse;
 
         if (success) {
           // Pass necessary variables to _handleSuccessfulUpdate
@@ -502,14 +469,14 @@ class EditProfilePageState extends State<EditProfilePage> {
             message,
             customToken,
             emailChanged,
-            imageUrl,
+            photoURL, // Usar la URL de la imagen devuelta por el servidor
             newUsername,
             currentUsername,
             updateData,
             newEmail,
           );
         } else {
-          NotificationService.showError(
+          _notificationService.showError(
             context,
             responseData['error'] ?? 'Error al actualizar el perfil',
           );
@@ -526,7 +493,7 @@ class EditProfilePageState extends State<EditProfilePage> {
           errorMessage =
               'Error de comunicación con el servidor (${response.statusCode})';
         }
-        NotificationService.showError(context, errorMessage);
+        _notificationService.showError(context, errorMessage);
       }
     } catch (e) {
       // Added mounted check
@@ -534,7 +501,7 @@ class EditProfilePageState extends State<EditProfilePage> {
       ScaffoldMessenger.of(
         context,
       ).hideCurrentSnackBar(); // Ensure hidden on exception
-      NotificationService.showError(
+      _notificationService.showError(
         context,
         _getFriendlyErrorMessage(e.toString()),
       );
@@ -547,7 +514,7 @@ class EditProfilePageState extends State<EditProfilePage> {
     String message,
     String? customToken,
     bool emailChanged,
-    String? imageUrl,
+    String? imageUrl, // This is the URL from the backend response
     String newUsername,
     String currentUsername,
     Map<String, dynamic> updateData,
@@ -595,30 +562,31 @@ class EditProfilePageState extends State<EditProfilePage> {
   Future<void> _handleEmailChangeWithToken(
     String message,
     String customToken,
-    String? imageUrl,
+    String? imageUrl, // This is the URL from the backend response
     String newUsername,
     String currentUsername,
   ) async {
     try {
-      await FirebaseAuth.instance.signInWithCustomToken(customToken);
+      await _authService.signInWithCustomToken(customToken);
       // Added mounted check
       if (!mounted) return;
 
-      final updatedUser = FirebaseAuth.instance.currentUser;
+      final updatedUser = _authService.getCurrentUser();
       if (updatedUser != null) {
+        // Solo actualizar la foto de perfil si se proporciona una URL de imagen
         if (imageUrl != null) await updatedUser.updatePhotoURL(imageUrl);
-        if (newUsername != currentUsername) {
-          await updatedUser.updateDisplayName(newUsername);
-        }
+
+        // Ya no actualizamos el nombre de usuario
+        // Se ha eliminado: await updatedUser.updateDisplayName(newUsername);
       }
       // Added mounted check
       if (!mounted) return;
-      NotificationService.showSuccess(context, message);
+      _notificationService.showSuccess(context, message);
       // _loadUserData(); // Moved to the end of _handleSuccessfulUpdate
     } catch (e) {
       // Added mounted check
       if (!mounted) return;
-      NotificationService.showInfo(
+      _notificationService.showInfo(
         context,
         '$message\nPero hubo un problema con tu sesión. Puede que tengas que iniciar sesión nuevamente.',
       );
@@ -626,7 +594,7 @@ class EditProfilePageState extends State<EditProfilePage> {
   }
 
   void _handleEmailChangeWithoutToken(String message) {
-    NotificationService.showInfo(
+    _notificationService.showInfo(
       context,
       '$message\nPor favor, inicia sesión nuevamente con tu nuevo correo.',
     );
@@ -636,27 +604,30 @@ class EditProfilePageState extends State<EditProfilePage> {
   Future<void> _handleProfileUpdateWithoutEmailChange(
     User currentUser,
     String message,
-    String? imageUrl,
+    String? imageUrl, // This is the URL from the backend response
     String newUsername,
     String currentUsername,
   ) async {
     try {
-      if (imageUrl != null) await currentUser.updatePhotoURL(imageUrl);
-      if (newUsername != currentUsername) {
-        await currentUser.updateDisplayName(newUsername);
+      // Update Firebase profile picture if a new image URL was provided by the backend
+      if (imageUrl != null && imageUrl.isNotEmpty) {
+        // Assume imageUrl from backend is the correct one to use
+        await currentUser.updatePhotoURL(imageUrl);
       }
+
+      // Ya no actualizamos el username en Firebase Auth
+      // Se ha eliminado: await currentUser.updateDisplayName(newUsername);
+
       // Added mounted check
       if (!mounted) return;
-      NotificationService.showSuccess(context, message);
-      // _loadUserData(); // Moved to the end of _handleSuccessfulUpdate
+      _notificationService.showSuccess(context, message);
     } catch (e) {
       // Added mounted check
       if (!mounted) return;
-      NotificationService.showInfo(
+      _notificationService.showInfo(
         context,
         '$message\nAlgunos cambios podrían no verse reflejados inmediatamente.',
       );
-      // _loadUserData(); // Moved to the end of _handleSuccessfulUpdate
     }
   }
 
@@ -668,19 +639,31 @@ class EditProfilePageState extends State<EditProfilePage> {
     required bool emailChanged,
   }) async {
     try {
-      await http.post(
-        Uri.parse(ApiConfig().buildUrl('api/notifications/profile-updated')),
-        headers: {'Content-Type': 'application/json'},
-        body: json.encode({
-          'username':
-              currentUsername, // Send original username for identification
-          'newUsername': newUsername,
-          'email':
-              currentEmail, // Send the final email associated with the account
-          'updatedFields': updateData.keys.toList(),
-          'clientId': WebSocketService().clientId, // Exclude current device
-        }),
+      // Usar el webSocketService inyectado si está disponible
+      final webSocketService = widget.webSocketService ?? WebSocketService();
+
+      // Filtrar 'username' y 'oldUsername' de updatedFields para no notificar cambios de username
+      List<String> updatedFields = updateData.keys.toList();
+      updatedFields.removeWhere(
+        (field) => field == 'username' || field == 'oldUsername',
       );
+
+      // Solo enviar notificación si hay campos actualizados o si cambió el email
+      if (updatedFields.isNotEmpty || emailChanged) {
+        await http.post(
+          Uri.parse(ApiConfig().buildUrl('api/notifications/profile-updated')),
+          headers: {'Content-Type': 'application/json'},
+          body: json.encode({
+            'username':
+                currentUsername, // Solo usar el username actual para identificar al usuario
+            // Ya no enviamos 'newUsername' para evitar notificaciones de cambio de username
+            'email': currentEmail,
+            'updatedFields':
+                updatedFields, // Lista filtrada sin 'username' ni 'oldUsername'
+            'clientId': webSocketService.clientId, // Exclude current device
+          }),
+        );
+      }
     } catch (e) {
       // Ignore errors here, main update was successful
     }
@@ -736,12 +719,12 @@ class EditProfilePageState extends State<EditProfilePage> {
           errorMessage = 'Error en la autenticación: ${e.message}';
           break;
       }
-      NotificationService.showError(context, errorMessage);
+      _notificationService.showError(context, errorMessage);
       return false;
     } catch (e) {
       // Added mounted check
       if (!mounted) return false;
-      NotificationService.showError(
+      _notificationService.showError(
         context,
         _getFriendlyErrorMessage(e.toString()),
       );
@@ -828,39 +811,27 @@ class EditProfilePageState extends State<EditProfilePage> {
     // Added mounted check at the beginning
     if (!mounted) return;
 
-    // ... (validations for passwords)
+    // Validations for passwords
     if (_currentPasswordController.text.isEmpty) {
-      NotificationService.showError(
-        context,
-        'Debes introducir tu contraseña actual',
-      );
+      _showErrorDialog('Debes introducir tu contraseña actual');
       return;
     }
     if (_newPasswordController.text.isEmpty) {
-      NotificationService.showError(
-        context,
-        'La nueva contraseña no puede estar vacía',
-      );
+      _showErrorDialog('La nueva contraseña no puede estar vacía');
       return;
     }
     if (_newPasswordController.text.length < 8) {
-      NotificationService.showError(
-        context,
-        'La nueva contraseña debe tener al menos 8 caracteres',
-      );
+      _showErrorDialog('La nueva contraseña debe tener al menos 8 caracteres');
       return;
     }
     if (_newPasswordController.text != _confirmPasswordController.text) {
-      NotificationService.showError(context, 'Las contraseñas no coinciden');
+      _showErrorDialog('Las contraseñas no coinciden');
       return;
     }
 
-    final user = FirebaseAuth.instance.currentUser;
+    final user = _authService.getCurrentUser();
     if (user == null || user.email == null) {
-      NotificationService.showError(
-        context,
-        'No hay usuario autenticado o falta el email.',
-      );
+      _showErrorDialog('No hay usuario autenticado o falta el email.');
       return;
     }
 
@@ -897,7 +868,7 @@ class EditProfilePageState extends State<EditProfilePage> {
       _currentPasswordController.clear();
       _newPasswordController.clear();
       _confirmPasswordController.clear();
-      NotificationService.showSuccess(
+      _notificationService.showSuccess(
         context,
         'Contraseña actualizada correctamente',
       );
@@ -930,12 +901,12 @@ class EditProfilePageState extends State<EditProfilePage> {
         default:
           errorMessage = 'Error al cambiar la contraseña: ${e.message}';
       }
-      NotificationService.showError(context, errorMessage);
+      _notificationService.showError(context, errorMessage);
     } catch (e) {
       // Added mounted check
       if (!mounted) return;
       ScaffoldMessenger.of(context).hideCurrentSnackBar();
-      NotificationService.showError(
+      _notificationService.showError(
         context,
         'Error al cambiar la contraseña: ${_getFriendlyErrorMessage(e.toString())}',
       );
@@ -1015,9 +986,35 @@ class EditProfilePageState extends State<EditProfilePage> {
     return errorMessage; // Return original if it's somewhat readable
   }
 
+  // Método para construir la imagen de perfil con mejor manejo para tests
+  Widget _buildProfileImage(User? user) {
+    // Si estamos en un test, user.photoURL podría ser null o una cadena vacía
+    if (user?.photoURL == null || user!.photoURL!.isEmpty) {
+      return CircleAvatar(
+        radius: 50,
+        backgroundColor: Colors.grey[300],
+        child: Icon(Icons.person, size: 50, color: Colors.grey[700]),
+      );
+    } else {
+      // Para uso normal, intentar cargar la imagen de red
+      return CircleAvatar(
+        radius: 50,
+        backgroundImage: NetworkImage(user.photoURL!),
+        // Fallback icon en caso de error de carga
+        onBackgroundImageError: (_, __) {
+          // Silenciosamente mostrar un icono en caso de error
+          return;
+        },
+        child:
+            user.photoURL == null ? const Icon(Icons.person, size: 50) : null,
+      );
+    }
+  }
+
   @override
   Widget build(BuildContext context) {
-    // ... (build method remains largely the same, ensure const where possible)
+    final currentUser = _authService.getCurrentUser();
+
     return Scaffold(
       appBar: AppBar(title: const Text('Edit Profile')),
       body: SingleChildScrollView(
@@ -1025,49 +1022,78 @@ class EditProfilePageState extends State<EditProfilePage> {
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.stretch,
           children: [
-            // ... (Image preview)
-            if (_selectedImage != null && !kIsWeb)
-              Image.file(
-                _selectedImage!,
-                height: 100,
-                width: 100,
-                fit: BoxFit.cover,
+            // Image preview section
+            Center(
+              // Center the image preview and button
+              child: Column(
+                children: [
+                  const SizedBox(height: 20), // Add some top spacing
+                  // Display existing profile picture if available and no new one selected
+                  if (_selectedImage == null && _webImage == null)
+                    _buildProfileImage(currentUser),
+                  // Display selected image preview
+                  if (_selectedImage != null && !kIsWeb)
+                    ClipOval(
+                      // Make preview circular
+                      child: Image.file(
+                        _selectedImage!,
+                        height: 100,
+                        width: 100,
+                        fit: BoxFit.cover,
+                      ),
+                    ),
+                  if (_webImage != null && kIsWeb)
+                    ClipOval(
+                      // Make preview circular
+                      child: Image.memory(
+                        _webImage!,
+                        height: 100,
+                        width: 100,
+                        fit: BoxFit.cover,
+                      ),
+                    ),
+                  const SizedBox(height: 10),
+                  TextButton.icon(
+                    // Use icon button for better UX
+                    onPressed: _pickImage,
+                    icon: const Icon(Icons.camera_alt),
+                    label: const Text('Cambiar Foto de Perfil'),
+                  ),
+                ],
               ),
-            if (_webImage != null && kIsWeb)
-              Image.memory(
-                _webImage!,
-                height: 100,
-                width: 100,
-                fit: BoxFit.cover,
-              ),
-            TextButton(
-              onPressed: _pickImage,
-              child: const Text('Select Profile Image'),
             ),
-            const SizedBox(height: 16), // Added space before first field
+            const SizedBox(height: 24), // Increased space after image section
             TextField(
               controller: _nameController,
               decoration: const InputDecoration(
-                labelText: 'Name',
+                labelText: 'Nombre', // Translate labels
                 border: OutlineInputBorder(),
+                prefixIcon: Icon(Icons.person_outline), // Add icon
               ),
             ),
             const SizedBox(height: 16),
             TextField(
               controller: _usernameController,
+              enabled: false, // Deshabilitar la edición del username
               decoration: const InputDecoration(
-                labelText: 'Username',
+                labelText: 'Nombre de Usuario', // Translate labels
                 border: OutlineInputBorder(),
+                prefixIcon: Icon(Icons.account_circle_outlined), // Add icon
+                hintText:
+                    'No se puede modificar', // Agregar indicación de que no se puede modificar
+                helperText:
+                    'El nombre de usuario no se puede modificar', // Ayuda adicional
               ),
             ),
             const SizedBox(height: 16),
             TextField(
               controller: _emailController,
               decoration: const InputDecoration(
-                labelText: 'Email',
+                labelText: 'Correo Electrónico', // Translate labels
                 border: OutlineInputBorder(),
+                prefixIcon: Icon(Icons.email_outlined), // Add icon
               ),
-              keyboardType: TextInputType.emailAddress, // Added keyboard type
+              keyboardType: TextInputType.emailAddress,
             ),
             const SizedBox(height: 16),
             DropdownButtonFormField<String>(
@@ -1085,14 +1111,22 @@ class EditProfilePageState extends State<EditProfilePage> {
                 });
               },
               decoration: const InputDecoration(
-                labelText: 'Language',
+                labelText: 'Idioma', // Translate labels
                 border: OutlineInputBorder(),
+                prefixIcon: Icon(Icons.language), // Add icon
               ),
             ),
             const SizedBox(height: 32),
-            ElevatedButton(
+            ElevatedButton.icon(
+              // Add icon to save button
               onPressed: _saveProfile,
-              child: const Text('Save Changes'),
+              icon: const Icon(Icons.save),
+              label: const Text('Guardar Cambios'),
+              style: ElevatedButton.styleFrom(
+                padding: const EdgeInsets.symmetric(
+                  vertical: 12,
+                ), // Adjust padding
+              ),
             ),
 
             // Sección de cambio de contraseña
@@ -1103,6 +1137,7 @@ class EditProfilePageState extends State<EditProfilePage> {
               child: Text(
                 'Cambiar Contraseña',
                 style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold),
+                textAlign: TextAlign.center, // Center title
               ),
             ),
 
@@ -1113,6 +1148,7 @@ class EditProfilePageState extends State<EditProfilePage> {
               decoration: InputDecoration(
                 labelText: 'Contraseña Actual',
                 border: const OutlineInputBorder(),
+                prefixIcon: const Icon(Icons.lock_outline), // Add icon
                 suffixIcon: IconButton(
                   icon: Icon(
                     _isCurrentPasswordVisible
@@ -1136,7 +1172,8 @@ class EditProfilePageState extends State<EditProfilePage> {
               decoration: InputDecoration(
                 labelText: 'Nueva Contraseña',
                 border: const OutlineInputBorder(),
-                helperText: 'Mínimo 8 caracteres', // Added helper text
+                prefixIcon: const Icon(Icons.lock_outline), // Add icon
+                helperText: 'Mínimo 8 caracteres',
                 suffixIcon: IconButton(
                   icon: Icon(
                     _isNewPasswordVisible
@@ -1160,6 +1197,7 @@ class EditProfilePageState extends State<EditProfilePage> {
               decoration: InputDecoration(
                 labelText: 'Confirmar Nueva Contraseña',
                 border: const OutlineInputBorder(),
+                prefixIcon: const Icon(Icons.lock_outline), // Add icon
                 suffixIcon: IconButton(
                   icon: Icon(
                     _isConfirmPasswordVisible
@@ -1176,15 +1214,20 @@ class EditProfilePageState extends State<EditProfilePage> {
             ),
             const SizedBox(height: 24),
 
-            ElevatedButton(
+            ElevatedButton.icon(
+              // Add icon to change password button
               onPressed: _changePassword,
+              icon: const Icon(Icons.sync_lock),
+              label: const Text('Actualizar Contraseña'),
               style: ElevatedButton.styleFrom(
                 backgroundColor: Colors.blue, // Consider using Theme colors
                 foregroundColor: Colors.white,
+                padding: const EdgeInsets.symmetric(
+                  vertical: 12,
+                ), // Adjust padding
               ),
-              child: const Text('Actualizar Contraseña'),
             ),
-            const SizedBox(height: 20), // Added space at the bottom
+            const SizedBox(height: 40), // Increased space at the bottom
           ],
         ),
       ),

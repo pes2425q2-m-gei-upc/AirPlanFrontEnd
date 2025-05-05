@@ -2,9 +2,14 @@
 import 'package:flutter/material.dart';
 import 'package:airplan/user_page.dart';
 import 'services/websocket_service.dart';
+import 'services/auth_service.dart'; // Import AuthService
 
 class AdminPage extends StatefulWidget {
-  const AdminPage({super.key});
+  // Add support for dependency injection
+  final WebSocketService? webSocketService;
+  final AuthService? authService;
+
+  const AdminPage({super.key, this.webSocketService, this.authService});
 
   @override
   AdminPageState createState() => AdminPageState();
@@ -12,6 +17,8 @@ class AdminPage extends StatefulWidget {
 
 class AdminPageState extends State<AdminPage> {
   int _selectedIndex = 0;
+  late final WebSocketService _webSocketService;
+  late final AuthService _authService;
 
   // Títulos para la AppBar según la pestaña seleccionada
   static final List<String> _appBarTitles = [
@@ -26,10 +33,18 @@ class AdminPageState extends State<AdminPage> {
   }
 
   @override
+  void initState() {
+    super.initState();
+    // Initialize services with injected or default instances
+    _webSocketService = widget.webSocketService ?? WebSocketService();
+    _authService = widget.authService ?? AuthService();
+  }
+
+  @override
   Widget build(BuildContext context) {
     // Asegurar que WebSocket esté conectado
-    if (!WebSocketService().isConnected) {
-      WebSocketService().connect();
+    if (!_webSocketService.isConnected) {
+      _webSocketService.connect();
     }
 
     return Scaffold(
@@ -38,7 +53,10 @@ class AdminPageState extends State<AdminPage> {
         index: _selectedIndex,
         children: [
           // Pestaña 1: Perfil de usuario (usando UserProfileContent en lugar del Scaffold completo)
-          UserProfileContent(),
+          UserProfileContent(
+            authService: _authService,
+            webSocketService: _webSocketService,
+          ),
 
           // Pestaña 2: Panel de administración
           const Center(
@@ -71,10 +89,21 @@ class AdminPageState extends State<AdminPage> {
 
 // Clase que contiene solo el contenido de UserPage sin el Scaffold
 class UserProfileContent extends StatelessWidget {
-  const UserProfileContent({super.key});
+  final AuthService? authService;
+  final WebSocketService? webSocketService;
+
+  const UserProfileContent({
+    super.key,
+    this.authService,
+    this.webSocketService,
+  });
 
   @override
   Widget build(BuildContext context) {
-    return const UserPage(isEmbedded: true);
+    return UserPage(
+      isEmbedded: true,
+      authService: authService,
+      webSocketService: webSocketService,
+    );
   }
 }

@@ -1,11 +1,11 @@
 // solicituds_service.dart
 import 'dart:convert';
+import 'package:airplan/services/api_config.dart';
 import 'package:http/http.dart' as http;
 
 class SolicitudsService {
   Future<void> sendSolicitud(int activityId, String requester, String host) async {
-    //final url = Uri.parse('http://nattech.fib.upc.edu:40350/api/solicituds/$host/$requester/$activityId');
-    final url = Uri.parse('http://127.0.0.1:8080/api/solicituds/$host/$requester/$activityId');
+    final url = Uri.parse(ApiConfig().buildUrl('api/solicituds/$host/$requester/$activityId'));
 
     final response = await http.post(
       url,
@@ -20,8 +20,7 @@ class SolicitudsService {
   }
 
   Future<List<Map<String, dynamic>>> fetchUserRequests(String username) async {
-    //final url = Uri.parse('http://nattech.fib.upc.edu:40350/api/solicituds/$username');
-    final url = Uri.parse('http://127.0.0.1:8080/api/solicituds/$username');
+    final url = Uri.parse(ApiConfig().buildUrl('api/solicituds/$username'));
 
     final response = await http.get(url);
 
@@ -34,8 +33,7 @@ class SolicitudsService {
   }
 
   Future<bool> jaExisteixSolicitud(int activityId, String requester, String host) async {
-    //final url = Uri.parse('http://nattech.fib.upc.edu:40350/api/solicituds/$host/$requester/$activityId');
-    final url = Uri.parse('http://127.0.0.1:8080/api/solicituds/$host/$requester/$activityId');
+    final url = Uri.parse(ApiConfig().buildUrl('api/solicituds/$host/$requester/$activityId'));
 
     final response = await http.get(url);
 
@@ -48,8 +46,7 @@ class SolicitudsService {
   }
 
   Future<void> cancelarSolicitud (int activtyId, String requester) async {
-    //final url = Uri.parse('http://nattech.fib.upc.edu:40350/api/solicituds/$requester/$activtyId');
-    final url = Uri.parse('http://127.0.0.1:8080/api/solicituds/$requester/$activtyId');
+    final url = Uri.parse(ApiConfig().buildUrl('api/solicituds/$requester/$activtyId'));
 
     final response = await http.delete(url);
 
