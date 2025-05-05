@@ -43,15 +43,15 @@ class MapPageState extends State<MapPage> {
   bool loadingActivities = false;
   Map<int, TransitRoute> savedRoutes = {};
   MapEntry<int,TransitRoute> currentRoute = MapEntry(0, TransitRoute(
-    fullRoute: [],
-    steps: [],
-    duration: 0,
-    distance: 0,
-    departure: DateTime.now(),
-    arrival: DateTime.now(),
-    origin: LatLng(0, 0),
-    destination: LatLng(0, 0),
-    option: 0
+      fullRoute: [],
+      steps: [],
+      duration: 0,
+      distance: 0,
+      departure: DateTime.now(),
+      arrival: DateTime.now(),
+      origin: LatLng(0, 0),
+      destination: LatLng(0, 0),
+      option: 0
   ));
   bool isNavigating = false;
   StreamSubscription<Position>? _positionStreamSubscription;
@@ -300,7 +300,7 @@ class MapPageState extends State<MapPage> {
         ...markers.where((m) => m.key == const Key('user_location')),
         // Saved locations markers
         ...savedLocations.entries.map(
-          (entry) => Marker(
+              (entry) => Marker(
             width: 80.0,
             height: 80.0,
             point: entry.key,
@@ -580,11 +580,11 @@ class MapPageState extends State<MapPage> {
                                     child: GestureDetector(
                                       onTap: () => _showSavedLocationDetails(entry.key, entry.value,
                                       ),child: const Icon(
-                                        Icons.push_pin,
-                                        color: Colors.red,
-                                        size: 40.0,),
-                                      ),
+                                      Icons.push_pin,
+                                      color: Colors.red,
+                                      size: 40.0,),
                                     ),
+                                  ),
                                   ),
                                 ];
                               });
@@ -863,9 +863,9 @@ class MapPageState extends State<MapPage> {
     final creatorController = TextEditingController(text: activity['creador']);
     final locationController = TextEditingController(
       text:
-          activity['ubicacio'] != null
-              ? '${activity['ubicacio']['latitud']},${activity['ubicacio']['longitud']}'
-              : '',
+      activity['ubicacio'] != null
+          ? '${activity['ubicacio']['latitud']},${activity['ubicacio']['longitud']}'
+          : '',
     );
 
     LatLng selectedLocation = LatLng(
@@ -927,19 +927,19 @@ class MapPageState extends State<MapPage> {
                   DropdownButtonFormField<LatLng>(
                     value: selectedLocation,
                     items:
-                        savedLocations.entries.map((entry) {
-                          String displayText =
-                              entry.value.isNotEmpty
-                                  ? entry.value
-                                  : '${entry.key.latitude}, ${entry.key.longitude}';
-                          return DropdownMenuItem<LatLng>(
-                            value: entry.key,
-                            child: Text(
-                              displayText,
-                              overflow: TextOverflow.ellipsis,
-                            ),
-                          );
-                        }).toList(),
+                    savedLocations.entries.map((entry) {
+                      String displayText =
+                      entry.value.isNotEmpty
+                          ? entry.value
+                          : '${entry.key.latitude}, ${entry.key.longitude}';
+                      return DropdownMenuItem<LatLng>(
+                        value: entry.key,
+                        child: Text(
+                          displayText,
+                          overflow: TextOverflow.ellipsis,
+                        ),
+                      );
+                    }).toList(),
                     onChanged: (value) {
                       setState(() {
                         selectedLocation = value!;
@@ -977,8 +977,8 @@ class MapPageState extends State<MapPage> {
                     'startDate': startDateController.text,
                     'endDate': endDateController.text,
                     'location':
-                        locationController
-                            .text, // Ubicación ingresada por el usuario
+                    locationController
+                        .text, // Ubicación ingresada por el usuario
                     'user': creatorController.text,
                   };
 
@@ -1083,9 +1083,9 @@ class MapPageState extends State<MapPage> {
     });
 
     contaminantsPerLocation[closestLocation]?.forEach((
-      contaminant,
-      airQualityData,
-    ) {
+        contaminant,
+        airQualityData,
+        ) {
       listAQD.add(airQualityData);
     });
 
@@ -1105,23 +1105,23 @@ class MapPageState extends State<MapPage> {
       MaterialPageRoute(
         builder:
             (context) => ActivityDetailsPage(
-              id: activity['id'].toString(),
-              title: activity['nom'] ?? '',
-              creator: activity['creador'] ?? '',
-              description: activity['descripcio'] ?? '',
-              startDate: activity['dataInici'] ?? '',
-              endDate: activity['dataFi'] ?? '',
-              airQualityData: airQualityData,
-              isEditable: true,
-              onEdit:
-                  () => _showEditActivityForm(
-                    activity,
-                  ), // Pasamos la función de editar
-              onDelete:
-                  () => _showDeleteConfirmation(
-                    activity,
-                  ), // Pasamos la función de eliminar
-            ),
+          id: activity['id'].toString(),
+          title: activity['nom'] ?? '',
+          creator: activity['creador'] ?? '',
+          description: activity['descripcio'] ?? '',
+          startDate: activity['dataInici'] ?? '',
+          endDate: activity['dataFi'] ?? '',
+          airQualityData: airQualityData,
+          isEditable: true,
+          onEdit:
+              () => _showEditActivityForm(
+            activity,
+          ), // Pasamos la función de editar
+          onDelete:
+              () => _showDeleteConfirmation(
+            activity,
+          ), // Pasamos la función de eliminar
+        ),
       ),
     );
   }
@@ -1195,50 +1195,50 @@ class MapPageState extends State<MapPage> {
                 const SizedBox(height: 16),
                 Expanded(
                   child:
-                      favoriteActivities.isEmpty
-                          ? const Center(
-                            child: Text('No tienes actividades favoritas'),
-                          )
-                          : ListView.builder(
-                            itemCount: favoriteActivities.length,
-                            itemBuilder: (context, index) {
-                              final activity = favoriteActivities[index];
-                              return ListTile(
-                                title: Text(activity['nom'] ?? 'Sin nombre'),
-                                subtitle: Text(
-                                  'Creador: ${activity['creador'] ?? 'Unknown'}',
-                                ),
-                                trailing: IconButton(
-                                  icon: const Icon(
-                                    Icons.favorite,
-                                    color: Colors.red,
-                                  ),
-                                  onPressed: () async {
-                                    await removeActivityFromFavorites(
-                                      activity['id'],
-                                    );
-                                    if (!context.mounted) return;
-                                    Navigator.pop(context);
-                                    if (context.mounted) {
-                                      ScaffoldMessenger.of(
-                                        context,
-                                      ).showSnackBar(
-                                        const SnackBar(
-                                          content: Text(
-                                            'Removed from favorites',
-                                          ),
-                                        ),
-                                      );
-                                    }
-                                  },
-                                ),
-                                onTap: () {
-                                  Navigator.pop(context);
-                                  _showActivityDetails(activity);
-                                },
-                              );
-                            },
+                  favoriteActivities.isEmpty
+                      ? const Center(
+                    child: Text('No tienes actividades favoritas'),
+                  )
+                      : ListView.builder(
+                    itemCount: favoriteActivities.length,
+                    itemBuilder: (context, index) {
+                      final activity = favoriteActivities[index];
+                      return ListTile(
+                        title: Text(activity['nom'] ?? 'Sin nombre'),
+                        subtitle: Text(
+                          'Creador: ${activity['creador'] ?? 'Unknown'}',
+                        ),
+                        trailing: IconButton(
+                          icon: const Icon(
+                            Icons.favorite,
+                            color: Colors.red,
                           ),
+                          onPressed: () async {
+                            await removeActivityFromFavorites(
+                              activity['id'],
+                            );
+                            if (!context.mounted) return;
+                            Navigator.pop(context);
+                            if (context.mounted) {
+                              ScaffoldMessenger.of(
+                                context,
+                              ).showSnackBar(
+                                const SnackBar(
+                                  content: Text(
+                                    'Removed from favorites',
+                                  ),
+                                ),
+                              );
+                            }
+                          },
+                        ),
+                        onTap: () {
+                          Navigator.pop(context);
+                          _showActivityDetails(activity);
+                        },
+                      );
+                    },
+                  ),
                 ),
               ],
             ),
@@ -1255,10 +1255,10 @@ class MapPageState extends State<MapPage> {
   }
 
   Future<void> _sendSolicitud(
-    int activityId,
-    String requester,
-    String host,
-  ) async {
+      int activityId,
+      String requester,
+      String host,
+      ) async {
     try {
       await solicitudsService.sendSolicitud(activityId, requester, host);
       if (mounted) {
@@ -2032,16 +2032,16 @@ class MapPageState extends State<MapPage> {
       body: Stack(
         children: [
           map_ui.MapUI(
-            mapController: mapController,
-            currentPosition: currentPosition,
-            circles: showAirQualityCircles ? circles : [],
-            onMapTapped: _onMapTapped,
-            activities: activities,
-            onActivityTap: _showActivityDetails,
-            markers: markers,
-            route: currentRoute.value.fullRoute,
-            steps: currentRoute.value.steps,
-            userHeading: _showCompass ? _deviceHeading : null
+              mapController: mapController,
+              currentPosition: currentPosition,
+              circles: showAirQualityCircles ? circles : [],
+              onMapTapped: _onMapTapped,
+              activities: activities,
+              onActivityTap: _showActivityDetails,
+              markers: markers,
+              route: currentRoute.value.fullRoute,
+              steps: currentRoute.value.steps,
+              userHeading: _showCompass ? _deviceHeading : null
           ),
           Positioned(
             top: 10,
@@ -2049,9 +2049,9 @@ class MapPageState extends State<MapPage> {
             child: Column(
               children: [
                 FloatingActionButton(
-                  heroTag: "toggleAirQuality",
-                  onPressed: _toggleAirQualityCircles,
-                  child: Icon(showAirQualityCircles ? Icons.visibility : Icons.visibility_off,)
+                    heroTag: "toggleAirQuality",
+                    onPressed: _toggleAirQualityCircles,
+                    child: Icon(showAirQualityCircles ? Icons.visibility : Icons.visibility_off,)
                 ),
                 const SizedBox(height: 10),
                 if (!isNavigating) ...[

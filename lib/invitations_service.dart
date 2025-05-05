@@ -8,13 +8,10 @@ class InvitationsService {
   // Fetch invitations for a specific user
   static Future<List<Map<String, dynamic>>> fetchInvitations(String username) async {
     final response = await http.get(Uri.parse('$baseUrl/$username'));
-    print('Fetching invitations for username: $username');
-    print(response.statusCode);
     if (response.statusCode == 200) {
       final body = json.decode(response.body);
       return List<Map<String, dynamic>>.from(body);
     } else {
-      print('Error: ${response.statusCode}, Body: ${response.body}');
       throw Exception('Error fetching invitations');
     }
   }
@@ -39,7 +36,6 @@ class InvitationsService {
       headers: {'Content-Type': 'application/json'},
       body: json.encode({'activityId': activityId, 'username': username}),
     );
-    print(response.statusCode);
     if (response.statusCode != 200) {
       throw Exception('Error rejecting invitation');
     }
