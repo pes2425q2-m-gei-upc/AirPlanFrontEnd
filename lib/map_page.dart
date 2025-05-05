@@ -1,6 +1,6 @@
 // map_page.dart
+import 'package:airplan/solicituds_service.dart';
 import 'dart:async';
-
 import 'package:airplan/transit_service.dart';
 import 'package:firebase_auth/firebase_auth.dart';
 import 'package:flutter/material.dart';
@@ -29,6 +29,7 @@ class MapPageState extends State<MapPage> {
   final MapController mapController = MapController();
   final MapService mapService = MapService();
   final ActivityService activityService = ActivityService();
+  final SolicitudsService solicitudsService = SolicitudsService();
   LatLng selectedLocation = LatLng(0, 0);
   Map<LatLng, String> savedLocations = {};
   String placeDetails = "";
@@ -94,17 +95,27 @@ class MapPageState extends State<MapPage> {
 
   Future<void> fetchAirQualityData() async {
     try {
-    final circles = await mapService.fetchAirQualityData(
-        contaminantsPerLocation);
-    setState(() {
-      this.circles = circles;
-    });
+      final circles = await mapService.fetchAirQualityData(
+        contaminantsPerLocation,
+      );
+
+      // Verificar que el widget esté montado antes de actualizar el estado
+      if (mounted) {
+        setState(() {
+          this.circles = circles;
+        });
+      }
     } catch (e) {
+      // Ya tiene comprobación mounted
       final actualContext = context;
       if (actualContext.mounted) {
-        ScaffoldMessenger.of(actualContext).showSnackBar(SnackBar(
-          content: Text('Error al obtenir dades de qualitat de l\'aire: ${e.toString()}'),
-        ));
+        ScaffoldMessenger.of(actualContext).showSnackBar(
+          SnackBar(
+            content: Text(
+              'Error al obtenir dades de qualitat de l\'aire: ${e.toString()}',
+            ),
+          ),
+        );
       }
     }
   }
@@ -115,7 +126,7 @@ class MapPageState extends State<MapPage> {
     });
     final activities = await activityService.fetchActivities();
 
-    for (Map<String,dynamic> activity in activities) {
+    for (Map<String, dynamic> activity in activities) {
       final ubicacio = activity['ubicacio'] as Map<String, dynamic>;
       final lat = ubicacio['latitud'] as double;
       final lon = ubicacio['longitud'] as double;
@@ -136,10 +147,13 @@ class MapPageState extends State<MapPage> {
       ));
     }
 
-    setState(() {
-      this.activities = activities;
-      loadingActivities = false;
-    });
+    // Verificar que el widget esté montado antes de actualizar el estado
+    if (mounted) {
+      setState(() {
+        this.activities = activities;
+        loadingActivities = false;
+      });
+    }
   }
 
   Future<void> fetchUserLocation() async {
@@ -280,41 +294,37 @@ class MapPageState extends State<MapPage> {
           width: 80.0,
           height: 80.0,
           point: position,
-          child: const Icon(
-            Icons.location_on,
-            color: Colors.red,
-            size: 40.0,
-          ),
+          child: const Icon(Icons.location_on, color: Colors.red, size: 40.0),
         ),
         // Keep the user marker (it will be updated by the stream if navigating)
         ...markers.where((m) => m.key == const Key('user_location')),
         // Saved locations markers
-        ...savedLocations.entries.map((entry) => Marker(
-          width: 80.0,
-          height: 80.0,
-          point: entry.key,
-          child: GestureDetector(
-            onTap: () => _showSavedLocationDetails(entry.key, entry.value),
-            child: const Icon(
-              Icons.push_pin,
-              color: Colors.red,
-              size: 40.0,
+        ...savedLocations.entries.map(
+          (entry) => Marker(
+            width: 80.0,
+            height: 80.0,
+            point: entry.key,
+            child: GestureDetector(
+              onTap: () => _showSavedLocationDetails(entry.key, entry.value),
+              child: const Icon(Icons.push_pin, color: Colors.red, size: 40.0),
             ),
           ),
-        )),
+        ),
       ];
     });
 
     String details;
     try {
       details = await mapService.fetchPlaceDetails(position);
-      _showPlaceDetails(position,details);
+      _showPlaceDetails(position, details);
     } catch (e) {
       final actualContext = context;
       if (actualContext.mounted) {
-        ScaffoldMessenger.of(actualContext).showSnackBar(SnackBar(
-          content: Text('Error al obtenir detalls del lloc: ${e.toString()}'),
-        ));
+        ScaffoldMessenger.of(actualContext).showSnackBar(
+          SnackBar(
+            content: Text('Error al obtenir detalls del lloc: ${e.toString()}'),
+          ),
+        );
       }
     }
   }
@@ -483,6 +493,7 @@ class MapPageState extends State<MapPage> {
   }
 
   void _showPlaceDetails(LatLng selectedLocation, String placeDetails) {
+    if (isNavigating) return;
     showModalBottomSheet(
       context: context,
       isScrollControlled: true,
@@ -513,7 +524,10 @@ class MapPageState extends State<MapPage> {
                     const SizedBox(height: 10),
                     const Text(
                       'Selected Location',
-                      style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold),
+                      style: TextStyle(
+                        fontSize: 18,
+                        fontWeight: FontWeight.bold,
+                      ),
                     ),
                     const SizedBox(height: 5),
                     Text(placeDetails),
@@ -526,7 +540,7 @@ class MapPageState extends State<MapPage> {
                           ElevatedButton(
                             onPressed: () {
                               Navigator.pop(context);
-                              _showFormWithLocation(selectedLocation, placeDetails);
+                              _showFormWithLocation(selectedLocation, placeDetails,);
                               savedLocations[selectedLocation] = placeDetails;
                             },
                             child: const Text("Crea Activitat"),
@@ -564,14 +578,14 @@ class MapPageState extends State<MapPage> {
                                     height: 80.0,
                                     point: entry.key,
                                     child: GestureDetector(
-                                      onTap: () => _showSavedLocationDetails(entry.key, entry.value),
-                                      child: const Icon(
+                                      onTap: () => _showSavedLocationDetails(entry.key, entry.value,
+                                      ),child: const Icon(
                                         Icons.push_pin,
                                         color: Colors.red,
-                                        size: 40.0,
+                                        size: 40.0,),
                                       ),
                                     ),
-                                  )),
+                                  ),
                                 ];
                               });
                               Navigator.pop(context);
@@ -624,17 +638,43 @@ class MapPageState extends State<MapPage> {
     }
   }
 
-  void _showActivityDetails(Map<String, dynamic> activity) {
-    // Obtener el usuario actual
+  void _showActivityDetails(Map<String, dynamic> activity) async {
+    if (isNavigating) return;
     final String? currentUser = FirebaseAuth.instance.currentUser?.displayName;
-    final bool isCurrentUserCreator = currentUser != null &&
-        activity['creador'] == currentUser;
+    final bool isCurrentUserCreator =
+        currentUser != null && activity['creador'] == currentUser;
 
+    bool isFavorite = false;
+
+    try {
+      isFavorite = await isActivityFavorite(activity['id']);
+    } catch (error) {
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(content: Text('Error checking favorite status: $error')),
+        );
+      }
+    }
+
+    if (!mounted) return;
+
+    bool solicitudExistente = false;
+
+    // Verificar si ya existe una solicitud para esta actividad
+    if (!isCurrentUserCreator && currentUser != null) {
+      solicitudExistente = await solicitudsService.jaExisteixSolicitud(
+        activity['id'],
+        currentUser,
+        activity['creador'],
+      );
+    }
+
+    if (!mounted) return;
     showModalBottomSheet(
       context: context,
       builder: (context) {
         return Container(
-          padding: EdgeInsets.all(16.0),
+          padding: const EdgeInsets.all(16.0),
           child: Row(
             mainAxisAlignment: MainAxisAlignment.spaceBetween,
             children: [
@@ -651,7 +691,7 @@ class MapPageState extends State<MapPage> {
                       },
                       child: Text(
                         activity['nom'] ?? '',
-                        style: TextStyle(
+                        style: const TextStyle(
                           fontSize: 20,
                           fontWeight: FontWeight.bold,
                           color: Colors.blue,
@@ -659,33 +699,17 @@ class MapPageState extends State<MapPage> {
                         ),
                       ),
                     ),
-                    SizedBox(height: 8),
+                    const SizedBox(height: 8),
                     Text(
                       'Creador: ${activity['creador'] ?? ''}',
-                      style: TextStyle(fontSize: 16),
+                      style: const TextStyle(fontSize: 16),
                     ),
                   ],
                 ),
               ),
-              // Botones a la derecha (solo si el usuario es el creador)
+              // Botones a la derecha
               Row(
                 children: [
-                  if (isCurrentUserCreator) // <-- Condición para mostrar los botones
-                    IconButton(
-                      icon: Icon(Icons.edit, color: Colors.blue),
-                      onPressed: () {
-                        Navigator.pop(context);
-                        _showEditActivityForm(activity);
-                      },
-                    ),
-                  if (isCurrentUserCreator) // <-- Condición para mostrar los botones
-                    IconButton(
-                      icon: Icon(Icons.delete, color: Colors.red),
-                      onPressed: () {
-                        Navigator.pop(context);
-                        _showDeleteConfirmation(activity);
-                      },
-                    ),
                   ElevatedButton(
                     onPressed: () {
                       final ubicacio = activity['ubicacio'] as Map<String, dynamic>;
@@ -695,6 +719,120 @@ class MapPageState extends State<MapPage> {
                     },
                     child: const Text("Com Arribar"),
                   ),
+                  // Favorite button
+                  if (currentUser != null) // Only show if user is logged in
+                    IconButton(
+                      icon: Icon(
+                        isFavorite ? Icons.favorite : Icons.favorite_border,
+                        color: Colors.red,
+                      ),
+                      onPressed: () async {
+                        if (isFavorite) {
+                          await removeActivityFromFavorites(activity['id']);
+                          if (context.mounted) {
+                            ScaffoldMessenger.of(context).showSnackBar(
+                              const SnackBar(
+                                content: Text('Removed from favorites'),
+                              ),
+                            );
+                          }
+                        } else {
+                          await addActivityToFavorites(activity['id']);
+                          if (context.mounted) {
+                            ScaffoldMessenger.of(context).showSnackBar(
+                              const SnackBar(
+                                content: Text('Added to favorites'),
+                              ),
+                            );
+                          }
+                        }
+                        if (!context.mounted) return;
+                        Navigator.pop(context);
+                      },
+                    ),
+
+                  if (isCurrentUserCreator) // Botones de edición y eliminación
+                    Row(
+                      children: [
+                        IconButton(
+                          icon: const Icon(Icons.edit, color: Colors.blue),
+                          onPressed: () {
+                            Navigator.pop(context);
+                            _showEditActivityForm(activity);
+                          },
+                        ),
+                        IconButton(
+                          icon: const Icon(Icons.delete, color: Colors.red),
+                          onPressed: () {
+                            Navigator.pop(context);
+                            _showDeleteConfirmation(activity);
+                          },
+                        ),
+                      ],
+                    )
+                  else if (currentUser !=
+                      null) // Botón "+" o tick azul para otros usuarios
+                    IconButton(
+                      icon: Icon(
+                        solicitudExistente ? Icons.check_circle : Icons.add,
+                        color: solicitudExistente ? Colors.blue : Colors.blue,
+                      ),
+                      onPressed: () {
+                        if (solicitudExistente) {
+                          // Mostrar botón para cancelar solicitud
+                          showDialog(
+                            context: context,
+                            builder: (context) {
+                              return AlertDialog(
+                                title: const Text('Cancelar solicitud'),
+                                content: const Text(
+                                  '¿Estás seguro de que quieres cancelar tu solicitud?',
+                                ),
+                                actions: [
+                                  TextButton(
+                                    onPressed: () => Navigator.pop(context),
+                                    child: const Text('Cancelar'),
+                                  ),
+                                  TextButton(
+                                    onPressed: () async {
+                                      Navigator.pop(context);
+                                      Navigator.pop(context);
+                                      await solicitudsService.cancelarSolicitud(
+                                        activity['id'],
+                                        currentUser,
+                                      );
+                                      if (context.mounted) {
+                                        ScaffoldMessenger.of(
+                                          context,
+                                        ).showSnackBar(
+                                          const SnackBar(
+                                            content: Text(
+                                              'Solicitud cancelada correctamente.',
+                                            ),
+                                          ),
+                                        );
+                                      }
+                                    },
+                                    child: const Text(
+                                      'Confirmar',
+                                      style: TextStyle(color: Colors.red),
+                                    ),
+                                  ),
+                                ],
+                              );
+                            },
+                          );
+                        } else {
+                          // Enviar solicitud
+                          Navigator.pop(context);
+                          _sendSolicitud(
+                            activity['id'],
+                            currentUser,
+                            activity['creador'],
+                          );
+                        }
+                      },
+                    ),
                 ],
               ),
             ],
@@ -711,21 +849,29 @@ class MapPageState extends State<MapPage> {
     );
   }
 
-// Función para mostrar el formulario de edición
+  // Función para mostrar el formulario de edición
   void _showEditActivityForm(Map<String, dynamic> activity) {
     final formKey = GlobalKey<FormState>();
     final titleController = TextEditingController(text: activity['nom']);
-    final descriptionController = TextEditingController(text: activity['descripcio']);
-    final startDateController = TextEditingController(text: activity['dataInici']);
+    final descriptionController = TextEditingController(
+      text: activity['descripcio'],
+    );
+    final startDateController = TextEditingController(
+      text: activity['dataInici'],
+    );
     final endDateController = TextEditingController(text: activity['dataFi']);
     final creatorController = TextEditingController(text: activity['creador']);
     final locationController = TextEditingController(
-      text: activity['ubicacio'] != null
-          ? '${activity['ubicacio']['latitud']},${activity['ubicacio']['longitud']}'
-          : '',
+      text:
+          activity['ubicacio'] != null
+              ? '${activity['ubicacio']['latitud']},${activity['ubicacio']['longitud']}'
+              : '',
     );
 
-    LatLng selectedLocation = LatLng(activity['ubicacio']['latitud'] as double, activity['ubicacio']['longitud'] as double);
+    LatLng selectedLocation = LatLng(
+      activity['ubicacio']['latitud'] as double,
+      activity['ubicacio']['longitud'] as double,
+    );
 
     showDialog(
       context: context,
@@ -780,15 +926,20 @@ class MapPageState extends State<MapPage> {
                   ),
                   DropdownButtonFormField<LatLng>(
                     value: selectedLocation,
-                    items: savedLocations.entries.map((entry) {
-                      String displayText = entry.value.isNotEmpty
-                          ? entry.value
-                          : '${entry.key.latitude}, ${entry.key.longitude}';
-                      return DropdownMenuItem<LatLng>(
-                        value: entry.key,
-                        child: Text(displayText, overflow: TextOverflow.ellipsis),
-                      );
-                    }).toList(),
+                    items:
+                        savedLocations.entries.map((entry) {
+                          String displayText =
+                              entry.value.isNotEmpty
+                                  ? entry.value
+                                  : '${entry.key.latitude}, ${entry.key.longitude}';
+                          return DropdownMenuItem<LatLng>(
+                            value: entry.key,
+                            child: Text(
+                              displayText,
+                              overflow: TextOverflow.ellipsis,
+                            ),
+                          );
+                        }).toList(),
                     onChanged: (value) {
                       setState(() {
                         selectedLocation = value!;
@@ -825,7 +976,9 @@ class MapPageState extends State<MapPage> {
                     'description': descriptionController.text,
                     'startDate': startDateController.text,
                     'endDate': endDateController.text,
-                    'location': locationController.text, // Ubicación ingresada por el usuario
+                    'location':
+                        locationController
+                            .text, // Ubicación ingresada por el usuario
                     'user': creatorController.text,
                   };
 
@@ -839,9 +992,13 @@ class MapPageState extends State<MapPage> {
                     fetchActivities(); // Actualiza la lista de actividades
                   } catch (e) {
                     if (context.mounted) {
-                      ScaffoldMessenger.of(context).showSnackBar(SnackBar(
-                        content: Text('Error al actualizar la actividad: ${e.toString()}'),
-                      ));
+                      ScaffoldMessenger.of(context).showSnackBar(
+                        SnackBar(
+                          content: Text(
+                            'Error al actualizar la actividad: ${e.toString()}',
+                          ),
+                        ),
+                      );
                     }
                   }
                 }
@@ -854,14 +1011,16 @@ class MapPageState extends State<MapPage> {
     );
   }
 
-// Función para mostrar el aviso de confirmación de eliminación
+  // Función para mostrar el aviso de confirmación de eliminación
   void _showDeleteConfirmation(Map<String, dynamic> activity) {
     showDialog(
       context: context,
       builder: (context) {
         return AlertDialog(
           title: Text('Eliminar actividad'),
-          content: Text('¿Estás seguro de que quieres eliminar esta actividad?'),
+          content: Text(
+            '¿Estás seguro de que quieres eliminar esta actividad?',
+          ),
           actions: [
             TextButton(
               onPressed: () {
@@ -876,16 +1035,24 @@ class MapPageState extends State<MapPage> {
                 // Llama al servicio para eliminar la actividad
                 try {
                   final activityService = ActivityService();
-                  await activityService.deleteActivityFromBackend(activity['id'].toString());
+                  await activityService.deleteActivityFromBackend(
+                    activity['id'].toString(),
+                  );
                   if (context.mounted) {
-                    ScaffoldMessenger.of(context).showSnackBar(SnackBar(
-                      content: Text("Actividad eliminada correctament."))
+                    ScaffoldMessenger.of(context).showSnackBar(
+                      SnackBar(
+                        content: Text("Actividad eliminada correctament."),
+                      ),
                     );
                   }
                 } catch (e) {
                   if (context.mounted) {
-                    ScaffoldMessenger.of(context).showSnackBar(SnackBar(
-                        content: Text("Error al eliminar l'activitat: ${e.toString()}"))
+                    ScaffoldMessenger.of(context).showSnackBar(
+                      SnackBar(
+                        content: Text(
+                          "Error al eliminar l'activitat: ${e.toString()}",
+                        ),
+                      ),
                     );
                   }
                 }
@@ -904,41 +1071,57 @@ class MapPageState extends State<MapPage> {
     List<AirQualityData> listAQD = [];
 
     contaminantsPerLocation.forEach((location, dataMap) {
-      final distance = Distance().as(LengthUnit.Meter, activityLocation, location);
+      final distance = Distance().as(
+        LengthUnit.Meter,
+        activityLocation,
+        location,
+      );
       if (distance < closestDistance) {
         closestDistance = distance;
         closestLocation = location;
       }
     });
 
-    contaminantsPerLocation[closestLocation]?.forEach((contaminant, airQualityData) {
+    contaminantsPerLocation[closestLocation]?.forEach((
+      contaminant,
+      airQualityData,
+    ) {
       listAQD.add(airQualityData);
     });
 
     return listAQD;
   }
 
-// Función para navegar a la página de detalles (código original)
+  // Función para navegar a la página de detalles (código original)
   void _navigateToActivityDetails(Map<String, dynamic> activity) {
     final ubicacio = activity['ubicacio'] as Map<String, dynamic>;
     final lat = ubicacio['latitud'] as double;
     final lon = ubicacio['longitud'] as double;
-    List<AirQualityData> airQualityData = findClosestAirQualityData(LatLng(lat, lon));
+    List<AirQualityData> airQualityData = findClosestAirQualityData(
+      LatLng(lat, lon),
+    );
     Navigator.push(
       context,
       MaterialPageRoute(
-        builder: (context) => ActivityDetailsPage(
-          id: activity['id'].toString(),
-          title: activity['nom'] ?? '',
-          creator: activity['creador'] ?? '',
-          description: activity['descripcio'] ?? '',
-          startDate: activity['dataInici'] ?? '',
-          endDate: activity['dataFi'] ?? '',
-          airQualityData: airQualityData,
-          isEditable: true,
-          onEdit: () => _showEditActivityForm(activity), // Pasamos la función de editar
-          onDelete: () => _showDeleteConfirmation(activity), // Pasamos la función de eliminar
-        ),
+        builder:
+            (context) => ActivityDetailsPage(
+              id: activity['id'].toString(),
+              title: activity['nom'] ?? '',
+              creator: activity['creador'] ?? '',
+              description: activity['descripcio'] ?? '',
+              startDate: activity['dataInici'] ?? '',
+              endDate: activity['dataFi'] ?? '',
+              airQualityData: airQualityData,
+              isEditable: true,
+              onEdit:
+                  () => _showEditActivityForm(
+                    activity,
+                  ), // Pasamos la función de editar
+              onDelete:
+                  () => _showDeleteConfirmation(
+                    activity,
+                  ), // Pasamos la función de eliminar
+            ),
       ),
     );
   }
@@ -951,6 +1134,147 @@ class MapPageState extends State<MapPage> {
     setState(() {
       showAirQualityCircles = !showAirQualityCircles;
     });
+  }
+
+  //Puentes entre boton de favorita y activityService
+  Future<bool> isActivityFavorite(int activityId) async {
+    final String? username = FirebaseAuth.instance.currentUser?.displayName;
+    if (username == null) {
+      throw Exception('User not logged in');
+    }
+    return await activityService.isActivityFavorite(activityId, username);
+  }
+
+  Future<void> addActivityToFavorites(int activityId) async {
+    final String? username = FirebaseAuth.instance.currentUser?.displayName;
+    if (username == null) {
+      throw Exception('User not logged in');
+    }
+    await activityService.addActivityToFavorites(activityId, username);
+  }
+
+  Future<void> removeActivityFromFavorites(int activityId) async {
+    final String? username = FirebaseAuth.instance.currentUser?.displayName;
+    if (username == null) {
+      throw Exception('User not logged in');
+    }
+    await activityService.removeActivityFromFavorites(activityId, username);
+  }
+
+  Future<void> _showFavoriteActivities() async {
+    try {
+      final String? username = FirebaseAuth.instance.currentUser?.displayName;
+      if (username == null) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(
+            content: Text('Debes iniciar sesión para ver tus favoritos'),
+          ),
+        );
+        return;
+      }
+
+      final favoriteActivities = await activityService.fetchFavoriteActivities(
+        username,
+      );
+
+      if (!mounted) return;
+
+      showModalBottomSheet(
+        context: context,
+        builder: (context) {
+          return Container(
+            padding: const EdgeInsets.all(16.0),
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              mainAxisSize: MainAxisSize.min,
+              children: [
+                const Text(
+                  'Actividades favoritas',
+                  style: TextStyle(fontSize: 20, fontWeight: FontWeight.bold),
+                ),
+                const SizedBox(height: 16),
+                Expanded(
+                  child:
+                      favoriteActivities.isEmpty
+                          ? const Center(
+                            child: Text('No tienes actividades favoritas'),
+                          )
+                          : ListView.builder(
+                            itemCount: favoriteActivities.length,
+                            itemBuilder: (context, index) {
+                              final activity = favoriteActivities[index];
+                              return ListTile(
+                                title: Text(activity['nom'] ?? 'Sin nombre'),
+                                subtitle: Text(
+                                  'Creador: ${activity['creador'] ?? 'Unknown'}',
+                                ),
+                                trailing: IconButton(
+                                  icon: const Icon(
+                                    Icons.favorite,
+                                    color: Colors.red,
+                                  ),
+                                  onPressed: () async {
+                                    await removeActivityFromFavorites(
+                                      activity['id'],
+                                    );
+                                    if (!context.mounted) return;
+                                    Navigator.pop(context);
+                                    if (context.mounted) {
+                                      ScaffoldMessenger.of(
+                                        context,
+                                      ).showSnackBar(
+                                        const SnackBar(
+                                          content: Text(
+                                            'Removed from favorites',
+                                          ),
+                                        ),
+                                      );
+                                    }
+                                  },
+                                ),
+                                onTap: () {
+                                  Navigator.pop(context);
+                                  _showActivityDetails(activity);
+                                },
+                              );
+                            },
+                          ),
+                ),
+              ],
+            ),
+          );
+        },
+      );
+    } catch (e) {
+      if (context.mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(content: Text('Error loading favorites: ${e.toString()}')),
+        );
+      }
+    }
+  }
+
+  Future<void> _sendSolicitud(
+    int activityId,
+    String requester,
+    String host,
+  ) async {
+    try {
+      await solicitudsService.sendSolicitud(activityId, requester, host);
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(content: Text('Solicitud enviada correctamente.')),
+        );
+      }
+    } catch (e) {
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: Text('Error al enviar la solicitud: ${e.toString()}'),
+          ),
+        );
+      }
+    }
   }
 
   Future<int> _sendRouteToBackend(TransitRoute route) async {
@@ -1274,7 +1598,7 @@ class MapPageState extends State<MapPage> {
         }
       }
     }
-    
+
     if (title == 'Ruta') {
       // If no match found, use the destination coordinates
       title = 'Ruta a ${destinationLatLng.latitude}, ${destinationLatLng.longitude}';
@@ -1412,21 +1736,6 @@ class MapPageState extends State<MapPage> {
 
             // Show instruction for current step
             _showCurrentInstruction(currentStep, currentStepIndex);
-
-            // Check if user has reached the end of the current step
-            if (currentStepIndex < currentRoute.value.steps.length - 1) {
-              // Check if we're close to the next step's starting point
-              final nextStep = currentRoute.value.steps[currentStepIndex + 1];
-              final distanceToNextStep = Distance().as(
-                  LengthUnit.Meter,
-                  currentPosition,
-                  nextStep.points.first
-              );
-
-              if (distanceToNextStep < 20) { // Within 20 meters of next step
-                _showUpcomingInstruction(nextStep, currentStepIndex + 1);
-              }
-            }
           } else {
             // User is off route
             _showOffRouteWarning();
@@ -1667,46 +1976,6 @@ class MapPageState extends State<MapPage> {
     }
   }
 
-  void _showUpcomingInstruction(TransitStep nextStep, int nextStepIndex) {
-    if (mounted) {
-      ScaffoldMessenger.of(context).hideCurrentSnackBar();
-      ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(
-          content: Column(
-            mainAxisSize: MainAxisSize.min,
-            crossAxisAlignment: CrossAxisAlignment.start,
-            children: [
-              Text('Coming up:', style: TextStyle(fontWeight: FontWeight.bold)),
-              Row(
-                children: [
-                  Icon(
-                    nextStep.mode == TipusVehicle.cap ? Icons.directions_walk :
-                    nextStep.mode == TipusVehicle.cotxe ? Icons.directions_car :
-                    nextStep.mode == TipusVehicle.autobus ? Icons.directions_bus :
-                    nextStep.mode == TipusVehicle.tren ? Icons.train :
-                    nextStep.mode == TipusVehicle.bicicleta ? Icons.pedal_bike :
-                    nextStep.mode == TipusVehicle.moto ? Icons.directions_bike :
-                    Icons.directions_transit,
-                    color: Colors.white,
-                  ),
-                  SizedBox(width: 8),
-                  Expanded(
-                    child: Text(
-                      'Step ${nextStepIndex + 1}: ${nextStep.instruction.isNotEmpty ? nextStep.instruction : "Follow the route"}',
-                      style: TextStyle(fontSize: 16),
-                    ),
-                  ),
-                ],
-              ),
-            ],
-          ),
-          duration: Duration(seconds: 4),
-          behavior: SnackBarBehavior.floating,
-        ),
-      );
-    }
-  }
-
   void _showOffRouteWarning() {
     if (mounted) {
       ScaffoldMessenger.of(context).hideCurrentSnackBar();
@@ -1733,14 +2002,14 @@ class MapPageState extends State<MapPage> {
   void _recalculateRoute(LatLng currentPosition) async {
     try {
       TransitRoute newRoute = await _calculateRoute(
-        true,
-        false,
-        DateTime.now(),
-        DateTime.now(),
-        currentRoute.value.option,
-        currentPosition,
-        currentRoute.value.destination,
-        mapService
+          true,
+          false,
+          DateTime.now(),
+          DateTime.now(),
+          currentRoute.value.option,
+          currentPosition,
+          currentRoute.value.destination,
+          mapService
       );
       setState(() {
         currentRoute = MapEntry(currentRoute.key, newRoute);
@@ -1759,9 +2028,7 @@ class MapPageState extends State<MapPage> {
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      appBar: AppBar(
-        title: const Text("AirPlan"),
-      ),
+      appBar: AppBar(title: const Text("AirPlan")),
       body: Stack(
         children: [
           map_ui.MapUI(
@@ -1776,7 +2043,6 @@ class MapPageState extends State<MapPage> {
             steps: currentRoute.value.steps,
             userHeading: _showCompass ? _deviceHeading : null
           ),
-          // Air quality toggle button
           Positioned(
             top: 10,
             right: 10,
@@ -1785,7 +2051,7 @@ class MapPageState extends State<MapPage> {
                 FloatingActionButton(
                   heroTag: "toggleAirQuality",
                   onPressed: _toggleAirQualityCircles,
-                  child: Icon(showAirQualityCircles ? Icons.visibility : Icons.visibility_off),
+                  child: Icon(showAirQualityCircles ? Icons.visibility : Icons.visibility_off,)
                 ),
                 const SizedBox(height: 10),
                 if (!isNavigating) ...[
@@ -1804,7 +2070,7 @@ class MapPageState extends State<MapPage> {
                   child: Icon(_showCompass ? Icons.compass_calibration : Icons.explore),
                 ),
               ],
-            )
+            ),
           ),
           // Route action buttons - only show when route is active
           if (currentRoute.value.fullRoute.isNotEmpty) ...[
@@ -1889,6 +2155,15 @@ class MapPageState extends State<MapPage> {
               ),
             ),
           ],
+          if (!isNavigating)
+            Positioned(
+              top: 10,
+              left: 10,
+              child: FloatingActionButton(
+                onPressed: _showFavoriteActivities,
+                child: const Icon(Icons.favorite),
+              ),
+            ),
         ],
       ),
       floatingActionButton: FloatingActionButton(
@@ -1898,11 +2173,15 @@ class MapPageState extends State<MapPage> {
             _showFormWithLocation(savedLocations.keys.first, placeDetails);
           } else {
             ScaffoldMessenger.of(context).showSnackBar(
-              SnackBar(content: Text('No tens ubicacions guardades. Selecciona una ubicació abans de crear una activitat.')),
+              const SnackBar(
+                content: Text(
+                  'No tens ubicacions guardades. Selecciona una ubicació abans de crear una activitat.',
+                ),
+              ),
             );
           }
         },
-        child: Icon(Icons.add_location),
+        child: const Icon(Icons.add_location),
       ),
     );
   }

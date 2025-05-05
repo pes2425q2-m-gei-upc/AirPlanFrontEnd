@@ -1,5 +1,6 @@
 // map_service.dart
 import 'dart:convert';
+import 'package:airplan/services/api_config.dart';
 import 'package:airplan/transit_service.dart';
 import 'package:firebase_auth/firebase_auth.dart';
 import 'package:flutter/cupertino.dart';
@@ -11,7 +12,7 @@ import 'air_quality.dart';
 
 class MapService {
   Future<List<CircleMarker>> fetchAirQualityData(Map<LatLng, Map<Contaminant, AirQualityData>> contaminantsPerLocation) async {
-    final url = Uri.parse('https://analisi.transparenciacatalunya.cat/resource/tasf-thgu.json?data=${DateTime.now().toString().substring(0,10)}');
+    final url = Uri.parse(ApiConfig().buildUrl('api/airquality'));
     final response = await http.get(url);
 
     if (response.statusCode == 200) {
@@ -64,7 +65,7 @@ class MapService {
   }
 
   Future<String> fetchPlaceDetails(LatLng position) async {
-    final url = Uri.parse('https://nominatim.openstreetmap.org/reverse?format=json&lat=${position.latitude}&lon=${position.longitude}');
+    final url = Uri.parse(ApiConfig().buildUrl('api/locations?format=json&lat=${position.latitude}&lon=${position.longitude}'));
     final response = await http.get(url);
 
     if (response.statusCode == 200) {
@@ -84,7 +85,7 @@ class MapService {
   }
 
   Future<int> sendRouteToBackend(TransitRoute ruta) async {
-    final url = Uri.parse('http://nattech.fib.upc.edu:40350/api/rutas');
+    final url = Uri.parse(ApiConfig().buildUrl('api/rutas'));
     final dateFormat = DateFormat("yyyy-MM-dd'T'HH:mm:ss");
     final origen = <String, double>{
       'latitud': ruta.origin.latitude,
@@ -133,7 +134,7 @@ class MapService {
   }
 
   Future<void> updateRouteInBackend(MapEntry<int, TransitRoute> route) async {
-    final url = Uri.parse('http://nattech.fib.upc.edu:40350/api/rutas/${route.key}');
+    final url = Uri.parse(ApiConfig().buildUrl('api/rutas/${route.key}'));
     final dateFormat = DateFormat("yyyy-MM-dd'T'HH:mm:ss");
     final origen = <String, double>{
       'latitud': route.value.origin.latitude,
@@ -180,7 +181,7 @@ class MapService {
   }
 
   Future<void> deleteRouteInBackend(int routeId) async {
-    final url = Uri.parse('http://nattech.fib.upc.edu:40350/api/rutas/$routeId');
+    final url = Uri.parse(ApiConfig().buildUrl('api/rutas/$routeId'));
     final response = await http.delete(url);
 
     if (response.statusCode != 200) {
@@ -189,7 +190,7 @@ class MapService {
   }
 
   Future<List<Map<String,dynamic>>> fetchRoutes() async {
-    final url = Uri.parse('http://nattech.fib.upc.edu:40350/api/rutas?username=${FirebaseAuth.instance.currentUser?.displayName}');
+    final url = Uri.parse(ApiConfig().buildUrl('api/rutas?username=${FirebaseAuth.instance.currentUser?.displayName}'));
     final response = await http.get(url);
 
     if (response.statusCode == 200) {

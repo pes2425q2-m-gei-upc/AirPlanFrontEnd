@@ -1,4 +1,5 @@
 import 'dart:convert';
+import 'package:airplan/services/api_config.dart';
 import 'package:flexible_polyline_dart/flutter_flexible_polyline.dart';
 import 'package:flexible_polyline_dart/latlngz.dart';
 import 'package:flutter/material.dart';
@@ -86,10 +87,10 @@ class TransitRoute {
 }
 
 Future<TransitRoute> calculatePublicTransportRoute(bool departure, bool arrival, DateTime departureTime, DateTime arrivalTime, LatLng source, LatLng destination) async {
-  String hereEndpoint = 'http://nattech.fib.upc.edu:40350/api/rutas/calculate/publictransport';
+  final url = Uri.parse(ApiConfig().buildUrl('api/rutas/calculate/publictransport'));
 
   try {
-    final response = await http.get(Uri.parse(hereEndpoint).replace(queryParameters: {
+    final response = await http.get(url.replace(queryParameters: {
       'origin': '${source.latitude},${source.longitude}',
       'destination': '${destination.latitude},${destination.longitude}',
       'departureTime': departure ? DateFormat('yyyy-MM-ddTHH:mm:ss').format(departureTime) : DateFormat('yyyy-MM-ddTHH:mm:ss').format(DateTime.now()),
@@ -316,10 +317,10 @@ Future<TransitRoute> calculateRoute(bool departure, bool arrival, DateTime depar
       throw Exception('Invalid option');
   }
 
-  String orsEndpoint = 'http://nattech.fib.upc.edu:40350/api/rutas/calculate/simple';
+  final url = Uri.parse(ApiConfig().buildUrl('api/rutas/calculate/simple'));
 
   try {
-    final response = await http.get(Uri.parse(orsEndpoint).replace(queryParameters: {
+    final response = await http.get(url.replace(queryParameters: {
       'profile': profile,
       'origin': '${source.latitude},${source.longitude}',
       'destination': '${destination.latitude},${destination.longitude}',

@@ -1,59 +1,142 @@
 import 'package:flutter/material.dart';
-import 'package:firebase_auth/firebase_auth.dart';
 import 'package:http/http.dart' as http;
 import 'dart:convert'; // Para usar jsonEncode
-import 'register.dart';  // Importem la pantalla de registre
-// La pantalla que indica "Sessió correcta"
+import 'register.dart'; // Importem la pantalla de registre
 import 'reset_password.dart'; // Importem la pantalla de restabliment de contrasenya
+import 'main.dart'; // Importamos main.dart para acceder a AuthWrapper
+import 'services/websocket_service.dart'; // Import WebSocket service
+import 'services/api_config.dart'; // Importar la configuración de API
+import 'services/auth_service.dart'; // Importamos AuthService
 
 class LoginPage extends StatefulWidget {
-  const LoginPage({super.key});
+  // Añadimos la posibilidad de inyectar el AuthService
+  final AuthService? authService;
+  final WebSocketService? webSocketService;
+  final http.Client? httpClient;
+  final Widget? signUpPage;
+
+  const LoginPage({
+    super.key,
+    this.authService,
+    this.webSocketService,
+    this.httpClient,
+    this.signUpPage,
+  });
 
   @override
   LoginPageState createState() => LoginPageState();
 }
 
 class LoginPageState extends State<LoginPage> {
-  final FirebaseAuth _auth = FirebaseAuth.instance;
+  // Usamos late para inicializar en initState
+  late final AuthService _authService;
+  late final WebSocketService _webSocketService;
+  late final http.Client _httpClient;
+
   final TextEditingController _emailController = TextEditingController();
   final TextEditingController _passwordController = TextEditingController();
   String _errorMessage = '';
 
+  @override
+  void initState() {
+    super.initState();
+    try {
+      // Inicializamos los servicios usando los proporcionados o creando nuevos
+      _authService = widget.authService ?? AuthService();
+      _webSocketService = widget.webSocketService ?? WebSocketService();
+      _httpClient = widget.httpClient ?? http.Client();
+    } catch (_) {
+      // Tests may instantiate state directly without widget
+      _authService = AuthService();
+      _webSocketService = WebSocketService();
+      _httpClient = http.Client();
+    }
+  }
+
+  @override
+  void dispose() {
+    // Si creamos un cliente HTTP, lo cerramos al finalizar
+    if (widget.httpClient == null) {
+      _httpClient.close();
+    }
+    super.dispose();
+  }
+
   Future<void> _signIn() async {
     try {
-      // Iniciar sesión en Firebase
-      await _auth.signInWithEmailAndPassword(
-        email: _emailController.text.trim(),
-        password: _passwordController.text.trim(),
+      // Usar AuthService en lugar de Firebase directamente
+      final userCredential = await _authService.signInWithEmailAndPassword(
+        _emailController.text.trim(),
+        _passwordController.text.trim(),
       );
 
-      // Si el login en Firebase es correcto, enviar un POST al backend
-      final response = await http.post(
-        Uri.parse('http://nattech.fib.upc.edu:40350/api/usuaris/login'), // Cambia la URL por la de tu backend
+      final user = userCredential.user;
+      if (user == null) {
+        setState(() {
+          _errorMessage =
+              "Error: No se pudo obtener la información del usuario";
+        });
+        return;
+      }
+
+      final firebaseEmail = user.email;
+      final username = user.displayName;
+
+      if (username == null || firebaseEmail == null) {
+        setState(() {
+          _errorMessage = "Error: Falta información del usuario";
+        });
+        return;
+      }
+
+      // Obtener el clientId del WebSocketService
+      final clientId = _webSocketService.clientId;
+
+      // Enviar un POST al backend para el login, incluyendo ahora username y clientId
+      final response = await _httpClient.post(
+        Uri.parse(ApiConfig().buildUrl('api/usuaris/login')),
         headers: <String, String>{
           'Content-Type': 'application/json; charset=UTF-8',
         },
         body: jsonEncode({
-          "email": _emailController.text.trim(),
+          "email": firebaseEmail,
+          "username": username,
+          "clientId":
+              clientId, // Incluir el clientId para filtrar notificaciones WebSocket
         }),
       );
 
       // Verificar la respuesta del backend
       if (response.statusCode != 200) {
-        // Si el backend responde con un error, mostrar el mensaje de error
         setState(() {
           _errorMessage = "Error en el backend: ${response.body}";
         });
+        return;
       }
-    } on FirebaseAuthException catch (e) {
-      // Manejar errores de Firebase
-      setState(() {
-        _errorMessage = "Error: Credencials incorrectes: ${e.message}";
-      });
+
+      // Initialize WebSocket connection after successful login
+      _webSocketService.connect();
+
+      // Forzar la navegación a la página principal usando AuthWrapper
+      if (mounted) {
+        // Usando Navigator.pushAndRemoveUntil para limpiar la pila de navegación
+        Navigator.pushAndRemoveUntil(
+          context,
+          MaterialPageRoute(builder: (context) => AuthWrapper()),
+          (route) => false, // Esto elimina todas las rutas anteriores
+        );
+      }
     } catch (e) {
-      // Manejar otros errores
+      // Manejar errores (tanto de FirebaseAuth como otros)
       setState(() {
-        _errorMessage = "Error: ${e.toString()}";
+        _errorMessage = "Error: Credencials incorrectes";
+        if (e.toString().contains("invalid-credential") ||
+            e.toString().contains("wrong-password") ||
+            e.toString().contains("user-not-found")) {
+          _errorMessage = "Error: Credencials incorrectes";
+        } else {
+          _errorMessage = "Error: ${e.toString()}";
+        }
       });
     }
   }
@@ -73,6 +156,7 @@ class LoginPageState extends State<LoginPage> {
                 labelText: "Correu electrònic",
                 border: OutlineInputBorder(),
               ),
+              onSubmitted: (_) => _signIn(), // Añadir esta línea
             ),
             const SizedBox(height: 12),
             TextField(
@@ -82,6 +166,7 @@ class LoginPageState extends State<LoginPage> {
                 labelText: "Contrasenya",
                 border: OutlineInputBorder(),
               ),
+              onSubmitted: (_) => _signIn(), // Añadir esta línea
             ),
             const SizedBox(height: 12),
             ElevatedButton(
@@ -93,7 +178,12 @@ class LoginPageState extends State<LoginPage> {
               onPressed: () {
                 Navigator.push(
                   context,
-                  MaterialPageRoute(builder: (context) => const SignUpPage()),
+                  MaterialPageRoute(
+                    builder:
+                        (context) =>
+                            widget.signUpPage ??
+                            SignUpPage(authService: _authService),
+                  ),
                 );
               },
               child: const Text("No tens compte? Registra't aquí"),
@@ -102,7 +192,11 @@ class LoginPageState extends State<LoginPage> {
               onPressed: () {
                 Navigator.push(
                   context,
-                  MaterialPageRoute(builder: (context) => const ResetPasswordPage()),
+                  MaterialPageRoute(
+                    builder:
+                        (context) =>
+                            ResetPasswordPage(authService: _authService),
+                  ),
                 );
               },
               child: const Text("Has oblidat la contrasenya?"),
