@@ -1,7 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'test_helpers.dart';
-import 'package:airplan/activity_details_page.dart'; // Asegúrate de importar la página correcta
+//import 'package:airplan/activity_details_page.dart';
 
 void main() {
   setUp(() {
@@ -149,17 +149,17 @@ class ActivityDetailsPage extends StatefulWidget {
   final bool showParticipants;
 
   const ActivityDetailsPage({
-    Key? key,
+    super.key,
     required this.isCreator,
     required this.showParticipantRemove,
     required this.showParticipants,
-  }) : super(key: key);
+  });
 
   @override
-  _ActivityDetailsPageState createState() => _ActivityDetailsPageState();
+  ActivityDetailsPageState createState() => ActivityDetailsPageState();
 }
 
-class _ActivityDetailsPageState extends State<ActivityDetailsPage> {
+class ActivityDetailsPageState extends State<ActivityDetailsPage> {
   List<String> participants = ['Participant 1', 'Participant 2'];
   bool showParticipants = true;
 
@@ -213,14 +213,14 @@ class _ActivityDetailsPageState extends State<ActivityDetailsPage> {
                     )
                         : null,
                   );
-                }).toList(),
+                }),
               if (!widget.isCreator)
                 ...participants.map((participant) {
                   return ListTile(
                     title: Text(participant),
                     trailing: null, // Los participantes no pueden eliminar
                   );
-                }).toList(),
+                }),
             ],
           ),
       ],

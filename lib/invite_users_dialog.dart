@@ -54,9 +54,12 @@ class _InviteUsersDialogState extends State<InviteUsersDialog> {
         _users = usersWithInvitationStatus;
       });
     } catch (e) {
-      ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(content: Text('Error al buscar usuarios')),
-      );
+      final actualContext = context;
+      if (actualContext.mounted) {
+        ScaffoldMessenger.of(actualContext).showSnackBar(
+          const SnackBar(content: Text('Error al buscar usuarios')),
+        );
+      }
     } finally {
       setState(() {
         _isLoading = false;
@@ -67,14 +70,20 @@ class _InviteUsersDialogState extends State<InviteUsersDialog> {
   Future<void> _inviteUser(String username) async {
     try {
       await InviteUsersService.inviteUser(widget.creator, username, widget.activityId);
-      ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(content: Text('Usuario invitado con éxito')),
-      );
+      final actualContext = context;
+      if (actualContext.mounted) {
+        ScaffoldMessenger.of(actualContext).showSnackBar(
+          const SnackBar(content: Text('Usuario invitado')),
+        );
+      }
       _fetchUsers(_searchQuery); // Refrescar la lista para actualizar el estado
     } catch (e) {
-      ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(content: Text('Error al invitar al usuario')),
-      );
+      final actualContext = context;
+      if (actualContext.mounted) {
+        ScaffoldMessenger.of(actualContext).showSnackBar(
+          const SnackBar(content: Text('Error al invitar al usuario')),
+        );
+      }
     }
   }
 

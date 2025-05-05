@@ -85,11 +85,14 @@ class ActivityDetailsPageState extends State<ActivityDetailsPage> {
           participants = jsonList.map((e) => e.toString()).toList();
           showParticipants = true;
         });
-      } else {
-        print('Error al obtener participantes: ${response.statusCode}');
       }
     } catch (e) {
-      print('Excepción al cargar participantes: $e');
+      final actualContext = context;
+      if (actualContext.mounted) {
+        ScaffoldMessenger.of(actualContext).showSnackBar(
+          SnackBar(content: Text('Error al cargar los participantes')),
+        );
+      }
     }
   }
 
@@ -442,8 +445,7 @@ class ActivityDetailsPageState extends State<ActivityDetailsPage> {
                         );
 
                         if (confirm == true) {
-                          final url = Uri.parse(
-                              'http://localhost:8080/api/activitats/${widget.id}/participants/$p');
+                          final url = Uri.parse(ApiConfig().buildUrl('api/activitats/${widget.id}/participants/$p'));
 
                           try {
                             final response = await http.delete(url);
@@ -451,25 +453,35 @@ class ActivityDetailsPageState extends State<ActivityDetailsPage> {
                               setState(() {
                                 participants.remove(p);
                               });
-                              ScaffoldMessenger.of(context).showSnackBar(
-                                SnackBar(content: Text('$p eliminado correctamente')),
-                              );
+                              final actualContext = context;
+                              if (actualContext.mounted) {
+                                ScaffoldMessenger.of(context).showSnackBar(
+                                  SnackBar(content: Text(
+                                      '$p eliminado correctamente')),
+                                );
+                              }
                             } else {
-                              ScaffoldMessenger.of(context).showSnackBar(
-                                SnackBar(content: Text('Error al eliminar $p')),
-                              );
+                              final actualContext = context;
+                              if (actualContext.mounted) {
+                                ScaffoldMessenger.of(context).showSnackBar(
+                                  SnackBar(content: Text('Error al eliminar $p')),
+                                );
+                              }
                             }
                           } catch (e) {
-                            ScaffoldMessenger.of(context).showSnackBar(
-                              SnackBar(content: Text('Error de red al eliminar $p')),
-                            );
+                            final actualContext = context;
+                            if (actualContext.mounted) {
+                              ScaffoldMessenger.of(context).showSnackBar(
+                                SnackBar(content: Text('Error de red al eliminar $p')),
+                              );
+                            }
                           }
                         }
                       },
                     )
                         : null,
                   );
-                }).toList(),
+                }),
 
               SizedBox(height: 16),
               Row(

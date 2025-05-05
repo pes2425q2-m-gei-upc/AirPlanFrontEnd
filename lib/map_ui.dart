@@ -1,7 +1,10 @@
-// map_ui.dart
+import 'dart:math' as math;
+
+import 'package:airplan/transit_service.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_map/flutter_map.dart';
 import 'package:latlong2/latlong.dart';
+import 'package:flutter_map_compass/flutter_map_compass.dart';
 
 class MapUI extends StatelessWidget {
   final MapController mapController;
@@ -11,6 +14,9 @@ class MapUI extends StatelessWidget {
   final List<Map<String, dynamic>> activities;
   final Function(Map<String, dynamic>) onActivityTap;
   final List<Marker> markers;
+  final List<LatLng>? route; // Make route nullable
+  final List<TransitStep>? steps;
+  final double? userHeading;
 
   const MapUI({
     super.key,
@@ -21,6 +27,9 @@ class MapUI extends StatelessWidget {
     required this.onMapTapped,
     required this.activities,
     required this.onActivityTap,
+    this.route,
+    this.steps, // Add this parameter
+    this.userHeading,
   });
 
   @override
@@ -108,6 +117,36 @@ class MapUI extends StatelessWidget {
             ...markers,
             ...activityMarkers,
           ],
+        ),
+        if (steps != null && steps!.isNotEmpty)
+          PolylineLayer(
+            polylines: steps!.map((step) => Polyline(
+              points: step.points,
+              strokeWidth: 4.0,
+              color: step.color,
+            )).toList(),
+          ),
+        if (userHeading != null)
+          MarkerLayer(
+            markers: [
+              Marker(
+                point: currentPosition,
+                width: 60.0,
+                height: 60.0,
+                child: Transform.rotate(
+                  angle: (userHeading! * (math.pi / 180)), // Convert degrees to radians
+                  child: const Icon(
+                    Icons.navigation,
+                    color: Colors.blue,
+                    size: 40.0,
+                  ),
+                ),
+              ),
+            ],
+          ),
+        const MapCompass.cupertino(
+          hideIfRotatedNorth: true,
+          alignment: Alignment.topLeft,
         ),
       ],
     );

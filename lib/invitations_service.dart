@@ -1,20 +1,17 @@
 import 'dart:convert';
+import 'package:airplan/services/api_config.dart';
 import 'package:http/http.dart' as http;
 
 class InvitationsService {
-  static const String baseUrl = 'http://127.0.0.1:8080/api/invitacions';
-  //static const String baseUrl = 'http://nattech.fib.upc.edu:40350/api/invitacions';
+  static String baseUrl = ApiConfig().buildUrl('api/invitacions');
 
   // Fetch invitations for a specific user
   static Future<List<Map<String, dynamic>>> fetchInvitations(String username) async {
     final response = await http.get(Uri.parse('$baseUrl/$username'));
-    print('Fetching invitations for username: $username');
-    print(response.statusCode);
     if (response.statusCode == 200) {
       final body = json.decode(response.body);
       return List<Map<String, dynamic>>.from(body);
     } else {
-      print('Error: ${response.statusCode}, Body: ${response.body}');
       throw Exception('Error fetching invitations');
     }
   }
@@ -39,7 +36,6 @@ class InvitationsService {
       headers: {'Content-Type': 'application/json'},
       body: json.encode({'activityId': activityId, 'username': username}),
     );
-    print(response.statusCode);
     if (response.statusCode != 200) {
       throw Exception('Error rejecting invitation');
     }

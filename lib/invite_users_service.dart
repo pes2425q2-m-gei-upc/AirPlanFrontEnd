@@ -1,9 +1,9 @@
 import 'dart:convert';
+import 'package:airplan/services/api_config.dart';
 import 'package:http/http.dart' as http;
 
 class InviteUsersService {
-  static const String baseUrl = 'http://127.0.0.1:8080/api/invitacions';
-  //static const String baseUrl = 'http://nattech.fib.upc.edu:40350/api/invitacions';
+  static String baseUrl = ApiConfig().buildUrl('api/invitacions');
 
   // Buscar usuarios por nombre
   static Future<List<Map<String, dynamic>>> searchUsers(String query, String creator) async {
@@ -46,8 +46,6 @@ class InviteUsersService {
       headers: {'Content-Type': 'application/json'},
       body: json.encode({'creator': creator, 'username': username, 'activityId': activityId}),
     );
-
-    print('Response status code: ${response.statusCode}');
 
     if (response.statusCode != 201) {
       throw Exception('Error inviting user');
