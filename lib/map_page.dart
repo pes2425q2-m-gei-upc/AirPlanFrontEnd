@@ -2,7 +2,6 @@
 import 'package:airplan/solicituds_service.dart';
 import 'dart:async';
 import 'package:airplan/transit_service.dart';
-import 'package:firebase_auth/firebase_auth.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_map/flutter_map.dart';
 import 'package:geolocator/geolocator.dart';
@@ -14,12 +13,21 @@ import 'map_service.dart';
 import 'activity_service.dart';
 import 'map_ui.dart' as map_ui;
 import 'activity_details_page.dart';
+import 'package:airplan/services/auth_service.dart';
 import 'package:sensors_plus/sensors_plus.dart';
 import 'dart:math' as math;
 import 'dart:math' show log, ln2, min;
 
 class MapPage extends StatefulWidget {
-  const MapPage({super.key});
+  final AuthService authService;
+  final ActivityService activityService;
+
+  MapPage({
+    super.key,
+    AuthService? authService,
+    ActivityService? activityService,
+  }) : authService = authService ?? AuthService(),
+       activityService = activityService ?? ActivityService();
 
   @override
   MapPageState createState() => MapPageState();
@@ -124,13 +132,18 @@ class MapPageState extends State<MapPage> {
     setState(() {
       loadingActivities = true;
     });
-    final activities = await activityService.fetchActivities();
+    final activities = await widget.activityService.fetchActivities();
 
     for (Map<String, dynamic> activity in activities) {
       final ubicacio = activity['ubicacio'] as Map<String, dynamic>;
       final lat = ubicacio['latitud'] as double;
       final lon = ubicacio['longitud'] as double;
-      String details = await mapService.fetchPlaceDetails(LatLng(lat, lon));
+      String details;
+      try {
+        details = await mapService.fetchPlaceDetails(LatLng(lat, lon));
+      } catch (e) {
+        details = '';
+      }
       savedLocations[LatLng(lat, lon)] = details;
       markers.add(Marker(
         width: 80.0,
@@ -633,14 +646,14 @@ class MapPageState extends State<MapPage> {
     );
 
     if (result != null) {
-      await activityService.sendActivityToBackend(result);
+      await widget.activityService.sendActivityToBackend(result);
       fetchActivities();
     }
   }
 
   void _showActivityDetails(Map<String, dynamic> activity) async {
     if (isNavigating) return;
-    final String? currentUser = FirebaseAuth.instance.currentUser?.displayName;
+    final String? currentUser = widget.authService.getCurrentUsername();
     final bool isCurrentUserCreator =
         currentUser != null && activity['creador'] == currentUser;
 
@@ -1138,32 +1151,38 @@ class MapPageState extends State<MapPage> {
 
   //Puentes entre boton de favorita y activityService
   Future<bool> isActivityFavorite(int activityId) async {
-    final String? username = FirebaseAuth.instance.currentUser?.displayName;
+    final String? username = widget.authService.getCurrentUsername();
     if (username == null) {
       throw Exception('User not logged in');
     }
-    return await activityService.isActivityFavorite(activityId, username);
+    return await widget.activityService.isActivityFavorite(
+      activityId,
+      username,
+    );
   }
 
   Future<void> addActivityToFavorites(int activityId) async {
-    final String? username = FirebaseAuth.instance.currentUser?.displayName;
+    final String? username = widget.authService.getCurrentUsername();
     if (username == null) {
       throw Exception('User not logged in');
     }
-    await activityService.addActivityToFavorites(activityId, username);
+    await widget.activityService.addActivityToFavorites(activityId, username);
   }
 
   Future<void> removeActivityFromFavorites(int activityId) async {
-    final String? username = FirebaseAuth.instance.currentUser?.displayName;
+    final String? username = widget.authService.getCurrentUsername();
     if (username == null) {
       throw Exception('User not logged in');
     }
-    await activityService.removeActivityFromFavorites(activityId, username);
+    await widget.activityService.removeActivityFromFavorites(
+      activityId,
+      username,
+    );
   }
 
   Future<void> _showFavoriteActivities() async {
     try {
-      final String? username = FirebaseAuth.instance.currentUser?.displayName;
+      final String? username = widget.authService.getCurrentUsername();
       if (username == null) {
         ScaffoldMessenger.of(context).showSnackBar(
           const SnackBar(
@@ -1173,9 +1192,8 @@ class MapPageState extends State<MapPage> {
         return;
       }
 
-      final favoriteActivities = await activityService.fetchFavoriteActivities(
-        username,
-      );
+      final favoriteActivities = await widget.activityService
+          .fetchFavoriteActivities(username);
 
       if (!mounted) return;
 

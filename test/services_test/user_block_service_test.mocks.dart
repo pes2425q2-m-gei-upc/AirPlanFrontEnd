@@ -78,9 +78,33 @@ class MockChatWebSocketService extends _i1.Mock
   );
 
   @override
-  _i5.Future<bool> sendChatMessage(String? receiverUsername, String? content, DateTime a) =>
+  _i5.Future<bool> sendEditMessage(
+    String? receiverUsername,
+    String? originalTimestamp,
+    String? newContent,
+  ) =>
       (super.noSuchMethod(
-            Invocation.method(#sendChatMessage, [receiverUsername, content]),
+            Invocation.method(#sendEditMessage, [
+              receiverUsername,
+              originalTimestamp,
+              newContent,
+            ]),
+            returnValue: _i5.Future<bool>.value(false),
+          )
+          as _i5.Future<bool>);
+
+  @override
+  _i5.Future<bool> sendChatMessage(
+    String? receiverUsername,
+    String? content,
+    DateTime? timestamp,
+  ) =>
+      (super.noSuchMethod(
+            Invocation.method(#sendChatMessage, [
+              receiverUsername,
+              content,
+              timestamp,
+            ]),
             returnValue: _i5.Future<bool>.value(false),
           )
           as _i5.Future<bool>);

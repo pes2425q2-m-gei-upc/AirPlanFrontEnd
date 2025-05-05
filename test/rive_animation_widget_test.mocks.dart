@@ -3,7 +3,6 @@
 // Do not manually edit this file.
 
 // ignore_for_file: no_leading_underscores_for_library_prefixes
-// ignore_for_file: missing_override_of_must_be_overridden, override_on_non_overriding_member
 import 'dart:async' as _i9;
 import 'dart:ui' as _i2;
 
@@ -254,26 +253,6 @@ class MockRiveAnimationControllerHelper extends _i1.Mock
     Invocation.method(#dispose, []),
     returnValueForMissingStub: null,
   );
-
-  @override
-  void play() {
-    // Concrete implementation for play
-  }
-
-  @override
-  void pause() {
-    // Concrete implementation for pause
-  }
-
-  @override
-  void reset() {
-    // Concrete implementation for reset
-  }
-
-  @override
-  void someMethod() {
-    // Corrected method signature to match inherited method
-  }
 }
 
 /// A class which mocks [Artboard].

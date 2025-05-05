@@ -21,9 +21,9 @@ void main() {
     test('initialize with empty custom URL uses default based on platform', () {
       apiConfig.initialize(customUrl: '');
       if (kIsWeb) {
-        expect(apiConfig.baseUrl, equals('http://localhost:8080'));
+        expect(apiConfig.baseUrl, equals('http://nattech.fib.upc.edu:40350'));
       } else {
-        expect(apiConfig.baseUrl, equals('http://192.168.1.69:8080'));
+        expect(apiConfig.baseUrl, equals('http://nattech.fib.upc.edu:40350'));
       }
     });
 
@@ -50,9 +50,9 @@ void main() {
     test('initialize uses correct URL based on platform', () {
       apiConfig.initialize();
       if (kIsWeb) {
-        expect(apiConfig.baseUrl, equals('http://localhost:8080'));
+        expect(apiConfig.baseUrl, equals('http://nattech.fib.upc.edu:40350'));
       } else {
-        expect(apiConfig.baseUrl, equals('http://192.168.1.69:8080'));
+        expect(apiConfig.baseUrl, equals('http://nattech.fib.upc.edu:40350'));
       }
     });
   });
