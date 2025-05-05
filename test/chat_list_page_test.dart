@@ -86,16 +86,6 @@ class MockAuthService implements AuthService {
   }
 
   @override
-  Future<UserCredential> signInWithPopup(GithubAuthProvider githubProvider) async {
-    throw UnimplementedError();
-  }
-
-  @override
-  Future<UserCredential> signInWithProvider(GithubAuthProvider githubProvider) async {
-    throw UnimplementedError();
-  }
-
-  @override
   Future<void> updateDisplayName(String displayName) async {}
 
   @override
