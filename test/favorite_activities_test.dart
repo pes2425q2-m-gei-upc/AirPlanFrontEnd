@@ -87,7 +87,7 @@ void main() {
       when(mockAuthService.getCurrentUsername()).thenReturn('test_user');
       when(
         mockActivityService.addActivityToFavorites(1, 'test_user'),
-      ).thenAnswer((_) async => null);
+      ).thenAnswer((_) async {});
 
       // Provide a dummy activity so the favorite button is present
       when(mockActivityService.fetchActivities()).thenAnswer(
@@ -130,7 +130,7 @@ void main() {
       when(mockAuthService.getCurrentUsername()).thenReturn('test_user');
       when(
         mockActivityService.removeActivityFromFavorites(1, 'test_user'),
-      ).thenAnswer((_) async => null);
+      ).thenAnswer((_) async {});
 
       // Provide a dummy activity so the favorite button is present
       when(mockActivityService.fetchActivities()).thenAnswer(

@@ -120,6 +120,28 @@ class ChatWebSocketService {
     }
   }
 
+  Future<bool> sendDeleteMessage(String receiverUsername, String timestamp) async {
+    if (!_isChatConnected || _chatChannel == null) {
+      debugPrint('WebSocket is not connected. Cannot send delete message.');
+      return false;
+    }
+
+    try {
+      final deleteMessage = {
+        'type': 'DELETE',
+        'usernameSender': _currentUsername,
+        'usernameReceiver': receiverUsername,
+        'timestamp': timestamp,
+      };
+
+      _chatChannel!.sink.add(jsonEncode(deleteMessage));
+      return true;
+    } catch (e) {
+      debugPrint('Error sending delete message: $e');
+      return false;
+    }
+  }
+
   Future<bool> sendEditMessage(
       String receiverUsername,
       String originalTimestamp,
@@ -315,7 +337,7 @@ class ChatWebSocketService {
       }
 
       // Handle DELETE message type
-      if (messageData is Map && messageData['type'] == 'DELETE') {
+      if (messageData['type'] == 'DELETE') {
         debugPrint('Processing DELETE message');
 
         final deleteData = {
@@ -336,8 +358,7 @@ class ChatWebSocketService {
       }
 
       // Verificar si es un mensaje individual en formato JSON
-      if (messageData is Map &&
-          messageData.containsKey('usernameSender') &&
+      if (messageData.containsKey('usernameSender') &&
           messageData.containsKey('usernameReceiver') &&
           messageData.containsKey('dataEnviament') &&
           messageData.containsKey('missatge')) {
@@ -353,7 +374,7 @@ class ChatWebSocketService {
       }
 
       // Si el mensaje contiene un error, registrarlo
-      if (messageData is Map && messageData.containsKey('error')) {
+      if (messageData.containsKey('error')) {
         debugPrint('Error recibido del servidor: ${messageData['error']}');
         return;
       }
@@ -457,27 +478,5 @@ class DefaultWebSocketChannelFactory implements WebSocketChannelFactory {
   @override
   WebSocketChannel connect(Uri uri) {
     return WebSocketChannel.connect(uri);
-  }
-
-  Future<bool> sendDeleteMessage(String receiverUsername, String timestamp) async {
-    if (!_isChatConnected || _chatChannel == null) {
-      debugPrint('WebSocket is not connected. Cannot send delete message.');
-      return false;
-    }
-
-    try {
-      final deleteMessage = {
-        'type': 'DELETE',
-        'usernameSender': _currentUsername,
-        'usernameReceiver': receiverUsername,
-        'timestamp': timestamp,
-      };
-
-      _chatChannel!.sink.add(jsonEncode(deleteMessage));
-      return true;
-    } catch (e) {
-      debugPrint('Error sending delete message: $e');
-      return false;
-    }
   }
 }

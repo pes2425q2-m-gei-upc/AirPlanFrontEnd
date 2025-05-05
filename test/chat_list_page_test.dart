@@ -199,6 +199,12 @@ class FakeChatWebSocketService implements ChatWebSocketService {
     // TODO: implement sendEditMessage
     throw UnimplementedError();
   }
+
+  @override
+  Future<bool> sendDeleteMessage(String receiverUsername, String timestamp) {
+    // TODO: implement sendDeleteMessage
+    throw UnimplementedError();
+  }
 }
 
 void main() {
