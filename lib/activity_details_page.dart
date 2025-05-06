@@ -74,7 +74,7 @@ class ActivityDetailsPageState extends State<ActivityDetailsPage> {
 
   // Simulación de carga de participantes
   Future<void> loadParticipants() async {
-    final url = Uri.parse('http://127.0.0.1:8080/api/activitats/${widget.id}/participants'); // Asegúrate que el host es accesible
+    final url = Uri.parse(ApiConfig().buildUrl('api/activitats/${widget.id}/participants')); // Asegúrate que el host es accesible
 
     try {
       final response = await http.get(url);

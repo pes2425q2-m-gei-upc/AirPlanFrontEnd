@@ -374,7 +374,16 @@ class ChatDetailPageState extends State<ChatDetailPage> {
     setState(() => _isSending = true);
 
     try {
-      DateTime timestamp = DateTime.now();
+      DateTime now = DateTime.now();
+      DateTime timestamp = DateTime(
+          now.year,
+          now.month,
+          now.day,
+          now.hour,
+          now.minute,
+          now.second,
+          3 // Exactly 3 milliseconds
+      );
       // Enviar el mensaje usando el WebSocket a través del ChatService
       final success = await _chatService.sendMessage(widget.username, message, timestamp);
 
