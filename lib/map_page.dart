@@ -2059,7 +2059,8 @@ class MapPageState extends State<MapPage> {
               markers: markers,
               route: currentRoute.value.fullRoute,
               steps: currentRoute.value.steps,
-              userHeading: _showCompass ? _deviceHeading : null
+              userHeading: _showCompass ? _deviceHeading : null,
+              isNavigationMode: isNavigating,
           ),
           Positioned(
             top: 10,

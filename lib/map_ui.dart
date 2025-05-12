@@ -17,6 +17,7 @@ class MapUI extends StatelessWidget {
   final List<LatLng>? route; // Make route nullable
   final List<TransitStep>? steps;
   final double? userHeading;
+  final bool isNavigationMode;
 
   const MapUI({
     super.key,
@@ -30,6 +31,7 @@ class MapUI extends StatelessWidget {
     this.route,
     this.steps, // Add this parameter
     this.userHeading,
+    required this.isNavigationMode,
   });
 
   @override
@@ -144,9 +146,12 @@ class MapUI extends StatelessWidget {
               ),
             ],
           ),
-        const MapCompass.cupertino(
-          hideIfRotatedNorth: true,
-          alignment: Alignment.topLeft,
+        Positioned(
+          top: isNavigationMode ? 0 : 65,
+          child: const MapCompass.cupertino(
+            hideIfRotatedNorth: true,
+            alignment: Alignment.topLeft,
+          ),
         ),
       ],
     );
