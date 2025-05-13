@@ -14,6 +14,14 @@
       },
       "oauth_client": [
         {
+          "client_id": "952401482773-58abdjoitiiq5898vgflvvq3069hkk5m.apps.googleusercontent.com",
+          "client_type": 1,
+          "android_info": {
+            "package_name": "com.example.AirPlan",
+            "certificate_hash": "803e13516a41a12eaf65f4fdb575a9fa2f53e2a5"
+          }
+        },
+        {
           "client_id": "952401482773-d298rk631gcngq9ukk0fa6qfp4tk7auf.apps.googleusercontent.com",
           "client_type": 1,
           "android_info": {
