@@ -1,4 +1,6 @@
 // map_page.dart
+import 'package:airplan/recommended_activities_page.dart';
+import 'package:airplan/services/notification_service.dart';
 import 'package:airplan/solicituds_service.dart';
 import 'dart:async';
 import 'package:airplan/transit_service.dart';
@@ -67,6 +69,7 @@ class MapPageState extends State<MapPage> {
   double _deviceHeading = 0.0;
   bool _showCompass = false;
   OverlayEntry? _currentInstructionOverlay;
+  bool locationPermissionGranted = false;
 
   @override
   void initState() {
@@ -117,13 +120,7 @@ class MapPageState extends State<MapPage> {
       // Ya tiene comprobación mounted
       final actualContext = context;
       if (actualContext.mounted) {
-        ScaffoldMessenger.of(actualContext).showSnackBar(
-          SnackBar(
-            content: Text(
-              'Error al obtenir dades de qualitat de l\'aire: ${e.toString()}',
-            ),
-          ),
-        );
+        NotificationService().showError(actualContext, "Error al obtenir dades de qualitat de l'aire: ${e.toString()}");
       }
     }
   }
@@ -178,9 +175,7 @@ class MapPageState extends State<MapPage> {
     if (!serviceEnabled) {
       final actualContext = context;
       if (actualContext.mounted) {
-        ScaffoldMessenger.of(actualContext).showSnackBar(
-          SnackBar(content: Text('Location services are disabled. Please enable them.')),
-        );
+        NotificationService().showInfo(actualContext, "Els serveis d'ubicació están desactivats. Activa'ls per continuar.");
       }
       return;
     }
@@ -192,9 +187,7 @@ class MapPageState extends State<MapPage> {
       if (permission == LocationPermission.denied) {
         final actualContext = context;
         if (actualContext.mounted) {
-          ScaffoldMessenger.of(actualContext).showSnackBar(
-            SnackBar(content: Text('Location permissions are denied.')),
-          );
+          NotificationService().showInfo(actualContext, "No s'ha concedit permís d'ubicació. Activa'l per poder obtenir totes les funcionalitats.");
         }
         return;
       }
@@ -203,9 +196,7 @@ class MapPageState extends State<MapPage> {
     if (permission == LocationPermission.deniedForever) {
       final actualContext = context;
       if (actualContext.mounted) {
-        ScaffoldMessenger.of(actualContext).showSnackBar(
-          SnackBar(content: Text('Location permissions are permanently denied.')),
-        );
+        NotificationService().showInfo(actualContext, "Els permisos d'ubicació estan denegats permanentment. Activa'ls manualment per poder obtenir totes les funcionalitats.");
       }
       return;
     }
@@ -216,6 +207,7 @@ class MapPageState extends State<MapPage> {
         locationSettings: LocationSettings(accuracy: LocationAccuracy.high),
       );
       setState(() {
+        locationPermissionGranted = true;
         currentPosition = LatLng(position.latitude, position.longitude);
         _updateUserMarker(currentPosition); // Use the helper method
       });
@@ -223,9 +215,7 @@ class MapPageState extends State<MapPage> {
     } catch (e) {
       final actualContext = context;
       if (actualContext.mounted) {
-        ScaffoldMessenger.of(actualContext).showSnackBar(
-          SnackBar(content: Text('Failed to fetch location: $e')),
-        );
+        NotificationService().showError(actualContext, "Error en obtenir la ubicació: ${e.toString()}");
       }
     }
   }
@@ -343,6 +333,10 @@ class MapPageState extends State<MapPage> {
   }
 
   Future<void> showRouteOptions(BuildContext context, LatLng start, LatLng end, MapService mapService) async {
+    if (!locationPermissionGranted) {
+      NotificationService().showError(context, "Per calcular la ruta, primer has d'activar la ubicació.");
+      return;
+    }
     final selectedOption = await showDialog<int>(
       context: context,
       builder: (BuildContext context) {
@@ -395,16 +389,12 @@ class MapPageState extends State<MapPage> {
       });
       final actualContext = context;
       if (actualContext.mounted) {
-        ScaffoldMessenger.of(actualContext).showSnackBar(
-            SnackBar(content: Text("Ruta calculada correctament."))
-        );
+        NotificationService().showSuccess(actualContext, "Ruta calculada correctament.");
       }
     } catch (e) {
       final actualContext = context;
       if (actualContext.mounted) {
-        ScaffoldMessenger.of(actualContext).showSnackBar(
-            SnackBar(content: Text('Error al calcular la ruta: ${e.toString()}'))
-        );
+        NotificationService().showError(actualContext, 'Error al calcular la ruta: ${e.toString()}');
       }
     }
   }
@@ -1301,16 +1291,12 @@ class MapPageState extends State<MapPage> {
       id = await mapService.sendRouteToBackend(route);
       final actualContext = context;
       if (actualContext.mounted) {
-        ScaffoldMessenger.of(actualContext).showSnackBar(
-          SnackBar(content: Text('Ruta enviada correctament.')),
-        );
+        NotificationService().showSuccess(actualContext, 'Ruta enviada correctament.');
       }
     } catch (e) {
       final actualContext = context;
       if (actualContext.mounted) {
-        ScaffoldMessenger.of(actualContext).showSnackBar(
-          SnackBar(content: Text('Error al enviar la ruta: ${e.toString()}')),
-        );
+        NotificationService().showError(actualContext, 'Error al enviar la ruta: ${e.toString()}');
       }
     }
     return id;
@@ -1321,16 +1307,12 @@ class MapPageState extends State<MapPage> {
       await mapService.updateRouteInBackend(route);
       final actualContext = context;
       if (actualContext.mounted) {
-        ScaffoldMessenger.of(actualContext).showSnackBar(
-          SnackBar(content: Text('Ruta actualitzada correctament.')),
-        );
+        NotificationService().showSuccess(actualContext, 'Ruta actualitzada correctament.');
       }
     } catch (e) {
       final actualContext = context;
       if (actualContext.mounted) {
-        ScaffoldMessenger.of(actualContext).showSnackBar(
-          SnackBar(content: Text('Error al actualitzar la ruta: ${e.toString()}')),
-        );
+        NotificationService().showError(actualContext, 'Error al actualitzar la ruta: ${e.toString()}');
       }
     }
   }
@@ -1452,17 +1434,12 @@ class MapPageState extends State<MapPage> {
             });
             final actualContext = context;
             if (actualContext.mounted) {
-              ScaffoldMessenger.of(actualContext).showSnackBar(
-                  SnackBar(content: Text("Ruta calculada correctament."))
-              );
+              NotificationService().showSuccess(actualContext, "Ruta calculada correctament.");
             }
           } catch (e) {
             final actualContext = context;
             if (actualContext.mounted) {
-              ScaffoldMessenger.of(actualContext).showSnackBar(
-                SnackBar(
-                    content: Text('Error al calcular la ruta: ${e.toString()}')),
-              );
+              NotificationService().showError(actualContext, 'Error al calcular la ruta: ${e.toString()}');
             }
           }
         }
@@ -1688,9 +1665,7 @@ class MapPageState extends State<MapPage> {
       await mapService.deleteRouteInBackend(id);
       final actualContext = context;
       if (actualContext.mounted) {
-        ScaffoldMessenger.of(actualContext).showSnackBar(
-          SnackBar(content: Text('Ruta eliminada correctament.')),
-        );
+        NotificationService().showSuccess(actualContext, 'Ruta eliminada correctament.');
       }
       savedRoutes.remove(id);
       setState(() {
@@ -1699,9 +1674,7 @@ class MapPageState extends State<MapPage> {
     } catch (e) {
       final actualContext = context;
       if (actualContext.mounted) {
-        ScaffoldMessenger.of(actualContext).showSnackBar(
-          SnackBar(content: Text('Error al eliminar la ruta: ${e.toString()}')),
-        );
+        NotificationService().showError(actualContext, 'Error al eliminar la ruta: ${e.toString()}');
       }
     }
   }
@@ -1764,9 +1737,7 @@ class MapPageState extends State<MapPage> {
         },
         onError: (error) {
           if (mounted) {
-            ScaffoldMessenger.of(context).showSnackBar(
-              SnackBar(content: Text('Error getting location: $error')),
-            );
+            NotificationService().showError(context, "Error al obtenir la localització: $error");
           }
           _stopNavigation();
         }
@@ -1782,9 +1753,7 @@ class MapPageState extends State<MapPage> {
       isNavigating = false;
     });
     if (mounted) {
-      ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(content: Text('Navigation stopped.')),
-      );
+      NotificationService().showInfo(context, "S'ha aturat la navegació.");
     }
   }
 
@@ -2036,11 +2005,13 @@ class MapPageState extends State<MapPage> {
       _updateRouteInBackend(currentRoute);
     } catch (e) {
       if (mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(content: Text('Error recalculating route: ${e.toString()}')),
-        );
+        NotificationService().showError(context, "Error recalculant la ruta: ${e.toString()}");
       }
     }
+  }
+
+  void _showRecommendedActivities() {
+    RecommendedActivitiesPage(userLocation: currentPosition);
   }
 
   @override
@@ -2105,7 +2076,12 @@ class MapPageState extends State<MapPage> {
                       if (isNavigating) {
                         _stopNavigation();
                       } else {
-                        _startNavigation();
+                        if (!locationPermissionGranted) {
+                          NotificationService().showError(context, "Per iniciar la navegació, concedeix permisos de localització.");
+                          return;
+                        } else {
+                          _startNavigation();
+                        }
                       }
                     },
                     child: Icon(isNavigating ? Icons.stop : Icons.play_arrow), // Change icon
@@ -2174,7 +2150,7 @@ class MapPageState extends State<MapPage> {
               ),
             ),
           ],
-          if (!isNavigating)
+          if (!isNavigating) ...[
             Positioned(
               top: 10,
               left: 10,
@@ -2183,24 +2159,38 @@ class MapPageState extends State<MapPage> {
                 child: const Icon(Icons.favorite),
               ),
             ),
+          ],
         ],
       ),
-      floatingActionButton: FloatingActionButton(
-        heroTag: "addLocation",
-        onPressed: () {
-          if (savedLocations.entries.isNotEmpty) {
-            _showFormWithLocation(savedLocations.keys.first, placeDetails);
-          } else {
-            ScaffoldMessenger.of(context).showSnackBar(
-              const SnackBar(
-                content: Text(
-                  'No tens ubicacions guardades. Selecciona una ubicació abans de crear una activitat.',
-                ),
-              ),
-            );
-          }
-        },
-        child: const Icon(Icons.add_location),
+      floatingActionButton: Column(
+        mainAxisSize: MainAxisSize.min,
+        children: [
+          if (!isNavigating) ...[
+            FloatingActionButton(
+              heroTag: "recommendedActivities",
+              onPressed: _showRecommendedActivities,
+              child: const Icon(Icons.recommend_outlined),
+            ),
+            const SizedBox(height: 12),
+            FloatingActionButton(
+              heroTag: "addLocation",
+              onPressed: () {
+                if (savedLocations.entries.isNotEmpty) {
+                  _showFormWithLocation(savedLocations.keys.first, placeDetails);
+                } else {
+                  ScaffoldMessenger.of(context).showSnackBar(
+                    const SnackBar(
+                      content: Text(
+                        'No tens ubicacions guardades. Selecciona una ubicació abans de crear una activitat.',
+                      ),
+                    ),
+                  );
+                }
+              },
+              child: const Icon(Icons.add_location),
+            ),
+          ]
+        ],
       ),
     );
   }
