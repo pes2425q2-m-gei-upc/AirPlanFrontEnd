@@ -144,36 +144,48 @@ class ChatDetailPageState extends State<ChatDetailPage> {
         final originalTimestamp = messageData['originalTimestamp'];
         final newContent = messageData['newContent'];
 
-        setState(() {
-          for (int i = 0; i < _messages.length; i++) {
-            // Compare the timestamp strings to avoid precision issues
-            if (_messages[i].senderUsername == sender &&
-                _messages[i].timestamp.toIso8601String() == originalTimestamp) {
-              _messages[i] = Message(
-                senderUsername: _messages[i].senderUsername,
-                receiverUsername: _messages[i].receiverUsername,
-                timestamp: _messages[i].timestamp,
-                content: newContent,
-                isEdited: true,
-              );
-              break;
+        // Solo actualizar el mensaje si todos los campos necesarios están presentes
+        if (sender != null && originalTimestamp != null && newContent != null) {
+          setState(() {
+            for (int i = 0; i < _messages.length; i++) {
+              // Compare the timestamp strings to avoid precision issues
+              if (_messages[i].senderUsername == sender &&
+                  _messages[i].timestamp.toIso8601String() ==
+                      originalTimestamp) {
+                _messages[i] = Message(
+                  senderUsername: _messages[i].senderUsername,
+                  receiverUsername: _messages[i].receiverUsername,
+                  timestamp: _messages[i].timestamp,
+                  content: newContent,
+                  isEdited: true,
+                );
+                break;
+              }
             }
-          }
-        });
+          });
+        }
         return;
-      }
-
-      // Manejar mensajes de error
+      } // Manejar mensajes de error
       if (messageType == 'ERROR' && messageData.containsKey('message')) {
         if (mounted) {
-          // Eliminar mensaje enviado de forma optimista si existe
+          final errorMessage = messageData['message'] as String;
+
+          // Verificar si es un error relacionado con edición de mensaje
+          final isEditError =
+              errorMessage.contains("edita") ||
+              errorMessage.contains("edit") ||
+              errorMessage.contains("El contenido editado");
+
+          // Solo borrar el último mensaje si se está enviando un mensaje nuevo y NO es un error de edición
           if (_messages.isNotEmpty &&
-              _messages.last.senderUsername == _currentUsername) {
+              _messages.last.senderUsername == _currentUsername &&
+              _isSending &&
+              !isEditError) {
             setState(() {
               _messages.removeLast();
             });
           }
-          _notificationService.showError(context, messageData['message']);
+          _notificationService.showError(context, errorMessage);
         }
         return;
       }
@@ -583,39 +595,22 @@ class ChatDetailPageState extends State<ChatDetailPage> {
 
     try {
       // Send the edited message through the ChatService
+      // No actualizamos el mensaje localmente, esperamos a que el servidor
+      // confirme la edición a través de un mensaje WebSocket de tipo EDIT
       final success = await _chatService.editMessage(
         widget.username,
         message.timestamp.toIso8601String(),
         newContent,
       );
 
-      if (success) {
-        setState(() {
-          // Update the message locally
-          final index = _messages.indexWhere(
-            (m) =>
-                m.senderUsername == message.senderUsername &&
-                m.timestamp == message.timestamp,
-          );
-
-          if (index != -1) {
-            _messages[index] = Message(
-              senderUsername: message.senderUsername,
-              receiverUsername: message.receiverUsername,
-              content: newContent,
-              timestamp: message.timestamp,
-              isEdited: true,
-            );
-          }
-        });
-      } else {
-        if (mounted) {
-          _notificationService.showError(
-            context,
-            'Error al editar el mensaje. Inténtalo de nuevo.',
-          );
-        }
+      if (!success && mounted) {
+        _notificationService.showError(
+          context,
+          'Error al editar el mensaje. Inténtalo de nuevo.',
+        );
       }
+      // Ya no actualizamos el mensaje aquí, el servidor enviará un mensaje WebSocket
+      // con la confirmación y se actualizará en el método handleIncomingMessage
     } catch (e) {
       if (mounted) {
         _notificationService.showError(
@@ -624,9 +619,11 @@ class ChatDetailPageState extends State<ChatDetailPage> {
         );
       }
     } finally {
-      setState(() {
-        _isSending = false;
-      });
+      if (mounted) {
+        setState(() {
+          _isSending = false;
+        });
+      }
     }
   }
 
