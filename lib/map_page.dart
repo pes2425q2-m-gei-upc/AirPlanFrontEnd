@@ -742,8 +742,21 @@ class MapPageState extends State<MapPage> {
     );
 
     if (result != null) {
-      await widget.activityService.sendActivityToBackend(result);
-      fetchActivities();
+      try {
+        await widget.activityService.sendActivityToBackend(result);
+        if (mounted) {
+          ScaffoldMessenger.of(
+            context,
+          ).showSnackBar(SnackBar(content: Text('Actividad creada con éxito')));
+        }
+        fetchActivities();
+      } catch (e) {
+        if (mounted) {
+          ScaffoldMessenger.of(
+            context,
+          ).showSnackBar(SnackBar(content: Text(e.toString())));
+        }
+      }
     }
   }
 
@@ -971,6 +984,7 @@ class MapPageState extends State<MapPage> {
 
   // Función para mostrar el formulario de edición
   void _showEditActivityForm(Map<String, dynamic> activity) {
+    final parentContext = context; // capture scaffold context
     final formKey = GlobalKey<FormState>();
     final titleController = TextEditingController(text: activity['nom']);
     final descriptionController = TextEditingController(
@@ -994,8 +1008,8 @@ class MapPageState extends State<MapPage> {
     );
 
     showDialog(
-      context: context,
-      builder: (context) {
+      context: parentContext,
+      builder: (BuildContext dialogContext) {
         return AlertDialog(
           title: Text('Editar actividad'),
           content: Form(
@@ -1080,42 +1094,48 @@ class MapPageState extends State<MapPage> {
           actions: [
             TextButton(
               onPressed: () {
-                Navigator.pop(context); // Cierra el diálogo
+                Navigator.of(dialogContext).pop();
               },
               child: Text('Cancelar'),
             ),
             TextButton(
               onPressed: () async {
                 if (formKey.currentState!.validate()) {
-                  // Cierra el diálogo
-                  Navigator.pop(context);
+                  Navigator.of(dialogContext).pop();
 
-                  // Prepara los datos actualizados
                   final updatedActivityData = {
                     'title': titleController.text,
                     'description': descriptionController.text,
                     'startDate': startDateController.text,
                     'endDate': endDateController.text,
-                    'location':
-                        locationController
-                            .text, // Ubicación ingresada por el usuario
+                    'location': locationController.text,
                     'user': creatorController.text,
                   };
 
-                  // Llama al servicio para actualizar la actividad
                   try {
                     final activityService = ActivityService();
                     await activityService.updateActivityInBackend(
                       activity['id'].toString(),
                       updatedActivityData,
                     );
-                    fetchActivities(); // Actualiza la lista de actividades
+                    if (mounted) {
+                      ScaffoldMessenger.of(parentContext).showSnackBar(
+                        SnackBar(
+                          content: Text('Actividad actualizada con éxito'),
+                        ),
+                      );
+                    }
+                    fetchActivities();
                   } catch (e) {
-                    if (context.mounted) {
-                      ScaffoldMessenger.of(context).showSnackBar(
+                    if (mounted) {
+                      // Get only the part after the last ': '
+                      final parts = e.toString().split(': ');
+                      final String msg =
+                          parts.isNotEmpty ? parts.last : e.toString();
+                      ScaffoldMessenger.of(parentContext).showSnackBar(
                         SnackBar(
                           content: Text(
-                            'Error al actualizar la actividad: ${e.toString()}',
+                            'Error al actualizar la actividad: $msg',
                           ),
                         ),
                       );
