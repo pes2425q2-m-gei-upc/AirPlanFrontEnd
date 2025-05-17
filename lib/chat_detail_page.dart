@@ -106,9 +106,11 @@ class ChatDetailPageState extends State<ChatDetailPage> {
         final originalTimestamp = messageData['originalTimestamp'];
 
         setState(() {
-          _messages.removeWhere((message) =>
-          message.senderUsername == sender &&
-              message.timestamp.toIso8601String() == originalTimestamp);
+          _messages.removeWhere(
+            (message) =>
+                message.senderUsername == sender &&
+                message.timestamp.toIso8601String() == originalTimestamp,
+          );
         });
         return;
       }
@@ -142,22 +144,50 @@ class ChatDetailPageState extends State<ChatDetailPage> {
         final originalTimestamp = messageData['originalTimestamp'];
         final newContent = messageData['newContent'];
 
-        setState(() {
-          for (int i = 0; i < _messages.length; i++) {
-            // Compare the timestamp strings to avoid precision issues
-            if (_messages[i].senderUsername == sender &&
-                _messages[i].timestamp.toIso8601String() == originalTimestamp) {
-              _messages[i] = Message(
+        // Solo actualizar el mensaje si todos los campos necesarios están presentes
+        if (sender != null && originalTimestamp != null && newContent != null) {
+          setState(() {
+            for (int i = 0; i < _messages.length; i++) {
+              // Compare the timestamp strings to avoid precision issues
+              if (_messages[i].senderUsername == sender &&
+                  _messages[i].timestamp.toIso8601String() ==
+                      originalTimestamp) {
+                _messages[i] = Message(
                   senderUsername: _messages[i].senderUsername,
                   receiverUsername: _messages[i].receiverUsername,
                   timestamp: _messages[i].timestamp,
                   content: newContent,
-                  isEdited: true
-              );
-              break;
+                  isEdited: true,
+                );
+                break;
+              }
             }
+          });
+        }
+        return;
+      } // Manejar mensajes de error
+      if (messageType == 'ERROR' && messageData.containsKey('message')) {
+        if (mounted) {
+          final errorMessage = messageData['message'] as String;
+
+          // Verificar si es un error relacionado con edición de mensaje
+          final isEditError =
+              errorMessage.contains("edita") ||
+              errorMessage.contains("edit") ||
+              errorMessage.contains("El contenido editado");
+
+          // Borrar el último mensaje si NO es un error de edición
+          if (_messages.isNotEmpty &&
+              _messages.last.senderUsername == _currentUsername &&
+              !isEditError) {
+            setState(() {
+              _messages.removeLast();
+            });
+            // After removal, scroll to bottom to update view
+            _scrollToBottom();
           }
-        });
+          _notificationService.showError(context, errorMessage);
+        }
         return;
       }
     }
@@ -245,6 +275,17 @@ class ChatDetailPageState extends State<ChatDetailPage> {
     final sender = data['usernameSender'];
     final receiver = data['usernameReceiver'];
 
+    // Evitar duplicados: si ya existe un mensaje con mismo remitente y timestamp
+    if (data.containsKey('dataEnviament')) {
+      final ts = data['dataEnviament'] as String;
+      if (_messages.any(
+        (m) =>
+            m.senderUsername == sender && m.timestamp.toIso8601String() == ts,
+      )) {
+        return;
+      }
+    }
+
     // Solo procesar mensajes de esta conversación
     if ((sender == _currentUsername && receiver == widget.username) ||
         (sender == widget.username && receiver == _currentUsername)) {
@@ -253,9 +294,9 @@ class ChatDetailPageState extends State<ChatDetailPage> {
         receiverUsername: data['usernameReceiver'],
         content: data['missatge'],
         timestamp:
-        data.containsKey('dataEnviament')
-            ? DateTime.parse(data['dataEnviament'])
-            : DateTime.now(),
+            data.containsKey('dataEnviament')
+                ? DateTime.parse(data['dataEnviament'])
+                : DateTime.now(),
         isEdited: data['isEdited'] ?? false,
       );
 
@@ -279,18 +320,18 @@ class ChatDetailPageState extends State<ChatDetailPage> {
       if (mounted) {
         setState(() {
           _messages =
-          historyMessages
-              .map(
-                (msg) => Message(
-              senderUsername: msg['usernameSender'],
-              receiverUsername: msg['usernameReceiver'],
-              content: msg['missatge'],
-              timestamp: DateTime.parse(msg['dataEnviament']),
-              isEdited: msg['isEdited'] ?? false,
-            ),
-          )
-              .toList()
-            ..sort((a, b) => a.timestamp.compareTo(b.timestamp));
+              historyMessages
+                  .map(
+                    (msg) => Message(
+                      senderUsername: msg['usernameSender'],
+                      receiverUsername: msg['usernameReceiver'],
+                      content: msg['missatge'],
+                      timestamp: DateTime.parse(msg['dataEnviament']),
+                      isEdited: msg['isEdited'] ?? false,
+                    ),
+                  )
+                  .toList()
+                ..sort((a, b) => a.timestamp.compareTo(b.timestamp));
 
           _isLoading = false;
         });
@@ -376,33 +417,37 @@ class ChatDetailPageState extends State<ChatDetailPage> {
     try {
       DateTime now = DateTime.now();
       DateTime timestamp = DateTime(
-          now.year,
-          now.month,
-          now.day,
-          now.hour,
-          now.minute,
-          now.second,
-          3 // Exactly 3 milliseconds
+        now.year,
+        now.month,
+        now.day,
+        now.hour,
+        now.minute,
+        now.second,
+        3, // Exactly 3 milliseconds
       );
-      // Enviar el mensaje usando el WebSocket a través del ChatService
-      final success = await _chatService.sendMessage(widget.username, message, timestamp);
+      // Optimistic UI: insert message locally
+      final newMessage = Message(
+        senderUsername: _currentUsername!,
+        receiverUsername: widget.username,
+        content: message,
+        timestamp: timestamp,
+        isEdited: false,
+      );
+      setState(() {
+        _messages.add(newMessage);
+        // ...messages assumed already in chronological order, no sort needed
+      });
+      _scrollToBottom();
+
+      // Send via WebSocket
+      final success = await _chatService.sendMessage(
+        widget.username,
+        message,
+        timestamp,
+      );
 
       if (success && mounted) {
-        final newMessage = Message(
-          senderUsername: _currentUsername!,
-          receiverUsername: widget.username,
-          content: message,
-          timestamp: timestamp,
-          isEdited: false,
-        );
-
-        setState(() {
-          _messages.add(newMessage);
-          _messages.sort((a, b) => a.timestamp.compareTo(b.timestamp));
-          _messageController.clear();
-        });
-
-        _scrollToBottom();
+        _messageController.clear();
       } else if (mounted) {
         _notificationService.showError(
           context,
@@ -453,73 +498,85 @@ class ChatDetailPageState extends State<ChatDetailPage> {
 
     showDialog(
       context: context,
-      builder: (context) => AlertDialog(
-        title: const Text('Editar mensaje'),
-        content: SizedBox(
-          width: 250, // Ajusta el ancho del campo de texto
-          child: TextField(
-            controller: editingController,
-            decoration: const InputDecoration(
-              hintText: 'Edita tu mensaje...',
-            ),
-            autofocus: true,
-            maxLines: null,
-          ),
-        ),
-        actions: [
-          Row(
-            mainAxisAlignment: MainAxisAlignment.spaceBetween, // Alinear a la izquierda y derecha
-            children: [
-              IconButton(
-                onPressed: () {
-                  Navigator.of(context).pop();
-                  _showDeleteConfirmationDialog(message);
-                },
-                icon: const Icon(Icons.delete, color: Colors.red),
-                tooltip: 'Eliminar mensaje',
+      builder:
+          (context) => AlertDialog(
+            title: const Text('Editar mensaje'),
+            content: SizedBox(
+              width: 250, // Ajusta el ancho del campo de texto
+              child: TextField(
+                controller: editingController,
+                decoration: const InputDecoration(
+                  hintText: 'Edita tu mensaje...',
+                ),
+                autofocus: true,
+                maxLines: null,
               ),
+            ),
+            actions: [
               Row(
+                mainAxisAlignment:
+                    MainAxisAlignment
+                        .spaceBetween, // Alinear a la izquierda y derecha
                 children: [
-                  TextButton(
-                    onPressed: () => Navigator.of(context).pop(),
-                    child: const Text('Cancelar'),
-                  ),
-                  TextButton(
+                  IconButton(
                     onPressed: () {
                       Navigator.of(context).pop();
-                      _updateMessage(message, editingController.text.trim());
+                      _showDeleteConfirmationDialog(message);
                     },
-                    child: const Text('Guardar'),
+                    icon: const Icon(Icons.delete, color: Colors.red),
+                    tooltip: 'Eliminar mensaje',
+                  ),
+                  Row(
+                    children: [
+                      TextButton(
+                        onPressed: () => Navigator.of(context).pop(),
+                        child: const Text('Cancelar'),
+                      ),
+                      TextButton(
+                        onPressed: () {
+                          Navigator.of(context).pop();
+                          _updateMessage(
+                            message,
+                            editingController.text.trim(),
+                          );
+                        },
+                        child: const Text('Guardar'),
+                      ),
+                    ],
                   ),
                 ],
               ),
             ],
           ),
-        ],
-      ),
     );
   }
 
   void _showDeleteConfirmationDialog(Message message) {
     showDialog(
       context: context,
-      builder: (context) => AlertDialog(
-        title: const Text('Eliminar mensaje'),
-        content: const Text('¿Estás seguro de que deseas eliminar este mensaje?'),
-        actions: [
-          TextButton(
-            onPressed: () => Navigator.of(context).pop(),
-            child: const Text('Cancelar'),
+      builder:
+          (context) => AlertDialog(
+            title: const Text('Eliminar mensaje'),
+            content: const Text(
+              '¿Estás seguro de que deseas eliminar este mensaje?',
+            ),
+            actions: [
+              TextButton(
+                onPressed: () => Navigator.of(context).pop(),
+                child: const Text('Cancelar'),
+              ),
+              TextButton(
+                onPressed: () {
+                  Navigator.of(context).pop();
+                  _deleteMessage(message);
+                },
+                child: const Text(
+                  'Eliminar',
+                  style: TextStyle(color: Colors.red),
+                ),
+              ),
+            ],
           ),
-          TextButton(
-            onPressed: () {
-              Navigator.of(context).pop();
-              _deleteMessage(message);
-            },
-            child: const Text('Eliminar', style: TextStyle(color: Colors.red)),
-          ),
-        ],
-      ),
     );
   }
 
@@ -539,37 +596,22 @@ class ChatDetailPageState extends State<ChatDetailPage> {
 
     try {
       // Send the edited message through the ChatService
+      // No actualizamos el mensaje localmente, esperamos a que el servidor
+      // confirme la edición a través de un mensaje WebSocket de tipo EDIT
       final success = await _chatService.editMessage(
-          widget.username,
-          message.timestamp.toIso8601String(),
-          newContent
+        widget.username,
+        message.timestamp.toIso8601String(),
+        newContent,
       );
 
-      if (success) {
-        setState(() {
-          // Update the message locally
-          final index = _messages.indexWhere((m) =>
-          m.senderUsername == message.senderUsername &&
-              m.timestamp == message.timestamp);
-
-          if (index != -1) {
-            _messages[index] = Message(
-              senderUsername: message.senderUsername,
-              receiverUsername: message.receiverUsername,
-              content: newContent,
-              timestamp: message.timestamp,
-              isEdited: true,
-            );
-          }
-        });
-      } else {
-        if (mounted) {
-          _notificationService.showError(
-            context,
-            'Error al editar el mensaje. Inténtalo de nuevo.',
-          );
-        }
+      if (!success && mounted) {
+        _notificationService.showError(
+          context,
+          'Error al editar el mensaje. Inténtalo de nuevo.',
+        );
       }
+      // Ya no actualizamos el mensaje aquí, el servidor enviará un mensaje WebSocket
+      // con la confirmación y se actualizará en el método handleIncomingMessage
     } catch (e) {
       if (mounted) {
         _notificationService.showError(
@@ -578,9 +620,11 @@ class ChatDetailPageState extends State<ChatDetailPage> {
         );
       }
     } finally {
-      setState(() {
-        _isSending = false;
-      });
+      if (mounted) {
+        setState(() {
+          _isSending = false;
+        });
+      }
     }
   }
 
@@ -785,9 +829,10 @@ class ChatDetailPageState extends State<ChatDetailPage> {
     return Align(
       alignment: isMe ? Alignment.centerRight : Alignment.centerLeft,
       child: GestureDetector(
-        onLongPress: isMe && _isMessageEditable(message)
-            ? () => _showEditDialog(message)
-            : null,
+        onLongPress:
+            isMe && _isMessageEditable(message)
+                ? () => _showEditDialog(message)
+                : null,
         child: Container(
           margin: const EdgeInsets.symmetric(vertical: 4, horizontal: 8),
           padding: const EdgeInsets.symmetric(vertical: 8, horizontal: 16),
@@ -816,10 +861,10 @@ class ChatDetailPageState extends State<ChatDetailPage> {
                     _formatTimestamp(message.timestamp),
                     style: TextStyle(
                       color:
-                    isMe
-                        ? Colors.white70
-                        : Colors
-                            .black54, // Reemplazado withAlpha(204) por Colors.white70
+                          isMe
+                              ? Colors.white70
+                              : Colors
+                                  .black54, // Reemplazado withAlpha(204) por Colors.white70
                       fontSize: 12,
                     ),
                   ),
@@ -827,7 +872,8 @@ class ChatDetailPageState extends State<ChatDetailPage> {
                     Text(
                       " · Editado",
                       style: TextStyle(
-                        color: isMe ? Colors.white.withAlpha(204) : Colors.black54,
+                        color:
+                            isMe ? Colors.white.withAlpha(204) : Colors.black54,
                         fontSize: 12,
                         fontStyle: FontStyle.italic,
                       ),

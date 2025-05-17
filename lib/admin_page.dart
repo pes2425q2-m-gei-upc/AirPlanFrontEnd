@@ -3,6 +3,7 @@ import 'package:flutter/material.dart';
 import 'package:airplan/user_page.dart';
 import 'services/websocket_service.dart';
 import 'services/auth_service.dart'; // Import AuthService
+import 'package:airplan/filtros_admin_content.dart'; // Import the new filters content page
 
 class AdminPage extends StatefulWidget {
   // Add support for dependency injection
@@ -24,6 +25,7 @@ class AdminPageState extends State<AdminPage> {
   static final List<String> _appBarTitles = [
     'Perfil de Administrador',
     'Panel de Administración',
+    'Filtros de Contenido', // Updated title for the Filters tab
   ];
 
   void _onItemTapped(int index) {
@@ -69,6 +71,9 @@ class AdminPageState extends State<AdminPage> {
               ),
             ),
           ),
+
+          // Pestaña 3: Filtros (content of the new filters page)
+          const FiltrosAdminContent(), // Use the new widget here
         ],
       ),
       bottomNavigationBar: BottomNavigationBar(
@@ -77,6 +82,11 @@ class AdminPageState extends State<AdminPage> {
           BottomNavigationBarItem(
             icon: Icon(Icons.admin_panel_settings),
             label: 'Admin',
+          ),
+          BottomNavigationBarItem(
+            // Nueva pestaña Filtros
+            icon: Icon(Icons.filter_list),
+            label: 'Filtros',
           ),
         ],
         currentIndex: _selectedIndex,
