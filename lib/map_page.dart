@@ -2,6 +2,7 @@
 import 'package:airplan/recommended_activities_page.dart';
 import 'package:airplan/services/notification_service.dart';
 import 'package:airplan/solicituds_service.dart';
+import 'package:airplan/air_quality_service.dart';
 import 'dart:async';
 import 'package:airplan/transit_service.dart';
 import 'package:flutter/material.dart';
@@ -1068,41 +1069,12 @@ class MapPageState extends State<MapPage> {
     );
   }
 
-  List<AirQualityData> findClosestAirQualityData(LatLng activityLocation) {
-    double closestDistance = double.infinity;
-    LatLng closestLocation = LatLng(0, 0);
-    List<AirQualityData> listAQD = [];
-
-    contaminantsPerLocation.forEach((location, dataMap) {
-      final distance = Distance().as(
-        LengthUnit.Meter,
-        activityLocation,
-        location,
-      );
-      if (distance < closestDistance) {
-        closestDistance = distance;
-        closestLocation = location;
-      }
-    });
-
-    contaminantsPerLocation[closestLocation]?.forEach((
-        contaminant,
-        airQualityData,
-        ) {
-      listAQD.add(airQualityData);
-    });
-
-    return listAQD;
-  }
-
   // Función para navegar a la página de detalles (código original)
   void _navigateToActivityDetails(Map<String, dynamic> activity) {
     final ubicacio = activity['ubicacio'] as Map<String, dynamic>;
     final lat = ubicacio['latitud'] as double;
     final lon = ubicacio['longitud'] as double;
-    List<AirQualityData> airQualityData = findClosestAirQualityData(
-      LatLng(lat, lon),
-    );
+    List<AirQualityData> airQualityData = AirQualityService.findClosestAirQualityData(LatLng(lat, lon),contaminantsPerLocation);
     Navigator.push(
       context,
       MaterialPageRoute(
@@ -2011,7 +1983,19 @@ class MapPageState extends State<MapPage> {
   }
 
   void _showRecommendedActivities() {
-    RecommendedActivitiesPage(userLocation: currentPosition);
+    if (!locationPermissionGranted) {
+      if (mounted) {
+        NotificationService().showError(context, "Per veure les activitats recomanades, concedeix permisos de localització.");
+      }
+    } else {
+      Navigator.push(
+        context,
+        MaterialPageRoute(
+          builder: (context) => RecommendedActivitiesPage(
+              userLocation: currentPosition, contaminantsPerLocation: contaminantsPerLocation, savedLocations: savedLocations,),
+        ),
+      );
+    }
   }
 
   @override

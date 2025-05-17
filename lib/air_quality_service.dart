@@ -7,6 +7,7 @@ import 'package:latlong2/latlong.dart';
 import 'air_quality.dart';
 
 class AirQualityService {
+
   static Future<List<CircleMarker>> fetchAirQualityData(contaminantsPerLocation) async {
     final url = Uri.parse('https://analisi.transparenciacatalunya.cat/resource/tasf-thgu.json?data=${DateTime.now().toString().substring(0, 10)}');
     final response = await http.get(url);
@@ -19,31 +20,28 @@ class AirQualityService {
     }
   }
 
-  static List<CircleMarker> createCirclesFromAirQualityData(dynamic data, contaminantsPerLocation) {
+  static List<CircleMarker> createCirclesFromAirQualityData(dynamic data, Map<LatLng, Map<Contaminant, AirQualityData>> contaminantsPerLocation) {
+
     for (var entry in data) {
-      LatLng position = LatLng(
-          double.parse(entry['latitud']), double.parse(entry['longitud']));
+      LatLng position = LatLng(double.parse(entry['latitud']), double.parse(entry['longitud']));
       Contaminant contaminant = Contaminant.so2;
       try {
         contaminant = parseContaminant(entry['contaminant']);
         AirQualityData aqd = getLastAirQualityData(entry);
-        //guarda el valor de la última hora pel contaminant que s'ha mesurat
         if (contaminantsPerLocation[position] == null) {
-          Map<Contaminant, AirQualityData> contaminants = {};
-          contaminantsPerLocation[position] = contaminants;
+          contaminantsPerLocation[position] = {};
         }
-        if (contaminantsPerLocation[position]![contaminant] == null ||
-            (aqd.lastDateHour.isAfter(
-                contaminantsPerLocation[position]?[contaminant]!
-                    .lastDateHour as DateTime))) {
-          contaminantsPerLocation[position]?[contaminant] = aqd;
+        if (contaminantsPerLocation[position]![contaminant] == null || aqd.lastDateHour.isAfter(contaminantsPerLocation[position]![contaminant]!.lastDateHour)) {
+          contaminantsPerLocation[position]![contaminant] = aqd;
         }
-      } catch (e) {
-        //TODO informar de que hi ha un contaminant desconegut i no es mostrarà
+      }
+      catch (e) {
+        continue;
       }
     }
+
     List<CircleMarker> circles = [];
-    contaminantsPerLocation.forEach((LatLng pos,Map<Contaminant,AirQualityData> contaminants) {
+    contaminantsPerLocation.forEach((LatLng pos, Map<Contaminant, AirQualityData> contaminants) {
       AirQuality worstAQI = AirQuality.excelent;
       contaminants.forEach((Contaminant key, AirQualityData aqd) {
         if (aqd.aqi.index > worstAQI.index) {
@@ -56,10 +54,37 @@ class AirQualityService {
         color: color,
         borderStrokeWidth: 2.0,
         borderColor: color,
-        radius: 20, // Radius in pixels
+        radius: 20,
       ));
     });
 
     return circles;
+  }
+
+  static List<AirQualityData> findClosestAirQualityData(LatLng activityLocation, Map<LatLng,Map<Contaminant,AirQualityData>> contaminantsPerLocation) {
+    double closestDistance = double.infinity;
+    LatLng closestLocation = LatLng(0, 0);
+    List<AirQualityData> listAQD = [];
+
+    contaminantsPerLocation.forEach((location, dataMap) {
+      final distance = Distance().as(
+        LengthUnit.Meter,
+        activityLocation,
+        location,
+      );
+      if (distance < closestDistance) {
+        closestDistance = distance;
+        closestLocation = location;
+      }
+    });
+
+    contaminantsPerLocation[closestLocation]?.forEach((
+        contaminant,
+        airQualityData,
+        ) {
+      listAQD.add(airQualityData);
+    });
+
+    return listAQD;
   }
 }
