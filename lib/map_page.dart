@@ -2262,17 +2262,17 @@ class MapPageState extends State<MapPage> {
       body: Stack(
         children: [
           map_ui.MapUI(
-            mapController: mapController,
-            currentPosition: currentPosition,
-            circles: showAirQualityCircles ? circles : [],
-            onMapTapped: _onMapTapped,
-            activities: activities,
-            onActivityTap: _showActivityDetails,
-            markers: markers,
-            route: currentRoute.value.fullRoute,
-            steps: currentRoute.value.steps,
-            userHeading: _showCompass ? _deviceHeading : null,
-            isNavigationMode: isNavigating,
+              mapController: mapController,
+              currentPosition: currentPosition,
+              circles: showAirQualityCircles ? circles : [],
+              onMapTapped: _onMapTapped,
+              activities: activities,
+              onActivityTap: _showActivityDetails,
+              markers: markers,
+              route: currentRoute.value.fullRoute,
+              steps: currentRoute.value.steps,
+              userHeading: _showCompass ? _deviceHeading : null,
+              isNavigationMode: isNavigating,
           ),
           Positioned(
             top: 10,
