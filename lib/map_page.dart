@@ -1119,6 +1119,7 @@ class MapPageState extends State<MapPage> {
                       updatedActivityData,
                     );
                     if (mounted) {
+                      if (!parentContext.mounted) return;
                       ScaffoldMessenger.of(parentContext).showSnackBar(
                         SnackBar(
                           content: Text('Actividad actualizada con éxito'),
@@ -1132,6 +1133,7 @@ class MapPageState extends State<MapPage> {
                       final parts = e.toString().split(': ');
                       final String msg =
                           parts.isNotEmpty ? parts.last : e.toString();
+                      if (!parentContext.mounted) return;
                       ScaffoldMessenger.of(parentContext).showSnackBar(
                         SnackBar(
                           content: Text(
@@ -1506,8 +1508,9 @@ class MapPageState extends State<MapPage> {
   }
 
   LatLngBounds _calculateRouteBounds(List<LatLng> routePoints) {
-    if (routePoints.isEmpty)
+    if (routePoints.isEmpty) {
       return LatLngBounds(currentPosition, currentPosition);
+    }
 
     double minLat = routePoints[0].latitude;
     double maxLat = routePoints[0].latitude;

@@ -23,20 +23,20 @@ class AttributeSettingUIModel {
 }
 
 class FiltrosAdminContent extends StatefulWidget {
-  const FiltrosAdminContent({Key? key}) : super(key: key);
+  const FiltrosAdminContent({super.key});
 
   @override
-  _FiltrosAdminContentState createState() => _FiltrosAdminContentState();
+  FiltrosAdminContentState createState() => FiltrosAdminContentState();
 }
 
-class _FiltrosAdminContentState extends State<FiltrosAdminContent> {
+class FiltrosAdminContentState extends State<FiltrosAdminContent> {
   bool _isPerspectiveServiceEnabledOverall =
       true; // For the main service switch
   bool _doNotStore = false;
   bool _spanAnnotations = false;
 
   // Using a Map to easily access settings by attribute name
-  Map<String, AttributeSettingUIModel> _attributeSettingsMap = {};
+  final Map<String, AttributeSettingUIModel> _attributeSettingsMap = {};
 
   // Supported attributes - should match backend
   final List<String> _supportedAttributes = [
@@ -112,9 +112,6 @@ class _FiltrosAdminContentState extends State<FiltrosAdminContent> {
           const SnackBar(content: Text('Configuración cargada con éxito.')),
         );
       } else {
-        print(
-          'Failed to load settings: ${'${response.statusCode}'} - ${'${response.body}'}',
-        );
         ScaffoldMessenger.of(context).showSnackBar(
           SnackBar(
             content: Text(
@@ -124,7 +121,6 @@ class _FiltrosAdminContentState extends State<FiltrosAdminContent> {
         );
       }
     } catch (e) {
-      print('Error loading settings: $e');
       if (!mounted) return;
       ScaffoldMessenger.of(context).showSnackBar(
         SnackBar(
@@ -196,19 +192,15 @@ class _FiltrosAdminContentState extends State<FiltrosAdminContent> {
           const SnackBar(content: Text('Configuración guardada con éxito.')),
         );
       } else {
-        print(
-          'Failed to save settings: ${'${response.statusCode}'} - ${'${response.body}'}',
-        );
         ScaffoldMessenger.of(context).showSnackBar(
           SnackBar(
             content: Text(
-              'Error al guardar configuración: ${'${response.statusCode}'}. Detalles: ${'${response.body}'}',
+              'Error al guardar configuración: ${'${response.statusCode}'}. Detalles: ${response.body}',
             ),
           ),
         );
       }
     } catch (e) {
-      print('Error saving settings: $e');
       if (!mounted) return;
       ScaffoldMessenger.of(context).showSnackBar(
         SnackBar(
@@ -220,7 +212,9 @@ class _FiltrosAdminContentState extends State<FiltrosAdminContent> {
 
   @override
   void dispose() {
-    _attributeSettingsMap.values.forEach((model) => model.dispose());
+    for (var model in _attributeSettingsMap.values) {
+      model.dispose();
+    }
     super.dispose();
   }
 
