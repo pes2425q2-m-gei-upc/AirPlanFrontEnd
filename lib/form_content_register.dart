@@ -97,14 +97,15 @@ class _FormContentRegisterState extends State<FormContentRegister> {
       _formKey.currentState?.validate(); // Actualizar UI inmediatamente
 
       // 3. Preparar datos del usuario
+      final bool isActuallyAdmin =
+          _isAdmin && _verificationCodeController.text.trim() == 'ab123';
       final usuario = {
         "username": _usernameController.text.trim(),
         "nom": _nameController.text.trim(),
         "email": _emailController.text.trim(),
         "idioma": _selectedLanguage,
-        "sesionIniciada": true,
-        "isAdmin":
-            _isAdmin && _verificationCodeController.text.trim() == 'ab123',
+        "sesionIniciada": false, // Consistent for all new user registrations
+        "isAdmin": isActuallyAdmin,
       };
 
       // 4. Enviar petición al backend
@@ -427,6 +428,11 @@ class _FormContentRegisterState extends State<FormContentRegister> {
                     validator: (value) {
                       if (_isAdmin && (value == null || value.isEmpty)) {
                         return 'Introdueix el codi de verificació';
+                      }
+                      if (_isAdmin &&
+                          value != null &&
+                          value.trim() != 'ab123') {
+                        return 'Codi de verificació incorrecte';
                       }
                       return null;
                     },
