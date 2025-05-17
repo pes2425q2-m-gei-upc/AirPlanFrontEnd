@@ -176,14 +176,15 @@ class ChatDetailPageState extends State<ChatDetailPage> {
               errorMessage.contains("edit") ||
               errorMessage.contains("El contenido editado");
 
-          // Solo borrar el último mensaje si se está enviando un mensaje nuevo y NO es un error de edición
+          // Borrar el último mensaje si NO es un error de edición
           if (_messages.isNotEmpty &&
               _messages.last.senderUsername == _currentUsername &&
-              _isSending &&
               !isEditError) {
             setState(() {
               _messages.removeLast();
             });
+            // After removal, scroll to bottom to update view
+            _scrollToBottom();
           }
           _notificationService.showError(context, errorMessage);
         }
@@ -424,7 +425,21 @@ class ChatDetailPageState extends State<ChatDetailPage> {
         now.second,
         3, // Exactly 3 milliseconds
       );
-      // Enviar el mensaje usando el WebSocket a través del ChatService
+      // Optimistic UI: insert message locally
+      final newMessage = Message(
+        senderUsername: _currentUsername!,
+        receiverUsername: widget.username,
+        content: message,
+        timestamp: timestamp,
+        isEdited: false,
+      );
+      setState(() {
+        _messages.add(newMessage);
+        // ...messages assumed already in chronological order, no sort needed
+      });
+      _scrollToBottom();
+
+      // Send via WebSocket
       final success = await _chatService.sendMessage(
         widget.username,
         message,
@@ -432,21 +447,7 @@ class ChatDetailPageState extends State<ChatDetailPage> {
       );
 
       if (success && mounted) {
-        final newMessage = Message(
-          senderUsername: _currentUsername!,
-          receiverUsername: widget.username,
-          content: message,
-          timestamp: timestamp,
-          isEdited: false,
-        );
-
-        setState(() {
-          _messages.add(newMessage);
-          _messages.sort((a, b) => a.timestamp.compareTo(b.timestamp));
-          _messageController.clear();
-        });
-
-        _scrollToBottom();
+        _messageController.clear();
       } else if (mounted) {
         _notificationService.showError(
           context,
