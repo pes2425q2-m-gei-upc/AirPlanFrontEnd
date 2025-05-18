@@ -927,7 +927,6 @@ class ChatDetailPageState extends State<ChatDetailPage> {
 
   Future<void> _reportUser(String reason) async {
     final user = _authService.getCurrentUser();
-
     if (user == null || user.displayName == null) {
       _notificationService.showError(
         context,
