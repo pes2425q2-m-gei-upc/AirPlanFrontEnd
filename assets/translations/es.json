@@ -1,0 +1,9 @@
+{
+  "app_title": "AirPlan",
+  "login_title": "Iniciar Sesión",
+  "email_label": "Correo Electrónico",
+  "password_label": "Contraseña",
+  "login_button": "Iniciar Sesión",
+  "signup_prompt": "¿No tienes cuenta? Regístrate aquí",
+  "reset_password": "¿Olvidaste tu contraseña?"
+}

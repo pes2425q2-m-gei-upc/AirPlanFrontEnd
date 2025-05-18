@@ -1,0 +1,9 @@
+{
+  "app_title": "AirPlan",
+  "login_title": "Iniciar Sessió",
+  "email_label": "Correu Electrònic",
+  "password_label": "Contrasenya",
+  "login_button": "Iniciar Sessió",
+  "signup_prompt": "No tens compte? Registra't aquí",
+  "reset_password": "Has oblidat la contrasenya?"
+}

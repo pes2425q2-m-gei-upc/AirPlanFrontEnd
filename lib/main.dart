@@ -16,6 +16,9 @@ import 'chat_list_page.dart'; // Import the new ChatListPage
 import 'services/websocket_service.dart'; // Import WebSocket service
 import 'services/api_config.dart'; // Importar la configuración de API
 import 'dart:async'; // Para StreamSubscription
+import 'package:easy_localization/easy_localization.dart';
+import 'package:flutter_localizations/flutter_localizations.dart';
+import 'package:easy_localization/easy_localization.dart';
 
 // Stream controller para comunicar actualizaciones de perfil a toda la aplicación
 final StreamController<Map<String, dynamic>> profileUpdateStreamController =
@@ -168,6 +171,7 @@ class GlobalNotificationService {
 
 void main() async {
   WidgetsFlutterBinding.ensureInitialized();
+  await EasyLocalization.ensureInitialized();
 
   // Inicializar datos de formateo para español y otros idiomas que puedas necesitar
   await initializeDateFormatting('es', null);
@@ -187,7 +191,14 @@ void main() async {
   // Inicializar la configuración de API
   ApiConfig().initialize();
 
-  runApp(const MiApp());
+  runApp(
+    EasyLocalization(
+      supportedLocales: const [Locale('es'), Locale('ca'), Locale('en')],
+      path: 'assets/translations',
+      fallbackLocale: const Locale('en'),
+      child: const MiApp(),
+    ),
+  );
 }
 
 class MiApp extends StatefulWidget {
@@ -558,13 +569,16 @@ class _MiAppState extends State<MiApp> with WidgetsBindingObserver {
   @override
   Widget build(BuildContext context) {
     return MaterialApp(
-      navigatorKey: navigatorKey, // Usar la clave global para el navigator
-      title: 'AirPlan',
+      navigatorKey: navigatorKey,
+      title: tr('app_title'),
       debugShowCheckedModeBanner: false,
       theme: ThemeData(
         primarySwatch: Colors.blue,
         visualDensity: VisualDensity.adaptivePlatformDensity,
       ),
+      locale: EasyLocalization.of(context)!.locale,
+      supportedLocales: EasyLocalization.of(context)!.supportedLocales,
+      localizationsDelegates: EasyLocalization.of(context)!.delegates,
       home: const AuthWrapper(),
     );
   }
@@ -578,6 +592,7 @@ class AuthWrapper extends StatefulWidget {
 }
 
 class AuthWrapperState extends State<AuthWrapper> {
+  bool _langLoaded = false;
   // Flag para indicar si el usuario estaba previamente autenticado
   bool _wasAuthenticated = false;
   // Flag para indicar si el logout fue manual
@@ -627,6 +642,11 @@ class AuthWrapperState extends State<AuthWrapper> {
         if (snapshot.connectionState == ConnectionState.active) {
           final user = snapshot.data;
 
+          // Cargar idioma del usuario según configuración del backend
+          if (user != null && !_langLoaded) {
+            _langLoaded = true;
+            _fetchUserLanguage(user);
+          }
           // Comprobar si la sesión ha caducado (estaba autenticado pero ahora no)
           if (_wasAuthenticated && user == null && !_isManualLogout) {
             // La sesión ha caducado, mostrar notificación solo si NO es logout manual
@@ -677,6 +697,22 @@ class AuthWrapperState extends State<AuthWrapper> {
         return const Scaffold(body: Center(child: CircularProgressIndicator()));
       },
     );
+  }
+
+  // Obtener y aplicar el idioma del usuario desde el backend
+  Future<void> _fetchUserLanguage(User user) async {
+    try {
+      final response = await http.get(
+        Uri.parse(ApiConfig().buildUrl('api/usuaris/${user.uid}')),
+      );
+      if (response.statusCode == 200) {
+        final data = jsonDecode(response.body);
+        final lang = data['idioma'] as String? ?? 'en';
+        await context.setLocale(Locale(lang));
+      }
+    } catch (e) {
+      debugPrint('Error fetching user language: $e');
+    }
   }
 }
 

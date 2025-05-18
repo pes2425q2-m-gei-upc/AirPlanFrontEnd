@@ -1,0 +1,9 @@
+{
+  "app_title": "AirPlan",
+  "login_title": "Login",
+  "email_label": "Email",
+  "password_label": "Password",
+  "login_button": "Login",
+  "signup_prompt": "Don't have an account? Sign up here",
+  "reset_password": "Forgot your password?"
+}

@@ -7,6 +7,7 @@ import 'main.dart'; // Importamos main.dart para acceder a AuthWrapper
 import 'services/websocket_service.dart'; // Import WebSocket service
 import 'services/api_config.dart'; // Importar la configuración de API
 import 'services/auth_service.dart'; // Importamos AuthService
+import 'package:easy_localization/easy_localization.dart';
 
 class LoginPage extends StatefulWidget {
   // Añadimos la posibilidad de inyectar el AuthService
@@ -144,7 +145,7 @@ class LoginPageState extends State<LoginPage> {
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      appBar: AppBar(title: const Text("Iniciar Sessió")),
+      appBar: AppBar(title: Text('login_title'.tr())),
       body: Padding(
         padding: const EdgeInsets.all(16.0),
         child: Column(
@@ -152,8 +153,8 @@ class LoginPageState extends State<LoginPage> {
           children: [
             TextField(
               controller: _emailController,
-              decoration: const InputDecoration(
-                labelText: "Correu electrònic",
+              decoration: InputDecoration(
+                labelText: 'email_label'.tr(),
                 border: OutlineInputBorder(),
               ),
               onSubmitted: (_) => _signIn(), // Añadir esta línea
@@ -162,8 +163,8 @@ class LoginPageState extends State<LoginPage> {
             TextField(
               controller: _passwordController,
               obscureText: true,
-              decoration: const InputDecoration(
-                labelText: "Contrasenya",
+              decoration: InputDecoration(
+                labelText: 'password_label'.tr(),
                 border: OutlineInputBorder(),
               ),
               onSubmitted: (_) => _signIn(), // Añadir esta línea
@@ -171,7 +172,7 @@ class LoginPageState extends State<LoginPage> {
             const SizedBox(height: 12),
             ElevatedButton(
               onPressed: _signIn,
-              child: const Text("Iniciar Sessió"),
+              child: Text('login_button'.tr()),
             ),
             const SizedBox(height: 12),
             TextButton(
@@ -186,7 +187,7 @@ class LoginPageState extends State<LoginPage> {
                   ),
                 );
               },
-              child: const Text("No tens compte? Registra't aquí"),
+              child: Text('signup_prompt'.tr()),
             ),
             TextButton(
               onPressed: () {
@@ -199,7 +200,7 @@ class LoginPageState extends State<LoginPage> {
                   ),
                 );
               },
-              child: const Text("Has oblidat la contrasenya?"),
+              child: Text('reset_password'.tr()),
             ),
             if (_errorMessage.isNotEmpty) ...[
               const SizedBox(height: 12),

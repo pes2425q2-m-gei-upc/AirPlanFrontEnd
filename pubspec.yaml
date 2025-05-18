@@ -30,7 +30,10 @@ environment:
 dependencies:
   flutter:
     sdk: flutter
-  intl: ^0.20.2
+  flutter_localizations:
+    sdk: flutter
+  easy_localization: ^3.0.5
+  intl: ^0.19.0
   http: ^1.3.0
   flutter_map: ^8.1.1
   latlong2: ^0.9.1
@@ -116,4 +119,8 @@ flutter:
   # see https://flutter.dev/to/font-from-package
   assets:
     - assets/animations/headless_bear.riv
+    # Traducciones para i18n
+    - assets/translations/en.json
+    - assets/translations/es.json
+    - assets/translations/ca.json
 
