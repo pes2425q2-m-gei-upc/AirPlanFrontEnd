@@ -6,9 +6,13 @@ import 'package:airplan/services/api_config.dart';
 import 'package:airplan/models/nota.dart';
 
 class NoteService {
+  final http.Client client;
+
+  NoteService({http.Client? client}) : client = client ?? http.Client();
+
   Future<List<Nota>> fetchUserNotes(String username) async {
     final url = Uri.parse(ApiConfig().buildUrl('notas/$username'));
-    final response = await http.get(url);
+    final response = await client.get(url);
 
     if (response.statusCode == 200) {
       final List<dynamic> data = jsonDecode(response.body);
@@ -24,12 +28,12 @@ class NoteService {
     // Format data with camelCase field names to match Kotlin backend
     final Map<String, dynamic> data = {
       'username': nota.username,
-      'fechaCreacion': DateFormat('yyyy-MM-dd').format(nota.fecha_creacion),
-      'horaRecordatorio': nota.hora_recordatorio,
+      'fechaCreacion': DateFormat('yyyy-MM-dd').format(nota.fechacreacion),
+      'horaRecordatorio': nota.horarecordatorio,
       'comentario': nota.comentario
     };
 
-    final response = await http.post(
+    final response = await client.post(
       url,
       headers: <String, String>{
         'Content-Type': 'application/json',
@@ -48,12 +52,12 @@ class NoteService {
     // Format data with camelCase field names to match Kotlin backend
     final Map<String, dynamic> data = {
       'username': nota.username,
-      'fechaCreacion': DateFormat('yyyy-MM-dd').format(nota.fecha_creacion),
-      'horaRecordatorio': nota.hora_recordatorio,
+      'fechaCreacion': DateFormat('yyyy-MM-dd').format(nota.fechacreacion),
+      'horaRecordatorio': nota.horarecordatorio,
       'comentario': nota.comentario
     };
 
-    final response = await http.put(
+    final response = await client.put(
       url,
       headers: <String, String>{
         'Content-Type': 'application/json',
@@ -68,7 +72,7 @@ class NoteService {
 
   Future<void> deleteNote(int id) async {
     final url = Uri.parse(ApiConfig().buildUrl('notas/$id'));
-    final response = await http.delete(url);
+    final response = await client.delete(url);
 
     if (response.statusCode != 200) {
       throw Exception('Error al eliminar la nota: ${response.body}');
@@ -81,7 +85,7 @@ class NoteService {
     final dayFormatted = dateFormat.format(day);
 
     return notes.where((note) {
-      final noteDate = DateTime(note.fecha_creacion.year, note.fecha_creacion.month, note.fecha_creacion.day);
+      final noteDate = DateTime(note.fechacreacion.year, note.fechacreacion.month, note.fechacreacion.day);
       return dateFormat.format(noteDate) == dayFormatted;
     }).toList();
   }

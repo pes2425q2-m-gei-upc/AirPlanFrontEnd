@@ -15,16 +15,15 @@ class CalendarPage extends StatefulWidget {
   final AuthService authService;
   final ActivityService activityService;
 
-  CalendarPage({Key? key, AuthService? authService, ActivityService? activityService})
+  CalendarPage({super.key, AuthService? authService, ActivityService? activityService})
       : authService = authService ?? AuthService(),
-        activityService = activityService ?? ActivityService(),
-        super(key: key);
+        activityService = activityService ?? ActivityService();
 
   @override
-  _CalendarPageState createState() => _CalendarPageState();
+  CalendarPageState createState() => CalendarPageState();
 }
 
-class _CalendarPageState extends State<CalendarPage> {
+class CalendarPageState extends State<CalendarPage> {
   late final ValueNotifier<List<Map<String, dynamic>>> _selectedEvents;
   CalendarFormat _calendarFormat = CalendarFormat.month;
   DateTime _focusedDay = DateTime.now();
@@ -64,7 +63,7 @@ class _CalendarPageState extends State<CalendarPage> {
         // Group notes by day
         _userNotes = {};
         for (var note in notes) {
-          final day = DateTime(note.fecha_creacion.year, note.fecha_creacion.month, note.fecha_creacion.day);
+          final day = DateTime(note.fechacreacion.year, note.fechacreacion.month, note.fechacreacion.day);
           _userNotes[day] = _userNotes[day] ?? [];
           _userNotes[day]!.add(note);
         }
@@ -92,7 +91,7 @@ class _CalendarPageState extends State<CalendarPage> {
     TimeOfDay selectedTime = TimeOfDay.now();
 
     if (existingNote != null) {
-      final parts = existingNote.hora_recordatorio.split(':');
+      final parts = existingNote.horarecordatorio.split(':');
       selectedTime = TimeOfDay(
         hour: int.parse(parts[0]),
         minute: int.parse(parts[1]),
@@ -154,63 +153,68 @@ class _CalendarPageState extends State<CalendarPage> {
               child: const Text('Cancelar'),
             ),
             ElevatedButton(
-              onPressed: () async {
+              onPressed: () {
+                // Capture values before any async operations
                 final content = noteController.text.trim();
+                final capturedDay = day;
+                final timeString = '${selectedTime.hour.toString().padLeft(2, '0')}:${selectedTime.minute.toString().padLeft(2, '0')}';
 
-                setState(() {
-                  _isLoading = true;
+                // Close the dialog FIRST before any async operations
+                Navigator.of(context).pop();
+
+                // Then do the async work
+                Future(() async {
+                  try {
+                    setState(() {
+                      _isLoading = true;
+                    });
+
+                    // Delete existing note
+                    if (content.isEmpty && existingNote != null && existingNote.id != null) {
+                      await noteService.deleteNote(existingNote.id!);
+                      _userNotes.remove(normalizedDay);
+                    }
+                    // Update existing note
+                    else if (content.isNotEmpty && existingNote != null && existingNote.id != null) {
+                      final updatedNota = Nota(
+                        id: existingNote.id,
+                        username: username,
+                        fechacreacion: normalizedDay,
+                        horarecordatorio: timeString,
+                        comentario: content,
+                      );
+                      await noteService.updateNote(existingNote.id!, updatedNota);
+                      final existingNotes = _userNotes[normalizedDay] ?? [];
+                      final updatedNotes = existingNotes.map((note) =>
+                      note.id == existingNote.id ? updatedNota : note
+                      ).toList();
+                      _userNotes[normalizedDay] = updatedNotes;
+                    }
+                    // Create new note
+                    else if (content.isNotEmpty) {
+                      final newNota = Nota(
+                        username: username,
+                        fechacreacion: normalizedDay,
+                        horarecordatorio: timeString,
+                        comentario: content,
+                      );
+                      await noteService.createNote(newNota);
+                      await _loadUserNotes(); // Reload to get the ID
+                    }
+                  }
+                  finally {
+                    if (mounted) {
+                      setState(() {
+                        _isLoading = false;
+                      });
+
+                      // Show activities dialog after everything is done
+                      if (mounted) {
+                        _showActivitiesDialog(capturedDay);
+                      }
+                    }
+                  }
                 });
-
-                try {
-                  final timeString = '${selectedTime.hour.toString().padLeft(2, '0')}:${selectedTime.minute.toString().padLeft(2, '0')}';
-
-                  // Delete existing note
-                  if (content.isEmpty && existingNote != null && existingNote.id != null) {
-                    await noteService.deleteNote(existingNote.id!);
-                    _userNotes.remove(normalizedDay);
-                  }
-                  // Update existing note
-                  else if (content.isNotEmpty && existingNote != null && existingNote.id != null) {
-                    final updatedNota = Nota(
-                      id: existingNote.id,
-                      username: username,
-                      fecha_creacion: normalizedDay,
-                      hora_recordatorio: timeString,
-                      comentario: content,
-                    );
-                    await noteService.updateNote(existingNote.id!, updatedNota);
-                    final existingNotes = _userNotes[normalizedDay] ?? [];
-                    final updatedNotes = existingNotes.map((note) =>
-                    note.id == existingNote.id ? updatedNota : note
-                    ).toList();
-                    _userNotes[normalizedDay] = updatedNotes;                  }
-                  // Create new note
-                  else if (content.isNotEmpty) {
-                    final newNota = Nota(
-                      username: username,
-                      fecha_creacion: normalizedDay,
-                      hora_recordatorio: timeString,
-                      comentario: content,
-                    );
-                    await noteService.createNote(newNota);
-                    await _loadUserNotes(); // Reload to get the ID
-                  }
-
-                  if (mounted) {
-                    Navigator.pop(context);
-                    _showActivitiesDialog(day);
-                  }
-                } catch (e) {
-                  if (mounted) {
-                    ScaffoldMessenger.of(context).showSnackBar(
-                      SnackBar(content: Text('Error guardando nota: $e')),
-                    );
-                  }
-                } finally {
-                  setState(() {
-                    _isLoading = false;
-                  });
-                }
               },
               child: const Text('Guardar'),
             ),
@@ -238,9 +242,11 @@ class _CalendarPageState extends State<CalendarPage> {
       _events = _groupActivitiesByDay(activities);
       _selectedEvents.value = _getEventsForDay(_selectedDay!);
     } catch (e) {
-      ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(content: Text('Error loading activities: $e')),
-      );
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(content: Text('Error loading activities: $e')),
+        );
+      }
     } finally {
       setState(() {
         _isLoading = false;
@@ -388,7 +394,7 @@ class _CalendarPageState extends State<CalendarPage> {
           color: isSelected
               ? Colors.blue
               : isToday
-              ? Colors.blue.withOpacity(0.7)
+              ? Colors.blue.shade700
               : Colors.grey.shade300,
           width: isSelected ? 2 : isToday ? 1.5 : 1,
         ),
@@ -500,7 +506,7 @@ class _CalendarPageState extends State<CalendarPage> {
 
     // Add notes with type indicator
     for (var note in notes) {
-      final timeParts = note.hora_recordatorio.split(':');
+      final timeParts = note.horarecordatorio.split(':');
       final hour = int.parse(timeParts[0]);
       final minute = int.parse(timeParts[1]);
 
@@ -614,7 +620,7 @@ class _CalendarPageState extends State<CalendarPage> {
       margin: const EdgeInsets.only(bottom: 8),
       padding: const EdgeInsets.all(8),
       decoration: BoxDecoration(
-        color: isStarted ? Colors.amber.withOpacity(0.3) : Colors.amber.shade100,
+        color: isStarted ? Colors.amber.shade300 : Colors.amber.shade100,
         borderRadius: BorderRadius.circular(4),
         border: Border.all(color: Colors.amber.shade300),
       ),
@@ -626,7 +632,7 @@ class _CalendarPageState extends State<CalendarPage> {
               const Icon(Icons.access_time, size: 14),
               const SizedBox(width: 4),
               Text(
-                nota.hora_recordatorio,
+                nota.horarecordatorio,
                 style: TextStyle(fontWeight: FontWeight.bold),
               ),
               const SizedBox(width: 8),
@@ -741,7 +747,7 @@ class _CalendarPageState extends State<CalendarPage> {
       Colors.pink,
     ];
 
-    return colors[hash.abs() % colors.length].withOpacity(0.7);
+    return colors[hash.abs() % colors.length];
   }
 
   void _navigateToActivityDetails(Map<String, dynamic> activity) {
@@ -786,9 +792,11 @@ class _CalendarPageState extends State<CalendarPage> {
       try{
         await mapService.fetchAirQualityData(contaminantsPerLocation);
       } catch (e) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(content: Text('Error loading air quality data: $e')),
-        );
+        if (mounted) {
+          ScaffoldMessenger.of(context).showSnackBar(
+            SnackBar(content: Text('Error loading air quality data: $e')),
+          );
+        }
       }
   }
 

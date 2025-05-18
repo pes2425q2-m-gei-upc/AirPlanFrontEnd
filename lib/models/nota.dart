@@ -1,15 +1,15 @@
 class Nota {
   final int? id;
   final String username;
-  final DateTime fecha_creacion;
-  final String hora_recordatorio;
+  final DateTime fechacreacion;
+  final String horarecordatorio;
   final String comentario;
 
   Nota({
     this.id,
     required this.username,
-    required this.fecha_creacion,
-    required this.hora_recordatorio,
+    required this.fechacreacion,
+    required this.horarecordatorio,
     required this.comentario,
   });
 
@@ -17,8 +17,8 @@ class Nota {
     return {
       'id': id,
       'username': username,
-      'fecha_creacion': "${fecha_creacion.year}-${fecha_creacion.month.toString().padLeft(2, '0')}-${fecha_creacion.day.toString().padLeft(2, '0')}",
-      'hora_recordatorio': hora_recordatorio,
+      'fecha_creacion': "${fechacreacion.year}-${fechacreacion.month.toString().padLeft(2, '0')}-${fechacreacion.day.toString().padLeft(2, '0')}",
+      'hora_recordatorio': horarecordatorio,
       'comentario': comentario,
     };
   }
@@ -27,8 +27,8 @@ class Nota {
     return Nota(
       id: json['id'],
       username: json['username'],
-      fecha_creacion: DateTime.parse(json['fechaCreacion']),
-      hora_recordatorio: json['horaRecordatorio'],
+      fechacreacion: DateTime.parse(json['fechaCreacion']),
+      horarecordatorio: json['horaRecordatorio'],
       comentario: json['comentario'],
     );
   }
