@@ -26,8 +26,8 @@ class ApiConfig {
 
   // Variables privadas para inyección
   bool _isWebPlatform = kIsWeb;
-  String _defaultWebUrl = 'http://nattech.fib.upc.edu:40350';
-  String _defaultMobileUrl = 'http://nattech.fib.upc.edu:40350';
+  String _defaultWebUrl = 'http://localhost:8080';
+  String _defaultMobileUrl = 'http://localhost:40350';
 
   // Constructor interno
   ApiConfig._internal();

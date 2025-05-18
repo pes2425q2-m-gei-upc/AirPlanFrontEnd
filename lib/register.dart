@@ -3,6 +3,7 @@ import 'form_content_register.dart';
 import 'logo_widget.dart';
 import 'rive_controller.dart';
 import 'services/auth_service.dart';
+import 'package:easy_localization/easy_localization.dart';
 
 class SignUpPage extends StatelessWidget {
   // Añadimos la posibilidad de inyectar el AuthService
@@ -24,7 +25,7 @@ class SignUpPage extends StatelessWidget {
 
     return Scaffold(
       appBar: AppBar(
-        title: const Text("Registre"),
+        title: Text('signup_title'.tr()),
         leading: IconButton(
           icon: const Icon(Icons.arrow_back),
           onPressed: () => Navigator.pop(context),

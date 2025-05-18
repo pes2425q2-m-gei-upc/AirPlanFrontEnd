@@ -5,5 +5,19 @@
   "password_label": "Password",
   "login_button": "Login",
   "signup_prompt": "Don't have an account? Sign up here",
-  "reset_password": "Forgot your password?"
+  "reset_password": "Forgot your password?",
+  "signup_title": "Register",
+  "reset_password_title": "Reset Password",
+  "reset_instruction": "Enter your email to receive a password reset link.",
+  "reset_button": "Send reset email",
+  "reset_success": "Password reset email sent! Check your inbox.",
+  "calendar_coming_soon": "Calendar\nComing soon",
+  "nav_map": "Map",
+  "nav_calendar": "Calendar",
+  "nav_chat": "Chat",
+  "nav_user": "User",
+  "my_requests_title": "My Requests",
+  "my_requests_empty": "You have no requests.",
+  "request_removed": "Request successfully removed.",
+  "request_error_removing": "Error removing request: {error}"
 }

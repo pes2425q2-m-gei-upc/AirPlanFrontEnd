@@ -13,6 +13,7 @@ import 'services/notification_service.dart';
 import 'services/api_config.dart'; // Importar la configuración de API
 import 'services/auth_service.dart'; // Import AuthService
 import 'main.dart'; // Importamos main.dart para acceder a profileUpdateStreamController
+import 'package:easy_localization/easy_localization.dart';
 
 class EditProfilePage extends StatefulWidget {
   final AuthService?
@@ -35,6 +36,7 @@ class EditProfilePageState extends State<EditProfilePage> {
   final TextEditingController _newPasswordController = TextEditingController();
   final TextEditingController _confirmPasswordController =
       TextEditingController();
+  late final String _initialLanguage;
   String _selectedLanguage = 'Castellano'; // Default language
   bool _isCurrentPasswordVisible = false;
   bool _isNewPasswordVisible = false;
@@ -71,6 +73,8 @@ class EditProfilePageState extends State<EditProfilePage> {
       // Intentar cargar los datos actuales del usuario
       _loadUserData();
     }
+
+    _initialLanguage = _selectedLanguage;
 
     // Añadir listener para los cambios de autenticación
     _authStateSubscription = _authService.authStateChanges.listen((User? user) {
@@ -176,6 +180,7 @@ class EditProfilePageState extends State<EditProfilePage> {
             // Idioma si está disponible
             if (userData['idioma'] != null) {
               _selectedLanguage = userData['idioma'];
+              _initialLanguage = _selectedLanguage;
             }
           });
         } else {
@@ -294,7 +299,22 @@ class EditProfilePageState extends State<EditProfilePage> {
       emailChanged,
     );
 
-    // 5. Hide Loading Indicator (regardless of success/failure)
+    // 5. Si el usuario cambió idioma y la actualización fue exitosa, aplicar nuevo locale
+    if (_selectedLanguage != _initialLanguage) {
+      final raw = _selectedLanguage.toLowerCase();
+      final code =
+          raw.contains('eng')
+              ? 'en'
+              : raw.contains('castellano')
+              ? 'es'
+              : raw.contains('ca')
+              ? 'ca'
+              : 'en';
+      await context.setLocale(Locale(code));
+      _initialLanguage = _selectedLanguage;
+    }
+
+    // 6. Hide Loading Indicator (regardless of success/failure)
     if (mounted) {
       ScaffoldMessenger.of(context).hideCurrentSnackBar();
     }

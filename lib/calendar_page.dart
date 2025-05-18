@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:easy_localization/easy_localization.dart';
 
 class CalendarPage extends StatelessWidget {
   const CalendarPage({super.key});
@@ -6,7 +7,7 @@ class CalendarPage extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return Center(
-      child: Text('Calendario\nPróximamente', textAlign: TextAlign.center),
+      child: Text('calendar_coming_soon'.tr(), textAlign: TextAlign.center),
     );
   }
 }

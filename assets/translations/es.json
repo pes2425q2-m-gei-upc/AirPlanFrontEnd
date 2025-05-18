@@ -5,5 +5,19 @@
   "password_label": "Contraseña",
   "login_button": "Iniciar Sesión",
   "signup_prompt": "¿No tienes cuenta? Regístrate aquí",
-  "reset_password": "¿Olvidaste tu contraseña?"
+  "reset_password": "¿Olvidaste tu contraseña?",
+  "signup_title": "Registro",
+  "reset_password_title": "Restablecer Contraseña",
+  "reset_instruction": "Introduce tu correo para recibir un enlace de restablecimiento.",
+  "reset_button": "Enviar correo de restablecimiento",
+  "reset_success": "¡Correo de restablecimiento enviado! Revisa tu bandeja.",
+  "calendar_coming_soon": "Calendario\nPróximamente",
+  "nav_map": "Mapa",
+  "nav_calendar": "Calendario",
+  "nav_chat": "Chat",
+  "nav_user": "Usuario",
+  "my_requests_title": "Mis Solicitudes",
+  "my_requests_empty": "No has realizado solicitudes.",
+  "request_removed": "Solicitud eliminada correctamente.",
+  "request_error_removing": "Error al eliminar la solicitud: {error}"
 }

@@ -17,8 +17,6 @@ import 'services/websocket_service.dart'; // Import WebSocket service
 import 'services/api_config.dart'; // Importar la configuración de API
 import 'dart:async'; // Para StreamSubscription
 import 'package:easy_localization/easy_localization.dart';
-import 'package:flutter_localizations/flutter_localizations.dart';
-import 'package:easy_localization/easy_localization.dart';
 
 // Stream controller para comunicar actualizaciones de perfil a toda la aplicación
 final StreamController<Map<String, dynamic>> profileUpdateStreamController =
@@ -196,7 +194,7 @@ void main() async {
       supportedLocales: const [Locale('es'), Locale('ca'), Locale('en')],
       path: 'assets/translations',
       fallbackLocale: const Locale('en'),
-      child: const MiApp(),
+      child: MiApp(),
     ),
   );
 }
@@ -644,6 +642,7 @@ class AuthWrapperState extends State<AuthWrapper> {
 
           // Cargar idioma del usuario según configuración del backend
           if (user != null && !_langLoaded) {
+            print('Cargando idioma del usuario: ${user.email}');
             _langLoaded = true;
             _fetchUserLanguage(user);
           }
@@ -702,13 +701,30 @@ class AuthWrapperState extends State<AuthWrapper> {
   // Obtener y aplicar el idioma del usuario desde el backend
   Future<void> _fetchUserLanguage(User user) async {
     try {
-      final response = await http.get(
-        Uri.parse(ApiConfig().buildUrl('api/usuaris/${user.uid}')),
+      print('Fetching user language for: ${user.email}');
+      // Obtener idioma de usuario usando el endpoint correcto por username
+      final username = user.displayName ?? user.email ?? '';
+      final url = ApiConfig().buildUrl(
+        'api/usuaris/usuario-por-username/$username',
       );
+      final response = await http.get(Uri.parse(url));
       if (response.statusCode == 200) {
+        print('User language response: ${response.body}');
         final data = jsonDecode(response.body);
-        final lang = data['idioma'] as String? ?? 'en';
-        await context.setLocale(Locale(lang));
+        final rawLang = (data['idioma'] as String? ?? 'en').toLowerCase();
+        print('Raw language: $rawLang');
+        // Mapear nombres de idioma desde backend a códigos de locale
+        final localeCode =
+            rawLang.contains('eng')
+                ? 'en'
+                : rawLang.contains('castellano')
+                ? 'es'
+                : rawLang.contains('ca')
+                ? 'ca'
+                : 'en';
+        // Aplicar locale con la extensión de easy_localization
+        print('Setting locale to: $localeCode');
+        await context.setLocale(Locale(localeCode));
       }
     } catch (e) {
       debugPrint('Error fetching user language: $e');
