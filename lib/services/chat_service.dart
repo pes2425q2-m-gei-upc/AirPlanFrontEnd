@@ -270,7 +270,8 @@ class ChatService {
   }) async {
     try {
       final response = await http.post(
-        Uri.parse(ApiConfig().buildUrl('report')),
+        //Uri.parse(ApiConfig().buildUrl('api/report')),
+        Uri.parse("http://127.0.0.1:8080/api/report"),
         headers: {'Content-Type': 'application/json'},
         body: jsonEncode({
           'reportedUsername': reportedUsername,
@@ -279,7 +280,7 @@ class ChatService {
         }),
       );
 
-      if (response.statusCode == 200) {
+      if (response.statusCode == 201) {
         return true;
       } else if (response.statusCode == 409) {
         return 'already_reported';
