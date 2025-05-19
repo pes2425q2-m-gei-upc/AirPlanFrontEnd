@@ -408,12 +408,11 @@ class _UserPageState extends State<UserPage> {
   void _handleCriticalUpdate(bool isEmailUpdate, bool isPasswordUpdate) {
     String message = '';
     if (isEmailUpdate && isPasswordUpdate) {
-      message = 'email_password_change_detected'.tr();
+      message = tr('email_password_change_detected');
     } else if (isEmailUpdate) {
-      message = 'email_change_detected'.tr();
+      message = tr('email_change_detected');
     } else {
-      // isPasswordUpdate
-      message = 'password_change_detected'.tr();
+      message = tr('password_change_detected');
     }
 
     // Show info message and trigger logout/redirect
@@ -426,11 +425,11 @@ class _UserPageState extends State<UserPage> {
 
     String message = 'profile_updated_other_device'.tr();
     if (isNameUpdate && isPhotoUpdate) {
-      message = 'name_photo_updated_other_device'.tr();
+      message = tr('name_photo_updated_other_device');
     } else if (isNameUpdate) {
-      message = 'name_updated_other_device'.tr();
+      message = tr('name_updated_other_device');
     } else if (isPhotoUpdate) {
-      message = 'photo_updated_other_device'.tr();
+      message = tr('photo_updated_other_device');
     }
 
     final currentContext = context;
@@ -452,8 +451,8 @@ class _UserPageState extends State<UserPage> {
   // Handles account deletion initiated remotely via WebSocket
   void _handleAccountDeletedRemotely() {
     _showInfoAndLogout(
-      'account_deleted_remotely'.tr(),
-      title: 'account_deleted_title'.tr(),
+      tr('account_deleted_remotely'),
+      title: tr('account_deleted_title'),
     );
   }
 
@@ -462,7 +461,7 @@ class _UserPageState extends State<UserPage> {
     if (!mounted) return;
 
     // Use default title if not provided or empty
-    final displayTitle = title.isEmpty ? 'change_detected_title'.tr() : title;
+    final displayTitle = title.isEmpty ? tr('change_detected_title') : title;
 
     final currentContext = context;
     ScaffoldMessenger.of(currentContext).showSnackBar(
@@ -553,9 +552,8 @@ class _UserPageState extends State<UserPage> {
       if (mounted) {
         // Handle scenario where user becomes null unexpectedly
         _handleSessionClose(
-          title: 'Sesión Expirada',
-          message:
-              'Tu sesión ha expirado o no se pudo verificar. Por favor, inicia sesión nuevamente.',
+          title: tr('session_expired_title'),
+          message: tr('session_expired_message'),
           redirectToLogin: true,
           isRemoteAction: false,
         );
@@ -600,20 +598,18 @@ class _UserPageState extends State<UserPage> {
       context: contextCaptured,
       builder:
           (dialogContext) => AlertDialog(
-            title: const Text("Eliminar cuenta"),
-            content: const Text(
-              "¿Estás seguro de que quieres eliminar tu cuenta? Esta acción no se puede deshacer.",
-            ),
+            title: Text(tr('confirm_delete_account_title')),
+            content: Text(tr('confirm_delete_account_message')),
             actions: [
               TextButton(
                 onPressed: () => Navigator.of(dialogContext).pop(false),
-                child: const Text("Cancelar"),
+                child: Text(tr('cancel')),
               ),
               TextButton(
                 onPressed: () => Navigator.of(dialogContext).pop(true),
-                child: const Text(
-                  "Eliminar",
-                  style: TextStyle(color: Colors.red),
+                child: Text(
+                  tr('delete'),
+                  style: const TextStyle(color: Colors.red),
                 ),
               ),
             ],
@@ -650,22 +646,18 @@ class _UserPageState extends State<UserPage> {
     ScaffoldMessenger.of(contextCaptured).hideCurrentSnackBar();
 
     if (success) {
-      ScaffoldMessenger.of(contextCaptured).showSnackBar(
-        const SnackBar(content: Text("Cuenta eliminada correctamente.")),
-      );
+      ScaffoldMessenger.of(
+        contextCaptured,
+      ).showSnackBar(SnackBar(content: Text(tr('delete_account_success'))));
       // Redirect to login page
       Navigator.of(contextCaptured).pushAndRemoveUntil(
         MaterialPageRoute(builder: (context) => const LoginPage()),
         (route) => false,
       );
     } else {
-      ScaffoldMessenger.of(contextCaptured).showSnackBar(
-        const SnackBar(
-          content: Text(
-            "Error al eliminar la cuenta. Es posible que necesites iniciar sesión de nuevo para completar la eliminación.",
-          ),
-        ),
-      );
+      ScaffoldMessenger.of(
+        contextCaptured,
+      ).showSnackBar(SnackBar(content: Text(tr('delete_account_error'))));
       // Attempt to sign out locally anyway, as the backend might have succeeded partially
       // or the Firebase user needs deletion.
       await _handleSessionClose(

@@ -11,6 +11,7 @@
   "reset_instruction": "Introduce tu correo para recibir un enlace de restablecimiento.",
   "reset_button": "Enviar correo de restablecimiento",
   "reset_success": "¡Correo de restablecimiento enviado! Revisa tu bandeja.",
+  "reset_error": "Error: {0}",
   "calendar_coming_soon": "Calendario\nPróximamente",
   "nav_map": "Mapa",
   "nav_calendar": "Calendario",
@@ -31,7 +32,6 @@
   "name_updated_other_device": "Tu nombre ha sido actualizado en otro dispositivo.",
   "photo_updated_other_device": "Tu foto de perfil ha sido actualizada en otro dispositivo.",
   "account_deleted_remotely": "Tu cuenta ha sido eliminada desde otro dispositivo. Serás redirigido a la pantalla de inicio de sesión.",
-  "account_deleted_title": "Cuenta Eliminada",
   "change_detected_title": "Cambio Detectado",
   "no_valid_user_authenticated": "No hay un usuario autenticado válido.",
   "error_loading_profile_details": "Error al cargar los detalles del perfil.",
@@ -75,7 +75,7 @@
   "delete_account_error": "Error al eliminar la cuenta: {error}",
   "delete_account_requires_relogin": "Debes volver a iniciar sesión para eliminar la cuenta.",
   "delete_account_invalid_user": "No hay un usuario autenticado válido.",
-  "rating_invite": "Valora nuestra aplicación",
+  "rating_invite": "Califica nuestra aplicación",
   "chat_message_placeholder": "Escribe un mensaje...",
   "chat_send": "Enviar",
   "chat_edit_message": "Editar mensaje",
@@ -216,7 +216,8 @@
   "no_ratings_yet_message": "Aún no has realizado ninguna valoración",
   "activity_not_found_placeholder": "Actividad no encontrada",
   "date_label": "Fecha: {0}",
-
+  "activities_at_location": "Actividades en esta ubicación",
+  "close": "Cerrar",
   "terms_title": "Términos y Condiciones",
   "terms_heading": "TÉRMINOS Y CONDICIONES DE USO",
   "terms_section_1_title": "1. Aceptación de los términos",
@@ -229,11 +230,11 @@
   "terms_section_4_content": "4.1. AirPlan y sus logotipos son marcas registradas.\n\n4.2. Todos los derechos de propiedad intelectual sobre los contenidos y diseños de la Aplicación pertenecen exclusivamente a nosotros o a nuestros licenciadores.\n\n4.3. No puedes copiar, modificar ni distribuir ninguna parte de la Aplicación sin autorización por escrito.",
   "terms_section_5_title": "5. Limitación de responsabilidad",
   "terms_section_5_content": "5.1. La Aplicación se proporciona \"tal cual\" sin garantías de ningún tipo.\n\n5.2. No nos hacemos responsables de:\n   • Daños indirectos, especiales o consecuentes\n   • Pérdida de datos o beneficios\n   • Interrupciones del servicio no debidas a nuestra negligencia",
-  "terms_section_6_title": "6. Modificaciones",  "terms_section_6_content": "Nos reservamos el derecho de modificar estos términos en cualquier momento. Las versiones actualizadas entrarán en vigor inmediatamente después de su publicación en la Aplicación. El uso continuado del servicio tras los cambios constituirá tu aceptación de los nuevos términos.",
+  "terms_section_6_title": "6. Modificaciones",
+  "terms_section_6_content": "Nos reservamos el derecho de modificar estos términos en cualquier momento. Las versiones actualizadas entrarán en vigor inmediatamente después de su publicación en la Aplicación. El uso continuado del servicio tras los cambios constituirá tu aceptación de los nuevos términos.",
   "terms_section_7_title": "7. Ley aplicable",
   "terms_section_7_content": "Estos términos se rigen por las leyes de España. Cualquier disputa deberá resolverse en los tribunales competentes de Barcelona, con renuncia expresa a cualquier otro fuero.",
   "terms_last_updated": "Última actualización: {day}/{month}/{year}",
-  
   "content_filter_title": "Configuración de Filtro de Contenido (Perspective API)",
   "content_filter_enable_perspective": "Habilitar servicio de Perspective API",
   "content_filter_service_active": "El servicio de Perspective API está activo globalmente.",
@@ -261,7 +262,6 @@
   "content_filter_saved": "Configuración guardada con éxito.",
   "content_filter_save_error": "Error al guardar configuración: {0}. Detalles: {1}",
   "content_filter_save_connection_error": "Error de conexión al guardar configuración: {0}",
-
   "register_enter_name": "Introduce tu nombre",
   "register_name_label": "Nombre",
   "register_enter_username": "Introduce tu nombre de usuario",
@@ -282,7 +282,6 @@
   "register_button": "Regístrate",
   "register_view_terms": "Ver términos y condiciones",
   "register_have_account_login": "¿Ya tienes cuenta? Inicia sesión",
-  
   "error_fetch_air_quality": "Error al obtener datos de calidad del aire: {0}",
   "location_services_disabled": "Los servicios de ubicación están desactivados. Por favor, actívalos.",
   "location_permissions_denied": "Permisos de ubicación denegados.",
@@ -301,5 +300,11 @@
   "route_sent_success": "Ruta enviada correctamente.",
   "route_sent_error": "Error al enviar la ruta: {0}",
   "route_updated_success": "Ruta actualizada correctamente.",
-  "route_updated_error": "Error al actualizar la ruta: {0}"
+  "route_updated_error": "Error al actualizar la ruta: {0}",
+  "account_deleted_title": "Cuenta eliminada",
+  "account_deleted_message": "Tu cuenta ha sido eliminada desde otro dispositivo. Esta sesión se cerrará automáticamente.",
+  "understood": "Entendido",
+  "websocket_connection_error": "Error al conectar WebSocket: {0}",
+  "websocket_message_error": "Error al manejar mensaje WebSocket: {0}",
+  "websocket_close_error": "Error al cerrar WebSocket: {0}"
 }
