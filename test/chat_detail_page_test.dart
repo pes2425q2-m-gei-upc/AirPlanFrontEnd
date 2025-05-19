@@ -293,7 +293,7 @@ void main() {
 
       // Assert
       expect(
-        find.text('Editar mensaje'),
+        find.text('chat_edit_message'),
         findsOneWidget,
       ); // Verify the dialog appears
     });

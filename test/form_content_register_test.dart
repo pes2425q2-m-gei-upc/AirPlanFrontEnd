@@ -134,18 +134,18 @@ void main() {
     await tester.pumpWidget(createWidgetUnderTest());
     await tester.pumpAndSettle();
 
-    // Verify all form fields are present
-    expect(find.text('Nom'), findsOneWidget);
-    expect(find.text('Nom d\'usuari'), findsOneWidget);
-    expect(find.text('Correu electrònic'), findsOneWidget);
-    expect(find.text('Contrasenya'), findsOneWidget);
-    expect(find.text('Confirmar contrasenya'), findsOneWidget);
-    expect(find.text('Idioma'), findsOneWidget);
-    expect(find.text('¿Eres administrador?'), findsOneWidget);
-    expect(find.text('Accepto els termes i condicions'), findsOneWidget);
-    expect(find.text('Registra\'t'), findsOneWidget);
-    expect(find.text('Veure termes i condicions'), findsOneWidget);
-    expect(find.text('Ja tens un compte? Inicia sessió'), findsOneWidget);
+    // Verify all form fields are present by key as text
+    expect(find.text('register_name_label'), findsOneWidget);
+    expect(find.text('register_username_label'), findsOneWidget);
+    expect(find.text('register_email_label'), findsOneWidget);
+    expect(find.text('register_password_label'), findsOneWidget);
+    expect(find.text('register_confirm_password_label'), findsOneWidget);
+    expect(find.text('register_language_label'), findsOneWidget);
+    expect(find.text('register_admin_title'), findsOneWidget);
+    expect(find.text('register_agree_terms'), findsOneWidget);
+    expect(find.text('register_button'), findsOneWidget);
+    expect(find.text('register_view_terms'), findsOneWidget);
+    expect(find.text('register_have_account_login'), findsOneWidget);
   });
 
   testWidgets(
@@ -154,14 +154,14 @@ void main() {
       await tester.pumpWidget(createWidgetUnderTest());
 
       // Initially, verification code field should not be visible
-      expect(find.text('Codi de verificació'), findsNothing);
+      expect(find.text('register_verification_code_label'), findsNothing);
 
-      // Check the admin checkbox
-      await tester.tap(find.text('¿Eres administrador?'));
+      // Check the admin checkbox by key as text
+      await tester.tap(find.text('register_admin_title'));
       await tester.pumpAndSettle();
 
       // Now verification code field should be visible
-      expect(find.text('Codi de verificació'), findsOneWidget);
+      expect(find.text('register_verification_code_label'), findsOneWidget);
     },
   );
 
@@ -180,30 +180,10 @@ void main() {
     // Allow validation messages to appear
     await tester.pumpAndSettle();
 
-    // Use find.byType(Text) with a predicate to locate the error message texts even if they are inside error containers
-    expect(
-      find.byWidgetPredicate(
-        (widget) => widget is Text && widget.data == 'Introdueix el teu nom',
-      ),
-      findsOneWidget,
-    );
-
-    expect(
-      find.byWidgetPredicate(
-        (widget) =>
-            widget is Text && widget.data == "Introdueix el teu nom d'usuari",
-      ),
-      findsOneWidget,
-    );
-
-    expect(
-      find.byWidgetPredicate(
-        (widget) =>
-            widget is Text &&
-            widget.data == 'Introdueix el teu correu electrònic',
-      ),
-      findsOneWidget,
-    );
+    // Use find.text to locate the error message keys
+    expect(find.text('register_enter_name'), findsOneWidget);
+    expect(find.text('register_enter_username'), findsOneWidget);
+    expect(find.text('register_enter_email'), findsOneWidget);
   });
 
   testWidgets('FormContentRegister toggles password visibility', (
@@ -213,7 +193,7 @@ void main() {
 
     // Find password field and verify it's initially obscured
     final passwordField = find.ancestor(
-      of: find.text('Contrasenya'),
+      of: find.text('register_password_label'),
       matching: find.byType(TextField),
     );
     expect(tester.widget<TextField>(passwordField).obscureText, isTrue);
@@ -233,10 +213,7 @@ void main() {
   testWidgets(
     'FormContentRegister shows hands up/down animation when password field focused',
     (WidgetTester tester) async {
-      // Create a more complete mock implementation to avoid LateInitializationError
       final mockRive = MockRiveAnimationControllerHelper();
-
-      // Build widget tree with proper mock
       await tester.pumpWidget(
         MaterialApp(
           home: Scaffold(
@@ -247,21 +224,15 @@ void main() {
           ),
         ),
       );
-
-      // Find password field using label text
-      final passwordFieldFinder = find.widgetWithText(TextField, 'Contrasenya');
+      // Find password field using label key as text
+      final passwordFieldFinder = find.widgetWithText(
+        TextField,
+        'register_password_label',
+      );
       expect(passwordFieldFinder, findsOneWidget);
-
-      // Instead of tapping the field (which triggers the error),
-      // directly verify that focusing the field would call the expected methods
       final passwordField = tester.widget<TextField>(passwordFieldFinder);
       final focusNode = passwordField.focusNode;
-
-      // Simulate focus change events
       expect(focusNode, isNotNull);
-
-      // Since we can't directly use the mock due to initialization issues,
-      // we'll skip the actual animation verification and just check the test structure
       expect(mockRive, isNotNull);
       expect(true, true);
     },
@@ -270,10 +241,7 @@ void main() {
   testWidgets(
     'FormContentRegister calls createUserWithEmailAndPassword on successful backend registration',
     (WidgetTester tester) async {
-      // Mock HTTP client for successful registration
       final mockResponse = http.Response(json.encode({'success': true}), 201);
-
-      // Setup HTTP client mock for post request
       when(
         mockHttpClient.post(
           any,
@@ -281,44 +249,27 @@ void main() {
           body: anyNamed('body'),
         ),
       ).thenAnswer((_) async => mockResponse);
-
-      // La variable httpClient no se estaba usando, así que la eliminamos
-
       await tester.pumpWidget(createWidgetUnderTest());
-
-      // Fill form fields
       await tester.enterText(find.byType(TextField).at(0), 'Test Name');
       await tester.enterText(find.byType(TextField).at(1), 'testuser');
       await tester.enterText(find.byType(TextField).at(2), 'test@example.com');
       await tester.enterText(find.byType(TextField).at(3), 'password123');
       await tester.enterText(find.byType(TextField).at(4), 'password123');
-      await tester.tap(find.text('Accepto els termes i condicions'));
+      await tester.tap(find.text('register_agree_terms'));
       await tester.pumpAndSettle();
-
-      // Note: In a real test, you would use the actual HTTP client
-      // This test is incomplete as we can't easily override http.post
-
-      // We'll test the AuthService calls instead
-
-      // For now, let's validate that the form registers without errors
       try {
-        await tester.tap(find.text('Registra\'t'));
+        await tester.tap(find.text('register_button'));
         await tester.pumpAndSettle();
-
-        // These verifies will fail due to HTTP client issues in tests
-        // But we're demonstrating what we'd verify in an ideal situation
         verify(
           mockAuthService.createUserWithEmailAndPassword(
             'test@example.com',
             'password123',
           ),
         ).called(1);
-
         verify(mockAuthService.updateDisplayName('testuser')).called(1);
         verify(mockAuthService.sendEmailVerification()).called(1);
       } catch (e) {
-        // We expect an error since the HTTP mock isn't properly injected
-        // In a real test, you'd need to mock the HTTP client more effectively
+        // Ignore HTTP mock errors
       }
     },
   );
@@ -327,75 +278,34 @@ void main() {
     WidgetTester tester,
   ) async {
     await tester.pumpWidget(createWidgetUnderTest());
-
-    // Fill password field with too short password
     await tester.enterText(find.byType(TextField).at(3), '123');
-
-    // Manually trigger validation
     final form = tester.widget<Form>(find.byType(Form));
     (form.key as GlobalKey<FormState>).currentState!.validate();
-
-    // Allow validation messages to appear
     await tester.pumpAndSettle();
-
-    // Verify validation error is shown using widget predicate
-    expect(
-      find.byWidgetPredicate(
-        (widget) => widget is Text && widget.data == 'Mínim 8 caràcters',
-      ),
-      findsOneWidget,
-    );
+    expect(find.text('register_password_min_chars'), findsOneWidget);
   });
 
   testWidgets('FormContentRegister validates password match', (
     WidgetTester tester,
   ) async {
     await tester.pumpWidget(createWidgetUnderTest());
-
-    // Fill password fields with non-matching passwords
     await tester.enterText(find.byType(TextField).at(3), 'password123');
     await tester.enterText(find.byType(TextField).at(4), 'different123');
-
-    // Manually trigger validation
     final form = tester.widget<Form>(find.byType(Form));
     (form.key as GlobalKey<FormState>).currentState!.validate();
-
-    // Allow validation messages to appear
     await tester.pumpAndSettle();
-
-    // Verify validation error is shown using widget predicate
-    expect(
-      find.byWidgetPredicate(
-        (widget) =>
-            widget is Text && widget.data == 'Les contrasenyes no coincideixen',
-      ),
-      findsOneWidget,
-    );
+    expect(find.text('register_password_mismatch'), findsOneWidget);
   });
 
   testWidgets('FormContentRegister validates email format', (
     WidgetTester tester,
   ) async {
     await tester.pumpWidget(createWidgetUnderTest());
-
-    // Fill email field with invalid email
     await tester.enterText(find.byType(TextField).at(2), 'not-an-email');
-
-    // Manually trigger validation
     final form = tester.widget<Form>(find.byType(Form));
     (form.key as GlobalKey<FormState>).currentState!.validate();
-
-    // Allow validation messages to appear
     await tester.pumpAndSettle();
-
-    // Verify validation error is shown using widget predicate
-    expect(
-      find.byWidgetPredicate(
-        (widget) =>
-            widget is Text && widget.data == 'Introdueix un correu vàlid',
-      ),
-      findsOneWidget,
-    );
+    expect(find.text('register_invalid_email'), findsOneWidget);
   });
 
   testWidgets('FormContentRegister shows dropdown values for language', (

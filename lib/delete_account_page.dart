@@ -90,7 +90,7 @@ class DeleteAccountPageState extends State<DeleteAccountPage> {
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      appBar: AppBar(title: Text(tr('confirm_delete_account_title'))),
+      appBar: AppBar(title: Text(tr('confirm_delete_account_t'))),
       body: Center(
         child: ElevatedButton(
           onPressed: _confirmDelete,
