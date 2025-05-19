@@ -642,7 +642,6 @@ class AuthWrapperState extends State<AuthWrapper> {
 
           // Cargar idioma del usuario según configuración del backend
           if (user != null && !_langLoaded) {
-            print('Cargando idioma del usuario: ${user.email}');
             _langLoaded = true;
             _fetchUserLanguage(user);
           }
@@ -701,7 +700,6 @@ class AuthWrapperState extends State<AuthWrapper> {
   // Obtener y aplicar el idioma del usuario desde el backend
   Future<void> _fetchUserLanguage(User user) async {
     try {
-      print('Fetching user language for: ${user.email}');
       // Obtener idioma de usuario usando el endpoint correcto por username
       final username = user.displayName ?? user.email ?? '';
       final url = ApiConfig().buildUrl(
@@ -709,10 +707,8 @@ class AuthWrapperState extends State<AuthWrapper> {
       );
       final response = await http.get(Uri.parse(url));
       if (response.statusCode == 200) {
-        print('User language response: ${response.body}');
         final data = jsonDecode(response.body);
         final rawLang = (data['idioma'] as String? ?? 'en').toLowerCase();
-        print('Raw language: $rawLang');
         // Mapear nombres de idioma desde backend a códigos de locale
         final localeCode =
             rawLang.contains('eng')
@@ -723,7 +719,7 @@ class AuthWrapperState extends State<AuthWrapper> {
                 ? 'ca'
                 : 'en';
         // Aplicar locale con la extensión de easy_localization
-        print('Setting locale to: $localeCode');
+        if (!mounted) return;
         await context.setLocale(Locale(localeCode));
       }
     } catch (e) {

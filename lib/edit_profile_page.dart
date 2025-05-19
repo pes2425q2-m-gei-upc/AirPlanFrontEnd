@@ -310,6 +310,7 @@ class EditProfilePageState extends State<EditProfilePage> {
               : raw.contains('ca')
               ? 'ca'
               : 'en';
+      if (!mounted) return;
       await context.setLocale(Locale(code));
       _initialLanguage = _selectedLanguage;
     }

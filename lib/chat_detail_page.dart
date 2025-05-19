@@ -3,7 +3,6 @@ import 'package:airplan/services/chat_service.dart';
 import 'package:airplan/services/notification_service.dart';
 import 'package:airplan/services/chat_websocket_service.dart';
 import 'package:airplan/services/auth_service.dart';
-import 'package:intl/intl.dart';
 import 'dart:async';
 import 'package:airplan/services/user_block_service.dart';
 import 'package:easy_localization/easy_localization.dart';

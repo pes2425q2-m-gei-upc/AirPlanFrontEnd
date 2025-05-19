@@ -7,7 +7,6 @@ import 'package:airplan/user_services.dart';
 import 'package:airplan/chat_detail_page.dart';
 import 'package:airplan/services/api_config.dart';
 import 'package:airplan/services/auth_service.dart'; // Importar AuthService
-import 'package:intl/intl.dart';
 import 'package:easy_localization/easy_localization.dart';
 
 class ChatListPage extends StatefulWidget {

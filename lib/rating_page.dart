@@ -3,7 +3,6 @@ import 'package:easy_localization/easy_localization.dart';
 import 'package:flutter/material.dart';
 import 'package:http/http.dart' as http;
 import 'package:flutter_rating_bar/flutter_rating_bar.dart';
-import 'package:intl/intl.dart';
 import 'package:airplan/activity_service.dart';
 import 'package:airplan/services/notification_service.dart';
 import 'package:airplan/activity_details_page.dart';
