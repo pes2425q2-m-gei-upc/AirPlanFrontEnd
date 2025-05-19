@@ -825,7 +825,7 @@ class MapPageState extends State<MapPage> {
                     ),
                     const SizedBox(height: 8),
                     Text(
-                      'Creador: ${activity['creador'] ?? ''}',
+                      '${'creador'.tr()}: ${activity['creador'] ?? ''}',
                       style: const TextStyle(fontSize: 16),
                     ),
                   ],
@@ -1347,7 +1347,7 @@ class MapPageState extends State<MapPage> {
                               return ListTile(
                                 title: Text(activity['nom'] ?? 'Sin nombre'),
                                 subtitle: Text(
-                                  'Creador: ${activity['creador'] ?? 'Unknown'}',
+                                  '${'creador'.tr()}: ${activity['creador'] ?? 'Unknown'}',
                                 ),
                                 trailing: IconButton(
                                   icon: const Icon(

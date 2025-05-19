@@ -1035,7 +1035,7 @@ class ChatDetailPageState extends State<ChatDetailPage> {
 
           _notificationService.showSuccess(
             context,
-            'Has desbloqueado a ${widget.username}',
+            '${'reach'.tr()} ${widget.username}',
           );
         } else {
           _notificationService.showError(

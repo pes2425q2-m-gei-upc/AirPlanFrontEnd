@@ -85,7 +85,7 @@ class UserRequestsPageState extends State<UserRequestsPage> {
               return ListTile(
                 title: Text(request['nom'] ?? 'Actividad sin nombre'),
                 subtitle: Text(
-                  'Creador: ${request['creador'] ?? 'Desconocido'}',
+                  '${'creador'.tr()}: ${request['creador'] ?? 'Desconocido'}',
                 ),
                 trailing: IconButton(
                   icon: const Icon(Icons.close, color: Colors.red),
@@ -391,7 +391,6 @@ class _UserPageState extends State<UserPage> {
         }
       },
       onDone: () {
-        debugPrint("WebSocket connection closed en UserPage");
         // Attempt to reconnect after a delay if mounted
         if (mounted) {
           Future.delayed(const Duration(seconds: 5), () {
