@@ -188,7 +188,7 @@ void main() {
       expect(find.text('New message'), findsOneWidget);
     });
 
-  testWidgets('should send message when button is pressed', (
+    testWidgets('should send message when button is pressed', (
       WidgetTester tester,
     ) async {
       when(
@@ -202,7 +202,7 @@ void main() {
       await tester.enterText(find.byType(TextField), 'Test message');
 
       // Press the send button
-      await tester.tap(find.byIcon(Icons.send));
+      await tester.tap(find.text('chat_send'));
       await tester.pump();
 
       // Verify send is called
@@ -216,7 +216,9 @@ void main() {
   });
 
   group('ChatDetailPage - Edit Message Tests', () {
-    testWidgets('should not allow editing messages older than 20 minutes', (WidgetTester tester) async {
+    testWidgets('should not allow editing messages older than 20 minutes', (
+      WidgetTester tester,
+    ) async {
       // Arrange
       final oldMessage = Message(
         senderUsername: 'currentUser',
@@ -252,7 +254,9 @@ void main() {
       expect(find.text('Editar mensaje'), findsNothing);
     });
 
-    testWidgets('should allow editing messages less than 20 minutes old', (WidgetTester tester) async {
+    testWidgets('should allow editing messages less than 20 minutes old', (
+      WidgetTester tester,
+    ) async {
       // Arrange
       final recentMessage = Message(
         senderUsername: 'testUser', // Matches the mocked current user
@@ -288,7 +292,10 @@ void main() {
       await tester.pumpAndSettle();
 
       // Assert
-      expect(find.text('Editar mensaje'), findsOneWidget); // Verify the dialog appears
+      expect(
+        find.text('Editar mensaje'),
+        findsOneWidget,
+      ); // Verify the dialog appears
     });
   });
 
@@ -313,8 +320,7 @@ void main() {
       await tester.pump(const Duration(milliseconds: 50)); // Allow UI to update
 
       // Verify block banner is displayed
-      expect(find.text('Chat bloqueado'), findsOneWidget);
-      expect(find.text('Este usuario te ha bloqueado.'), findsOneWidget);
+      expect(find.text('chat_blocked_by_other'), findsOneWidget);
 
       // Verify message input is not visible
       expect(find.byType(TextField), findsNothing);
@@ -345,8 +351,7 @@ void main() {
       await tester.pump(const Duration(milliseconds: 50)); // Allow UI to update
 
       // Verify block banner is displayed
-      expect(find.text('Chat bloqueado'), findsOneWidget);
-      expect(find.text('Has bloqueado a este usuario.'), findsOneWidget);
+      expect(find.text('chat_blocked_message'), findsOneWidget);
 
       // Verify message input is not visible
       expect(find.byType(TextField), findsNothing);
@@ -379,7 +384,7 @@ void main() {
       await tester.pump(const Duration(milliseconds: 50)); // Allow UI to update
 
       // Verify block banner is displayed
-      expect(find.text('Chat bloqueado'), findsOneWidget);
+      expect(find.text('chat_blocked_message'), findsOneWidget);
 
       // Skip menu interaction for the unblock test too
       // and directly inject unblock notification
@@ -395,7 +400,7 @@ void main() {
       await tester.pump(const Duration(milliseconds: 50)); // Allow UI to update
 
       // Verify block banner is no longer displayed
-      expect(find.text('Chat bloqueado'), findsNothing);
+      expect(find.text('chat_blocked'), findsNothing);
 
       // Verify message input is visible again
       expect(find.byType(TextField), findsOneWidget);

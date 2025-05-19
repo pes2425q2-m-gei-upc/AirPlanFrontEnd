@@ -145,8 +145,11 @@ class FakeChatService implements ChatService {
   Future<List<Chat>> getAllChats() => _chatsProvider();
 
   @override
-  Future<bool> sendMessage(String receiverUsername, String content, DateTime a) async =>
-      true;
+  Future<bool> sendMessage(
+    String receiverUsername,
+    String content,
+    DateTime a,
+  ) async => true;
 
   @override
   Future<List<Message>> getConversation(String otherUsername) async => [];
@@ -174,8 +177,11 @@ class FakeChatWebSocketService implements ChatWebSocketService {
   void connectToChat(String otherUsername) {}
 
   @override
-  Future<bool> sendChatMessage(String receiverUsername, String content, DateTime a) async =>
-      true;
+  Future<bool> sendChatMessage(
+    String receiverUsername,
+    String content,
+    DateTime a,
+  ) async => true;
 
   @override
   Future<bool> sendBlockNotification(
@@ -195,7 +201,11 @@ class FakeChatWebSocketService implements ChatWebSocketService {
   String? get currentChatPartner => null;
 
   @override
-  Future<bool> sendEditMessage(String receiverUsername, String originalTimestamp, String newContent) {
+  Future<bool> sendEditMessage(
+    String receiverUsername,
+    String originalTimestamp,
+    String newContent,
+  ) {
     // TODO: implement sendEditMessage
     throw UnimplementedError();
   }
@@ -292,7 +302,7 @@ void main() {
       await tester.pumpWidget(createWidgetUnderTest(fakeChatService));
       await tester.pumpAndSettle();
 
-      expect(find.text('No tienes ninguna conversación'), findsOneWidget);
+      expect(find.text('chat_list_empty'), findsOneWidget);
     },
   );
 

@@ -176,10 +176,13 @@ void main() {
     await tester.pumpAndSettle();
 
     // Enter empty name
-    await tester.enterText(find.widgetWithText(TextField, 'Nombre').first, '');
+    await tester.enterText(
+      find.widgetWithText(TextField, 'name_label').first,
+      '',
+    );
 
     // Use NotificationService mock instead of finding text in widget tree
-    final saveButton = find.text('Guardar Cambios');
+    final saveButton = find.text('save_changes');
     await tester.dragUntilVisible(
       saveButton,
       find.byType(SingleChildScrollView),
@@ -202,18 +205,18 @@ void main() {
 
     // Enter an invalid email
     await tester.enterText(
-      find.widgetWithText(TextField, 'Correo Electrónico'),
+      find.widgetWithText(TextField, 'email_label'),
       'invalid-email',
     );
 
     // Make sure name is not empty to pass that validation
     await tester.enterText(
-      find.widgetWithText(TextField, 'Nombre').first,
+      find.widgetWithText(TextField, 'name_label').first,
       'Test Name',
     );
 
     // Scroll to make save button visible
-    final saveButton = find.text('Guardar Cambios');
+    final saveButton = find.text('save_changes');
     await tester.dragUntilVisible(
       saveButton,
       find.byType(SingleChildScrollView),
@@ -237,7 +240,10 @@ void main() {
     await tester.pumpAndSettle();
 
     // Scroll to password section
-    final newPasswordField = find.widgetWithText(TextField, 'Nueva Contraseña');
+    final newPasswordField = find.widgetWithText(
+      TextField,
+      'new_password_label',
+    );
     await tester.dragUntilVisible(
       newPasswordField,
       find.byType(SingleChildScrollView),
@@ -248,17 +254,17 @@ void main() {
 
     // Enter passwords: current, new, and mismatched confirmation
     await tester.enterText(
-      find.widgetWithText(TextField, 'Contraseña Actual'),
-      'currentpass', // Provide a current password
+      find.widgetWithText(TextField, 'current_password_label'),
+      'currentpass',
     );
     await tester.enterText(newPasswordField, 'newpass123');
     await tester.enterText(
-      find.widgetWithText(TextField, 'Confirmar Nueva Contraseña'),
-      'different456', // Mismatched password
+      find.widgetWithText(TextField, 'confirm_password_label'),
+      'different456',
     );
 
     // Find the button text
-    final updateButtonText = find.text('Actualizar Contraseña');
+    final updateButtonText = find.text('update_password');
     await tester.dragUntilVisible(
       updateButtonText,
       find.byType(SingleChildScrollView),
@@ -268,10 +274,7 @@ void main() {
     // Ensure the button text is visible and tap it
     await tester.ensureVisible(updateButtonText);
     await tester.pumpAndSettle();
-    await tester.tap(
-      updateButtonText,
-      warnIfMissed: false,
-    ); // Tap text directly
+    await tester.tap(updateButtonText);
 
     // Wait for UI updates, potentially adding a small explicit delay
     await tester.pumpAndSettle();
@@ -311,7 +314,7 @@ void main() {
     await tester.pumpAndSettle();
 
     // Verify image button is present
-    expect(find.text('Cambiar Foto de Perfil'), findsOneWidget);
+    expect(find.text('change_profile_picture'), findsOneWidget);
 
     // Verify profile image is displayed - CircleAvatar should exist
     expect(find.byType(CircleAvatar), findsOneWidget);

@@ -826,6 +826,7 @@ class _UserPageState extends State<UserPage> {
       children: [
         // Envolver todo el contenido en SingleChildScrollView para permitir desplazamiento
         SingleChildScrollView(
+          primary: true,
           child: Padding(
             padding: const EdgeInsets.all(16.0),
             child: Column(
@@ -976,7 +977,7 @@ class _UserPageState extends State<UserPage> {
                       child: ElevatedButton.icon(
                         onPressed: () => _eliminarCuenta(context),
                         icon: const Icon(Icons.delete_forever),
-                        label: Text('delete_account'.tr()),
+                        label: const Text('Eliminar Cuenta'),
                         style: ElevatedButton.styleFrom(
                           backgroundColor: Colors.red,
                           foregroundColor: Colors.white,
@@ -993,7 +994,7 @@ class _UserPageState extends State<UserPage> {
                   child: ElevatedButton.icon(
                     onPressed: () => _logout(context),
                     icon: const Icon(Icons.logout),
-                    label: Text('logout'.tr()),
+                    label: const Text('Cerrar Sesión'),
                     style: ElevatedButton.styleFrom(
                       backgroundColor: Colors.grey.shade800,
                       foregroundColor: Colors.white,

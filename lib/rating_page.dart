@@ -1,4 +1,5 @@
 import 'dart:convert';
+import 'package:easy_localization/easy_localization.dart';
 import 'package:flutter/material.dart';
 import 'package:http/http.dart' as http;
 import 'package:flutter_rating_bar/flutter_rating_bar.dart';
@@ -82,12 +83,14 @@ class _RatingsPageState extends State<RatingsPage> {
         return data.map((json) => Valoracio.fromJson(json)).toList()
           ..sort((a, b) => b.fecha.compareTo(a.fecha));
       }
-      throw Exception('Error ${response.statusCode}');
+      throw Exception(
+        'error_status_code'.tr(args: [response.statusCode.toString()]),
+      );
     } catch (e) {
       setState(() {
         _isLoading = false;
       });
-      debugPrint('Error al cargar valoraciones: $e');
+      debugPrint('error_loading_ratings_debug'.tr(args: [e.toString()]));
       return [];
     }
   }
@@ -96,7 +99,7 @@ class _RatingsPageState extends State<RatingsPage> {
     try {
       _activities = await _activityService.fetchActivities();
     } catch (e) {
-      final String message = 'Error al cargar actividades';
+      final String message = 'error_loading_activities_notification'.tr();
       if (!mounted) return;
       _notificationService.showError(context, message);
     }
@@ -134,7 +137,7 @@ class _RatingsPageState extends State<RatingsPage> {
           Navigator.of(context).pop();
           _notificationService.showError(
             context,
-            'No se encontró la actividad',
+            'activity_not_found_error'.tr(),
           );
         }
         return;
@@ -142,9 +145,10 @@ class _RatingsPageState extends State<RatingsPage> {
 
       // Get activity details based on your data structure
       final String id = activity['id'].toString();
-      final String title = activity['nom'] ?? 'Actividad sin título';
-      final String creator = activity['creador'] ?? 'Usuario desconocido';
-      final String description = activity['descripcio'] ?? 'Sin descripción';
+      final String title = activity['nom'] ?? 'untitled_activity'.tr();
+      final String creator = activity['creador'] ?? 'unknown_user'.tr();
+      final String description =
+          activity['descripcio'] ?? 'no_description'.tr();
       final String startDate =
           activity['dataInici'] ?? DateTime.now().toString();
       final String endDate = activity['dataFi'] ?? DateTime.now().toString();
@@ -182,7 +186,7 @@ class _RatingsPageState extends State<RatingsPage> {
         Navigator.of(context, rootNavigator: true).pop();
         _notificationService.showError(
           context,
-          'Error al cargar los detalles: $e',
+          'error_loading_details_notification'.tr(args: [e.toString()]),
         );
       }
     }
@@ -191,7 +195,7 @@ class _RatingsPageState extends State<RatingsPage> {
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      appBar: AppBar(title: const Text('Mis Valoraciones')),
+      appBar: AppBar(title: Text('my_ratings_title'.tr())),
       body: RefreshIndicator(
         onRefresh: () async {
           _loadUserRatings();
@@ -209,14 +213,14 @@ class _RatingsPageState extends State<RatingsPage> {
                 child: Column(
                   mainAxisAlignment: MainAxisAlignment.center,
                   children: [
-                    const Text(
-                      'Error al cargar valoraciones',
-                      style: TextStyle(color: Colors.red),
+                    Text(
+                      'error_loading_ratings_message'.tr(),
+                      style: const TextStyle(color: Colors.red),
                     ),
                     const SizedBox(height: 16),
                     ElevatedButton(
                       onPressed: _loadUserRatings,
-                      child: const Text('Reintentar'),
+                      child: Text('retry_button'.tr()),
                     ),
                   ],
                 ),
@@ -226,10 +230,10 @@ class _RatingsPageState extends State<RatingsPage> {
             final valoracions = snapshot.data ?? [];
 
             if (valoracions.isEmpty) {
-              return const Center(
+              return Center(
                 child: Text(
-                  'No has realizado ninguna valoración aún',
-                  style: TextStyle(color: Colors.grey),
+                  'no_ratings_yet_message'.tr(),
+                  style: const TextStyle(color: Colors.grey),
                 ),
               );
             }
@@ -259,7 +263,7 @@ class _RatingsPageState extends State<RatingsPage> {
                                   _findActivityTitleById(
                                         valoracio.idActivitat,
                                       ) ??
-                                      "Actividad no encontrada",
+                                      'activity_not_found_placeholder'.tr(),
                                   style: const TextStyle(
                                     fontWeight: FontWeight.bold,
                                     fontSize: 18,
@@ -290,7 +294,11 @@ class _RatingsPageState extends State<RatingsPage> {
                         ],
                         const SizedBox(height: 8),
                         Text(
-                          'Fecha: ${DateFormat('dd/MM/yyyy').format(valoracio.fecha)}',
+                          'date_label'.tr(
+                            args: [
+                              DateFormat('dd/MM/yyyy').format(valoracio.fecha),
+                            ],
+                          ),
                           style: const TextStyle(color: Colors.grey),
                         ),
                       ],

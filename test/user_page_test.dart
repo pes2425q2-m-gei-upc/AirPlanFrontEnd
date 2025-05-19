@@ -216,8 +216,8 @@ void main() {
       expect(find.text('my_requests'), findsOneWidget);
       expect(find.text('blocked_users'), findsOneWidget);
       expect(find.text('edit_profile'), findsOneWidget);
-      expect(find.text('delete_account'), findsOneWidget);
-      expect(find.text('logout'), findsOneWidget);
+      expect(find.text('Eliminar Cuenta'), findsOneWidget);
+      expect(find.text('Cerrar Sesión'), findsOneWidget);
     });
 
     testWidgets('logout button shows confirmation dialog', (

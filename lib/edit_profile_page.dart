@@ -1103,6 +1103,7 @@ class EditProfilePageState extends State<EditProfilePage> {
             ),
             const SizedBox(height: 24), // Increased space after image section
             TextField(
+              key: const Key('name_label'),
               controller: _nameController,
               decoration: InputDecoration(
                 labelText: 'name_label'.tr(),
@@ -1114,6 +1115,7 @@ class EditProfilePageState extends State<EditProfilePage> {
             ),
             const SizedBox(height: 16),
             TextField(
+              key: const Key('username_label'),
               controller: _usernameController,
               enabled: false,
               decoration: InputDecoration(
@@ -1126,6 +1128,7 @@ class EditProfilePageState extends State<EditProfilePage> {
             ),
             const SizedBox(height: 16),
             TextField(
+              key: const Key('email_label'),
               controller: _emailController,
               decoration: InputDecoration(
                 labelText: 'email_label'.tr(),
@@ -1184,6 +1187,7 @@ class EditProfilePageState extends State<EditProfilePage> {
 
             // Contraseña actual
             TextField(
+              key: const Key('current_password_label'),
               controller: _currentPasswordController,
               obscureText: !_isCurrentPasswordVisible,
               decoration: InputDecoration(
@@ -1208,6 +1212,7 @@ class EditProfilePageState extends State<EditProfilePage> {
 
             // Nueva contraseña
             TextField(
+              key: const Key('new_password_label'),
               controller: _newPasswordController,
               obscureText: !_isNewPasswordVisible,
               decoration: InputDecoration(
@@ -1233,6 +1238,7 @@ class EditProfilePageState extends State<EditProfilePage> {
 
             // Confirmar nueva contraseña
             TextField(
+              key: const Key('confirm_password_label'),
               controller: _confirmPasswordController,
               obscureText: !_isConfirmPasswordVisible,
               decoration: InputDecoration(
