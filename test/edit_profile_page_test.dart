@@ -10,6 +10,7 @@ import 'package:http/http.dart' as http;
 import 'package:firebase_core/firebase_core.dart';
 import 'package:firebase_core_platform_interface/firebase_core_platform_interface.dart';
 import 'package:plugin_platform_interface/plugin_platform_interface.dart';
+import 'package:easy_localization/easy_localization.dart';
 
 import 'package:airplan/edit_profile_page.dart';
 import 'package:airplan/services/auth_service.dart';
@@ -194,7 +195,7 @@ void main() {
     await tester.pumpAndSettle();
 
     // Check that the error was reported via NotificationService mock
-    expect(find.text('El nombre no puede estar vacío.'), findsOneWidget);
+    expect(find.text('error_name_empty'.tr()), findsOneWidget);
   });
 
   testWidgets('Validate invalid email format shows error', (
@@ -228,10 +229,7 @@ void main() {
     await tester.pumpAndSettle();
 
     // Check that the error was reported via NotificationService mock
-    expect(
-      find.text('Por favor, introduce un correo electrónico válido.'),
-      findsOneWidget,
-    );
+    expect(find.text('please_enter_valid_email'.tr()), findsOneWidget);
   });
 
   // Simplified test focusing only on password mismatch
@@ -281,7 +279,7 @@ void main() {
     await tester.pump(const Duration(milliseconds: 100)); // Small delay
 
     // Check for the error message directly in the UI
-    expect(find.text('Las contraseñas no coinciden'), findsOneWidget);
+    expect(find.text('passwords_do_not_match'.tr()), findsOneWidget);
   });
 
   testWidgets('User logs out when authStateChanges emits null', (

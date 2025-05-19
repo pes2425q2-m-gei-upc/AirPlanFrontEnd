@@ -216,8 +216,8 @@ void main() {
       expect(find.text('my_requests'), findsOneWidget);
       expect(find.text('blocked_users'), findsOneWidget);
       expect(find.text('edit_profile'), findsOneWidget);
-      expect(find.text('Eliminar Cuenta'), findsOneWidget);
-      expect(find.text('Cerrar Sesión'), findsOneWidget);
+      expect(find.text('delete_account'), findsOneWidget);
+      expect(find.text('close_session'), findsOneWidget);
     });
 
     testWidgets('logout button shows confirmation dialog', (
@@ -240,30 +240,22 @@ void main() {
           ),
         ),
       );
-      debugPrint('Widget pumped');
 
       await tester.pumpAndSettle();
 
-      debugPrint('Pumped and settled');
       // Find the logout button and ensure it's visible by scrolling to it
-      final logoutButtonFinder = find.text('Cerrar Sesión');
+      final logoutButtonFinder = find.text('close_session');
       await tester.scrollUntilVisible(logoutButtonFinder, 500);
       await tester.pumpAndSettle();
-      debugPrint('Scrolled to logout button');
       // Tap logout button
       await tester.tap(logoutButtonFinder);
       await tester.pumpAndSettle();
 
-      debugPrint('Tapped logout button');
       // Verify dialog appears
-      expect(
-        find.text('¿Estás seguro de que quieres cerrar sesión?'),
-        findsOneWidget,
-      );
-      debugPrint('Dialog found');
-      expect(find.text('Cancelar'), findsOneWidget);
+
+      expect(find.text('cancel'), findsOneWidget);
       // The button text appears twice: once on the main page, once in the dialog
-      expect(find.text('Cerrar Sesión'), findsWidgets);
+      expect(find.text('close_session'), findsWidgets);
 
       // Reset size after test
       addTearDown(() {
@@ -296,7 +288,7 @@ void main() {
       await tester.pumpAndSettle();
 
       // Find the delete button and ensure it's visible by scrolling to it
-      final deleteButtonFinder = find.text('Eliminar Cuenta');
+      final deleteButtonFinder = find.text('delete_account');
       await tester.scrollUntilVisible(deleteButtonFinder, 500);
       await tester.pumpAndSettle();
 

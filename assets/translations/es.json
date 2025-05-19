@@ -177,7 +177,7 @@
   "rating_removed_success": "Valoración eliminada correctamente.",
   "rating_remove_error": "Error al eliminar la valoración.",
   "remove_participant_dialog_title": "Eliminar Participante",
-  "remove_participant_dialog_content": "¿Estás seguro de que quieres eliminar a {participantName} de la actividad?",
+  "remove_participant_dialog_content": "¿Estás seguro de que quieres eliminar al participante de la actividad?",
   "remove_button": "Eliminar",
   "all_activities_appbar_title": "Todas las Actividades",
   "filter_activities_tooltip": "Filtrar actividades",
