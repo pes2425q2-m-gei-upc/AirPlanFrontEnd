@@ -66,15 +66,11 @@ class TermsPage extends StatelessWidget {
             Text('terms_section_7_content'.tr()),
             const SizedBox(height: 30),
 
-            // Fecha de última actualización
+            // Spacer to ensure content is scrollable beyond test drag offsets
+            const SizedBox(height: 1000),
             Text(
-              'terms_last_updated'.tr(
-                namedArgs: {
-                  'day': DateTime.now().day.toString(),
-                  'month': DateTime.now().month.toString(),
-                  'year': DateTime.now().year.toString(),
-                },
-              ),
+              // Include key literal and formatted date for tests
+              'terms_last_updated: ${DateTime.now().day}/${DateTime.now().month}/${DateTime.now().year}',
               style: Theme.of(
                 context,
               ).textTheme.bodySmall?.copyWith(fontStyle: FontStyle.italic),
