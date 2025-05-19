@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:airplan/services/auth_service.dart';
 import 'login_page.dart';
+import 'package:easy_localization/easy_localization.dart';
 
 class DeleteAccountPage extends StatefulWidget {
   // Add support for dependency injection
@@ -29,9 +30,9 @@ class DeleteAccountPageState extends State<DeleteAccountPage> {
 
       final actualContext = context;
       if (actualContext.mounted) {
-        ScaffoldMessenger.of(actualContext).showSnackBar(
-          const SnackBar(content: Text('Compte eliminat correctament')),
-        );
+        ScaffoldMessenger.of(
+          actualContext,
+        ).showSnackBar(SnackBar(content: Text(tr('delete_account_success'))));
 
         // Tornar a la pantalla d'inici de sessió
         Navigator.pushAndRemoveUntil(
@@ -49,16 +50,14 @@ class DeleteAccountPageState extends State<DeleteAccountPage> {
         String errorMessage = e.toString();
         if (errorMessage.contains('requires-recent-login')) {
           ScaffoldMessenger.of(actualContext).showSnackBar(
-            const SnackBar(
-              content: Text(
-                'Has de tornar a iniciar sessió per esborrar el compte',
-              ),
-            ),
+            SnackBar(content: Text(tr('delete_account_requires_relogin'))),
           );
         } else {
-          ScaffoldMessenger.of(
-            actualContext,
-          ).showSnackBar(SnackBar(content: Text('Error: $errorMessage')));
+          ScaffoldMessenger.of(actualContext).showSnackBar(
+            SnackBar(
+              content: Text(tr('delete_account_error', args: [errorMessage])),
+            ),
+          );
         }
       }
     }
@@ -69,21 +68,19 @@ class DeleteAccountPageState extends State<DeleteAccountPage> {
       context: context,
       builder:
           (context) => AlertDialog(
-            title: const Text('Confirmació'),
-            content: const Text(
-              'Segur que vols esborrar el teu compte? Aquesta acció és irreversible.',
-            ),
+            title: Text(tr('confirm_delete_account_title')),
+            content: Text(tr('confirm_delete_account_message')),
             actions: [
               TextButton(
                 onPressed: () => Navigator.pop(context),
-                child: const Text('Cancel·lar'),
+                child: Text(tr('cancel')),
               ),
               ElevatedButton(
                 onPressed: () {
                   Navigator.pop(context);
                   _deleteAccount();
                 },
-                child: const Text('Esborrar'),
+                child: Text(tr('delete')),
               ),
             ],
           ),
@@ -93,14 +90,14 @@ class DeleteAccountPageState extends State<DeleteAccountPage> {
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      appBar: AppBar(title: const Text('Eliminar compte')),
+      appBar: AppBar(title: Text(tr('confirm_delete_account_title'))),
       body: Center(
         child: ElevatedButton(
           onPressed: _confirmDelete,
           style: ElevatedButton.styleFrom(backgroundColor: Colors.red),
-          child: const Text(
-            'Esborrar el meu compte',
-            style: TextStyle(color: Colors.white),
+          child: Text(
+            tr('confirm_delete_account_title'),
+            style: const TextStyle(color: Colors.white),
           ),
         ),
       ),

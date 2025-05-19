@@ -125,9 +125,7 @@ class MapPageState extends State<MapPage> {
       if (actualContext.mounted) {
         ScaffoldMessenger.of(actualContext).showSnackBar(
           SnackBar(
-            content: Text(
-              'Error al obtenir dades de qualitat de l\'aire: ${e.toString()}',
-            ),
+            content: Text(tr('error_fetch_air_quality', args: [e.toString()])),
           ),
         );
       }
@@ -183,11 +181,7 @@ class MapPageState extends State<MapPage> {
       final actualContext = context;
       if (actualContext.mounted) {
         ScaffoldMessenger.of(actualContext).showSnackBar(
-          SnackBar(
-            content: Text(
-              'Location services are disabled. Please enable them.',
-            ),
-          ),
+          SnackBar(content: Text(tr('location_services_disabled'))),
         );
       }
       return;
@@ -201,7 +195,7 @@ class MapPageState extends State<MapPage> {
         final actualContext = context;
         if (actualContext.mounted) {
           ScaffoldMessenger.of(actualContext).showSnackBar(
-            SnackBar(content: Text('Location permissions are denied.')),
+            SnackBar(content: Text(tr('location_permissions_denied'))),
           );
         }
         return;
@@ -213,7 +207,7 @@ class MapPageState extends State<MapPage> {
       if (actualContext.mounted) {
         ScaffoldMessenger.of(actualContext).showSnackBar(
           SnackBar(
-            content: Text('Location permissions are permanently denied.'),
+            content: Text(tr('location_permissions_permanently_denied')),
           ),
         );
       }
@@ -233,9 +227,11 @@ class MapPageState extends State<MapPage> {
     } catch (e) {
       final actualContext = context;
       if (actualContext.mounted) {
-        ScaffoldMessenger.of(
-          actualContext,
-        ).showSnackBar(SnackBar(content: Text('Failed to fetch location: $e')));
+        ScaffoldMessenger.of(actualContext).showSnackBar(
+          SnackBar(
+            content: Text(tr('failed_fetch_location', args: [e.toString()])),
+          ),
+        );
       }
     }
   }
@@ -445,13 +441,15 @@ class MapPageState extends State<MapPage> {
       if (actualContext.mounted) {
         ScaffoldMessenger.of(
           actualContext,
-        ).showSnackBar(SnackBar(content: Text("Ruta calculada correctament.")));
+        ).showSnackBar(SnackBar(content: Text(tr('route_calculated_success'))));
       }
     } catch (e) {
       final actualContext = context;
       if (actualContext.mounted) {
         ScaffoldMessenger.of(actualContext).showSnackBar(
-          SnackBar(content: Text('Error al calcular la ruta: ${e.toString()}')),
+          SnackBar(
+            content: Text(tr('route_calculation_error', args: [e.toString()])),
+          ),
         );
       }
     }
@@ -727,7 +725,7 @@ class MapPageState extends State<MapPage> {
       context: context,
       builder: (BuildContext context) {
         return AlertDialog(
-          title: Text('Enter Details'),
+          title: Text(tr('enter_details')),
           content: FormDialog(
             initialLocation: '${location.latitude},${location.longitude}',
             initialPlaceDetails: placeDetails,
@@ -746,16 +744,20 @@ class MapPageState extends State<MapPage> {
       try {
         await widget.activityService.sendActivityToBackend(result);
         if (mounted) {
-          ScaffoldMessenger.of(
-            context,
-          ).showSnackBar(SnackBar(content: Text('Actividad creada con éxito')));
+          ScaffoldMessenger.of(context).showSnackBar(
+            SnackBar(content: Text(tr('activity_created_success'))),
+          );
         }
         fetchActivities();
       } catch (e) {
         if (mounted) {
-          ScaffoldMessenger.of(
-            context,
-          ).showSnackBar(SnackBar(content: Text(e.toString())));
+          ScaffoldMessenger.of(context).showSnackBar(
+            SnackBar(
+              content: Text(
+                tr('error_creating_activity', args: [e.toString()]),
+              ),
+            ),
+          );
         }
       }
     }
@@ -860,8 +862,8 @@ class MapPageState extends State<MapPage> {
                           await removeActivityFromFavorites(activity['id']);
                           if (context.mounted) {
                             ScaffoldMessenger.of(context).showSnackBar(
-                              const SnackBar(
-                                content: Text('Removed from favorites'),
+                              SnackBar(
+                                content: Text(tr('removed_from_favorites')),
                               ),
                             );
                           }
@@ -869,9 +871,7 @@ class MapPageState extends State<MapPage> {
                           await addActivityToFavorites(activity['id']);
                           if (context.mounted) {
                             ScaffoldMessenger.of(context).showSnackBar(
-                              const SnackBar(
-                                content: Text('Added to favorites'),
-                              ),
+                              SnackBar(content: Text(tr('added_to_favorites'))),
                             );
                           }
                         }
@@ -1158,16 +1158,14 @@ class MapPageState extends State<MapPage> {
       context: context,
       builder: (context) {
         return AlertDialog(
-          title: Text('Eliminar actividad'),
-          content: Text(
-            '¿Estás seguro de que quieres eliminar esta actividad?',
-          ),
+          title: Text(tr('confirm_delete_activity_title')),
+          content: Text(tr('confirm_delete_activity_content')),
           actions: [
             TextButton(
               onPressed: () {
                 Navigator.pop(context); // Cierra el diálogo
               },
-              child: Text('Cancelar'),
+              child: Text(tr('cancel')),
             ),
             TextButton(
               onPressed: () async {
@@ -1181,9 +1179,7 @@ class MapPageState extends State<MapPage> {
                   );
                   if (context.mounted) {
                     ScaffoldMessenger.of(context).showSnackBar(
-                      SnackBar(
-                        content: Text("Actividad eliminada correctament."),
-                      ),
+                      SnackBar(content: Text(tr('activity_deleted_success'))),
                     );
                   }
                 } catch (e) {
@@ -1191,14 +1187,14 @@ class MapPageState extends State<MapPage> {
                     ScaffoldMessenger.of(context).showSnackBar(
                       SnackBar(
                         content: Text(
-                          "Error al eliminar l'activitat: ${e.toString()}",
+                          tr('activity_delete_error', args: [e.toString()]),
                         ),
                       ),
                     );
                   }
                 }
               },
-              child: Text('Eliminar', style: TextStyle(color: Colors.red)),
+              child: Text(tr('delete'), style: TextStyle(color: Colors.red)),
             ),
           ],
         );
@@ -1335,7 +1331,7 @@ class MapPageState extends State<MapPage> {
               mainAxisSize: MainAxisSize.min,
               children: [
                 Text(
-                  'favorite_activities'.tr(),
+                  tr('favorite_activities'),
                   style: TextStyle(fontSize: 20, fontWeight: FontWeight.bold),
                 ),
                 const SizedBox(height: 16),
@@ -1369,9 +1365,9 @@ class MapPageState extends State<MapPage> {
                                       ScaffoldMessenger.of(
                                         context,
                                       ).showSnackBar(
-                                        const SnackBar(
+                                        SnackBar(
                                           content: Text(
-                                            'Removed from favorites',
+                                            tr('removed_from_favorites'),
                                           ),
                                         ),
                                       );
@@ -1394,7 +1390,9 @@ class MapPageState extends State<MapPage> {
     } catch (e) {
       if (context.mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(content: Text('Error loading favorites: ${e.toString()}')),
+          SnackBar(
+            content: Text(tr('error_loading_favorites', args: [e.toString()])),
+          ),
         );
       }
     }
@@ -1408,15 +1406,15 @@ class MapPageState extends State<MapPage> {
     try {
       await solicitudsService.sendSolicitud(activityId, requester, host);
       if (mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          const SnackBar(content: Text('Solicitud enviada correctamente.')),
-        );
+        ScaffoldMessenger.of(
+          context,
+        ).showSnackBar(SnackBar(content: Text(tr('request_send_success'))));
       }
     } catch (e) {
       if (mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
           SnackBar(
-            content: Text('Error al enviar la solicitud: ${e.toString()}'),
+            content: Text(tr('request_send_error', args: [e.toString()])),
           ),
         );
       }
@@ -1431,13 +1429,13 @@ class MapPageState extends State<MapPage> {
       if (actualContext.mounted) {
         ScaffoldMessenger.of(
           actualContext,
-        ).showSnackBar(SnackBar(content: Text('Ruta enviada correctament.')));
+        ).showSnackBar(SnackBar(content: Text(tr('route_sent_success'))));
       }
     } catch (e) {
       final actualContext = context;
       if (actualContext.mounted) {
         ScaffoldMessenger.of(actualContext).showSnackBar(
-          SnackBar(content: Text('Error al enviar la ruta: ${e.toString()}')),
+          SnackBar(content: Text(tr('route_sent_error', args: [e.toString()]))),
         );
       }
     }
@@ -1449,16 +1447,16 @@ class MapPageState extends State<MapPage> {
       await mapService.updateRouteInBackend(route);
       final actualContext = context;
       if (actualContext.mounted) {
-        ScaffoldMessenger.of(actualContext).showSnackBar(
-          SnackBar(content: Text('Ruta actualitzada correctament.')),
-        );
+        ScaffoldMessenger.of(
+          actualContext,
+        ).showSnackBar(SnackBar(content: Text(tr('route_updated_success'))));
       }
     } catch (e) {
       final actualContext = context;
       if (actualContext.mounted) {
         ScaffoldMessenger.of(actualContext).showSnackBar(
           SnackBar(
-            content: Text('Error al actualitzar la ruta: ${e.toString()}'),
+            content: Text(tr('route_updated_error', args: [e.toString()])),
           ),
         );
       }
