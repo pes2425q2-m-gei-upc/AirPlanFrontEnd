@@ -501,7 +501,7 @@ class ChatDetailPageState extends State<ChatDetailPage> {
       context: context,
       builder:
           (context) => AlertDialog(
-            title: const Text('Editar mensaje'),
+            title: Text('chat_edit_message'.tr()),
             content: SizedBox(
               width: 250, // Ajusta el ancho del campo de texto
               child: TextField(
@@ -531,7 +531,7 @@ class ChatDetailPageState extends State<ChatDetailPage> {
                     children: [
                       TextButton(
                         onPressed: () => Navigator.of(context).pop(),
-                        child: const Text('Cancelar'),
+                        child: Text('cancel_button'.tr()),
                       ),
                       TextButton(
                         onPressed: () {
@@ -541,7 +541,7 @@ class ChatDetailPageState extends State<ChatDetailPage> {
                             editingController.text.trim(),
                           );
                         },
-                        child: const Text('Guardar'),
+                        child: Text('confirm'.tr()),
                       ),
                     ],
                   ),
@@ -557,22 +557,20 @@ class ChatDetailPageState extends State<ChatDetailPage> {
       context: context,
       builder:
           (context) => AlertDialog(
-            title: const Text('Eliminar mensaje'),
-            content: const Text(
-              '¿Estás seguro de que deseas eliminar este mensaje?',
-            ),
+            title: Text('chat_delete_message'.tr()),
+            content: Text('chat_confirm_delete'.tr()),
             actions: [
               TextButton(
                 onPressed: () => Navigator.of(context).pop(),
-                child: const Text('Cancelar'),
+                child: Text('cancel_button'.tr()),
               ),
               TextButton(
                 onPressed: () {
                   Navigator.of(context).pop();
                   _deleteMessage(message);
                 },
-                child: const Text(
-                  'Eliminar',
+                child: Text(
+                  'delete_button_label'.tr(),
                   style: TextStyle(color: Colors.red),
                 ),
               ),

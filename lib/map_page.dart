@@ -17,6 +17,7 @@ import 'package:airplan/services/auth_service.dart';
 import 'package:sensors_plus/sensors_plus.dart';
 import 'dart:math' as math;
 import 'dart:math' show log, ln2, min;
+import 'package:easy_localization/easy_localization.dart';
 
 class MapPage extends StatefulWidget {
   final AuthService authService;
@@ -380,33 +381,33 @@ class MapPageState extends State<MapPage> {
       context: context,
       builder: (BuildContext context) {
         return AlertDialog(
-          title: const Text('Selecciona el mode de transport'),
+          title: Text('select_transport_mode'.tr()),
           content: Column(
             mainAxisSize: MainAxisSize.min,
             children: [
               ListTile(
                 leading: const Icon(Icons.directions_walk),
-                title: const Text('A peu'),
+                title: Text('walking'.tr()),
                 onTap: () => Navigator.pop(context, 3),
               ),
               ListTile(
                 leading: const Icon(Icons.pedal_bike),
-                title: const Text('Bicicleta'),
+                title: Text('bicycle'.tr()),
                 onTap: () => Navigator.pop(context, 4),
               ),
               ListTile(
                 leading: const Icon(Icons.directions_bus),
-                title: const Text('Transport públic'),
+                title: Text('public_transport'.tr()),
                 onTap: () => Navigator.pop(context, 10),
               ),
               ListTile(
                 leading: const Icon(Icons.directions_car),
-                title: const Text('Cotxe'),
+                title: Text('car'.tr()),
                 onTap: () => Navigator.pop(context, 1),
               ),
               ListTile(
                 leading: const Icon(Icons.directions_bike),
-                title: const Text('Moto'),
+                title: Text('motorcycle'.tr()),
                 onTap: () => Navigator.pop(context, 2),
               ),
             ],
@@ -617,9 +618,9 @@ class MapPageState extends State<MapPage> {
                       ),
                     ),
                     const SizedBox(height: 10),
-                    const Text(
-                      'Selected Location',
-                      style: TextStyle(
+                    Text(
+                      'selected_location'.tr(),
+                      style: const TextStyle(
                         fontSize: 18,
                         fontWeight: FontWeight.bold,
                       ),
@@ -641,7 +642,7 @@ class MapPageState extends State<MapPage> {
                               );
                               savedLocations[selectedLocation] = placeDetails;
                             },
-                            child: const Text("Crea Activitat"),
+                            child: Text('create_activity'.tr()),
                           ),
                           const SizedBox(width: 10),
                           ElevatedButton(
@@ -694,7 +695,7 @@ class MapPageState extends State<MapPage> {
                               });
                               Navigator.pop(context);
                             },
-                            child: const Text("Guardar marcador"),
+                            child: Text('save_marker'.tr()),
                           ),
                           const SizedBox(width: 10),
                           ElevatedButton(
@@ -706,7 +707,7 @@ class MapPageState extends State<MapPage> {
                                 mapService,
                               );
                             },
-                            child: const Text("Com Arribar"),
+                            child: Text('get_directions'.tr()),
                           ),
                         ],
                       ),
@@ -845,7 +846,7 @@ class MapPageState extends State<MapPage> {
                         mapService,
                       );
                     },
-                    child: const Text("Com Arribar"),
+                    child: Text('get_directions'.tr()),
                   ),
                   // Favorite button
                   if (currentUser != null) // Only show if user is logged in
@@ -912,14 +913,12 @@ class MapPageState extends State<MapPage> {
                             context: context,
                             builder: (context) {
                               return AlertDialog(
-                                title: const Text('Cancelar solicitud'),
-                                content: const Text(
-                                  '¿Estás seguro de que quieres cancelar tu solicitud?',
-                                ),
+                                title: Text('cancel_request'.tr()),
+                                content: Text('cancel_request_message'.tr()),
                                 actions: [
                                   TextButton(
                                     onPressed: () => Navigator.pop(context),
-                                    child: const Text('Cancelar'),
+                                    child: Text('cancel'.tr()),
                                   ),
                                   TextButton(
                                     onPressed: () async {
@@ -933,16 +932,16 @@ class MapPageState extends State<MapPage> {
                                         ScaffoldMessenger.of(
                                           context,
                                         ).showSnackBar(
-                                          const SnackBar(
+                                          SnackBar(
                                             content: Text(
-                                              'Solicitud cancelada correctamente.',
+                                              'request_canceled_success'.tr(),
                                             ),
                                           ),
                                         );
                                       }
                                     },
-                                    child: const Text(
-                                      'Confirmar',
+                                    child: Text(
+                                      'confirm'.tr(),
                                       style: TextStyle(color: Colors.red),
                                     ),
                                   ),
@@ -978,7 +977,7 @@ class MapPageState extends State<MapPage> {
           mapService,
         );
       },
-      child: const Text("Com Arribar"),
+      child: Text('get_directions'.tr()),
     );
   }
 
@@ -1335,8 +1334,8 @@ class MapPageState extends State<MapPage> {
               crossAxisAlignment: CrossAxisAlignment.start,
               mainAxisSize: MainAxisSize.min,
               children: [
-                const Text(
-                  'Actividades favoritas',
+                Text(
+                  'favorite_activities'.tr(),
                   style: TextStyle(fontSize: 20, fontWeight: FontWeight.bold),
                 ),
                 const SizedBox(height: 16),
@@ -1538,20 +1537,18 @@ class MapPageState extends State<MapPage> {
       context: context,
       builder: (BuildContext context) {
         return AlertDialog(
-          title: const Text(
-            'Selecciona si vols arribar o sortir a una hora concreta',
-          ),
+          title: Text('select_time_option'.tr()),
           content: Column(
             mainAxisSize: MainAxisSize.min,
             children: [
               ListTile(
                 leading: const Icon(Icons.access_time),
-                title: const Text('Hora de sortida'),
+                title: Text('departure_time'.tr()),
                 onTap: () => Navigator.pop(context, 'departure'),
               ),
               ListTile(
                 leading: const Icon(Icons.access_time_filled),
-                title: const Text('Hora d\'arribada'),
+                title: Text("arrival_time".tr()),
                 onTap: () => Navigator.pop(context, 'arrival'),
               ),
             ],
@@ -2262,17 +2259,17 @@ class MapPageState extends State<MapPage> {
       body: Stack(
         children: [
           map_ui.MapUI(
-              mapController: mapController,
-              currentPosition: currentPosition,
-              circles: showAirQualityCircles ? circles : [],
-              onMapTapped: _onMapTapped,
-              activities: activities,
-              onActivityTap: _showActivityDetails,
-              markers: markers,
-              route: currentRoute.value.fullRoute,
-              steps: currentRoute.value.steps,
-              userHeading: _showCompass ? _deviceHeading : null,
-              isNavigationMode: isNavigating,
+            mapController: mapController,
+            currentPosition: currentPosition,
+            circles: showAirQualityCircles ? circles : [],
+            onMapTapped: _onMapTapped,
+            activities: activities,
+            onActivityTap: _showActivityDetails,
+            markers: markers,
+            route: currentRoute.value.fullRoute,
+            steps: currentRoute.value.steps,
+            userHeading: _showCompass ? _deviceHeading : null,
+            isNavigationMode: isNavigating,
           ),
           Positioned(
             top: 10,
