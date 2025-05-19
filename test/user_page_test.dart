@@ -305,14 +305,9 @@ void main() {
       await tester.pumpAndSettle();
 
       // Verify dialog appears
-      expect(
-        find.text(
-          '¿Estás seguro de que quieres eliminar tu cuenta? Esta acción no se puede deshacer.',
-        ),
-        findsOneWidget,
-      );
-      expect(find.text('Cancelar'), findsOneWidget);
-      expect(find.text('Eliminar'), findsOneWidget);
+      expect(find.text('confirm_delete_account_message'), findsOneWidget);
+      expect(find.text('cancel'), findsOneWidget);
+      expect(find.text('delete'), findsOneWidget);
 
       // Reset size after test
       addTearDown(() {
