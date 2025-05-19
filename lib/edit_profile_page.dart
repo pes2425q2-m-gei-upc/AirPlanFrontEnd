@@ -511,13 +511,11 @@ class EditProfilePageState extends State<EditProfilePage> {
         // Inappropriate content error
         final errorData = json.decode(response.body);
         final field = errorData['field'] as String?;
-        final message =
-            errorData['error'] as String? ?? 'unapropriate_content'.tr();
         setState(() {
           if (field == 'nom') {
-            _nameError = message;
+            _nameError = 'inappropiate_message'.tr();
           } else if (field == 'email') {
-            _emailError = message;
+            _emailError = "inappropiate_message".tr();
           }
         });
         return;

@@ -213,10 +213,13 @@ class ActivityDetailsPageState extends State<ActivityDetailsPage> {
         if (!context.mounted) return;
         _notificationService.showSuccess(context, message);
       } else {
-        final String message =
+        String message =
             response.body.isNotEmpty
                 ? response.body
                 : 'rating_saved_error'.tr();
+        if (response.body.contains("inapropiat")) {
+          message = 'inappropiat_message'.tr();
+        }
         if (!context.mounted) return;
         _notificationService.showError(context, message);
       }
@@ -253,9 +256,7 @@ class ActivityDetailsPageState extends State<ActivityDetailsPage> {
           direction: Axis.horizontal,
         ),
         Text(
-          'average_rating_from_total'.tr(
-            args: [average.toStringAsFixed(1), valoracions.length.toString()],
-          ),
+          'average_rating_from_total'.tr() + average.toStringAsFixed(1),
           style: TextStyle(fontSize: 16),
         ),
       ],

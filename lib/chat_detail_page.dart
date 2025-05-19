@@ -166,7 +166,7 @@ class ChatDetailPageState extends State<ChatDetailPage> {
         }
         return;
       } // Manejar mensajes de error
-      if (messageType == 'ERROR' && messageData.containsKey('message')) {
+      if (messageType == 'ERROR') {
         if (mounted) {
           final errorMessage = messageData['message'] as String;
 

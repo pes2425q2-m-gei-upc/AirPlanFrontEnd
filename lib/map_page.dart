@@ -749,11 +749,15 @@ class MapPageState extends State<MapPage> {
         }
         fetchActivities();
       } catch (e) {
+        String errorMessage = e.toString();
+        if (errorMessage.contains("inapropiats")) {
+          errorMessage = "inappropiat_message".tr();
+        }
         if (mounted) {
           ScaffoldMessenger.of(context).showSnackBar(
             SnackBar(
               content: Text(
-                tr('error_creating_activity', args: [e.toString()]),
+                tr('${'error_creating_activity'.tr()} $errorMessage'),
               ),
             ),
           );
@@ -1131,16 +1135,14 @@ class MapPageState extends State<MapPage> {
                     if (mounted) {
                       // Get only the part after the last ': '
                       final parts = e.toString().split(': ');
-                      final String msg =
-                          parts.isNotEmpty ? parts.last : e.toString();
+                      String msg = parts.isNotEmpty ? parts.last : e.toString();
+                      if (msg.contains("inapropiats")) {
+                        msg = "inappropiat_message".tr();
+                      }
                       if (!parentContext.mounted) return;
-                      ScaffoldMessenger.of(parentContext).showSnackBar(
-                        SnackBar(
-                          content: Text(
-                            '${'error_updating_activity'.tr()} $msg',
-                          ),
-                        ),
-                      );
+                      ScaffoldMessenger.of(
+                        parentContext,
+                      ).showSnackBar(SnackBar(content: Text(msg)));
                     }
                   }
                 }
