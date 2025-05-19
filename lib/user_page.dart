@@ -13,6 +13,7 @@ import 'main.dart';
 import 'rating_page.dart';
 import 'package:airplan/solicituds_service.dart';
 import 'blocked_users_page.dart'; // Import para la página de usuarios bloqueados
+import 'package:easy_localization/easy_localization.dart';
 
 // Type definitions for function injection
 typedef GetUserRealNameFunc = Future<String> Function(String username);
@@ -44,9 +45,9 @@ class UserRequestsPageState extends State<UserRequestsPage> {
         widget.username,
       );
       if (!mounted) return;
-      ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(content: Text('Solicitud eliminada correctamente.')),
-      );
+      ScaffoldMessenger.of(
+        context,
+      ).showSnackBar(SnackBar(content: Text('request_removed'.tr())));
       setState(() {
         _requestsFuture = SolicitudsService().fetchUserRequests(
           widget.username,
@@ -55,7 +56,7 @@ class UserRequestsPageState extends State<UserRequestsPage> {
     } catch (e) {
       ScaffoldMessenger.of(context).showSnackBar(
         SnackBar(
-          content: Text('Error al eliminar la solicitud: ${e.toString()}'),
+          content: Text('request_error_removing'.tr(args: [e.toString()])),
         ),
       );
     }
@@ -64,7 +65,7 @@ class UserRequestsPageState extends State<UserRequestsPage> {
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      appBar: AppBar(title: const Text("Mis Solicitudes")),
+      appBar: AppBar(title: Text("my_requests_title".tr())),
       body: FutureBuilder<List<Map<String, dynamic>>>(
         future: _requestsFuture,
         builder: (context, snapshot) {
@@ -73,7 +74,7 @@ class UserRequestsPageState extends State<UserRequestsPage> {
           } else if (snapshot.hasError) {
             return Center(child: Text('Error: ${snapshot.error}'));
           } else if (!snapshot.hasData || snapshot.data!.isEmpty) {
-            return const Center(child: Text('No has realizado solicitudes.'));
+            return Center(child: Text('my_requests_empty'.tr()));
           }
 
           final requests = snapshot.data!;
@@ -138,7 +139,6 @@ class UserInfoCard extends StatelessWidget {
     required this.userLevel,
     required this.isLoading,
   });
-
   @override
   Widget build(BuildContext context) {
     return Card(
@@ -150,14 +150,14 @@ class UserInfoCard extends StatelessWidget {
           children: [
             _buildInfoListTile(
               icon: Icons.person,
-              title: 'Nombre',
+              title: 'user_name_label'.tr(),
               value: realName,
               isLoading: isLoading,
             ),
             const Divider(),
             _buildInfoListTile(
               icon: Icons.alternate_email,
-              title: 'Username',
+              title: 'user_username_label'.tr(),
               value: username,
               isLoading:
                   false, // Username comes directly from Firebase Auth, not loaded async here
@@ -165,7 +165,7 @@ class UserInfoCard extends StatelessWidget {
             const Divider(),
             _buildInfoListTile(
               icon: Icons.email,
-              title: 'Correo',
+              title: 'user_email_label'.tr(),
               value: email,
               isLoading: false, // Email comes directly from Firebase Auth
             ),
@@ -173,7 +173,7 @@ class UserInfoCard extends StatelessWidget {
               const Divider(),
               _buildInfoListTile(
                 icon: Icons.star,
-                title: 'Nivel',
+                title: 'user_level_label'.tr(),
                 value: '$userLevel',
                 isLoading: isLoading,
                 iconColor: Colors.amber,
@@ -408,15 +408,12 @@ class _UserPageState extends State<UserPage> {
   void _handleCriticalUpdate(bool isEmailUpdate, bool isPasswordUpdate) {
     String message = '';
     if (isEmailUpdate && isPasswordUpdate) {
-      message =
-          'Se han detectado cambios en tu correo y contraseña en otro dispositivo. Es necesario volver a iniciar sesión.';
+      message = 'email_password_change_detected'.tr();
     } else if (isEmailUpdate) {
-      message =
-          'Se ha detectado un cambio de correo electrónico en otro dispositivo. Es necesario volver a iniciar sesión.';
+      message = 'email_change_detected'.tr();
     } else {
       // isPasswordUpdate
-      message =
-          'Se ha detectado un cambio de contraseña en otro dispositivo. Es necesario volver a iniciar sesión.';
+      message = 'password_change_detected'.tr();
     }
 
     // Show info message and trigger logout/redirect
@@ -427,14 +424,13 @@ class _UserPageState extends State<UserPage> {
   void _handleNonCriticalUpdate(bool isNameUpdate, bool isPhotoUpdate) {
     if (!mounted) return;
 
-    String message = 'Tu perfil ha sido actualizado en otro dispositivo.';
+    String message = 'profile_updated_other_device'.tr();
     if (isNameUpdate && isPhotoUpdate) {
-      message =
-          'Tu nombre y foto de perfil han sido actualizados en otro dispositivo.';
+      message = 'name_photo_updated_other_device'.tr();
     } else if (isNameUpdate) {
-      message = 'Tu nombre ha sido actualizado en otro dispositivo.';
+      message = 'name_updated_other_device'.tr();
     } else if (isPhotoUpdate) {
-      message = 'Tu foto de perfil ha sido actualizada en otro dispositivo.';
+      message = 'photo_updated_other_device'.tr();
     }
 
     final currentContext = context;
@@ -456,14 +452,17 @@ class _UserPageState extends State<UserPage> {
   // Handles account deletion initiated remotely via WebSocket
   void _handleAccountDeletedRemotely() {
     _showInfoAndLogout(
-      'Tu cuenta ha sido eliminada desde otro dispositivo. Serás redirigido a la pantalla de inicio de sesión.',
-      title: 'Cuenta Eliminada',
+      'account_deleted_remotely'.tr(),
+      title: 'account_deleted_title'.tr(),
     );
   }
 
   // Shows an informational SnackBar and then initiates the logout process
-  void _showInfoAndLogout(String message, {String title = 'Cambio Detectado'}) {
+  void _showInfoAndLogout(String message, {String title = ''}) {
     if (!mounted) return;
+
+    // Use default title if not provided or empty
+    final displayTitle = title.isEmpty ? 'change_detected_title'.tr() : title;
 
     final currentContext = context;
     ScaffoldMessenger.of(currentContext).showSnackBar(
@@ -479,7 +478,7 @@ class _UserPageState extends State<UserPage> {
       if (mounted) {
         // Use _handleSessionClose for unified logout logic
         _handleSessionClose(
-          title: title,
+          title: displayTitle,
           message: message, // Reuse message for dialog
           redirectToLogin: true,
           isRemoteAction: true, // Indicate this is due to a remote action
@@ -869,7 +868,7 @@ class _UserPageState extends State<UserPage> {
                     );
                   },
                   icon: const Icon(Icons.star),
-                  label: const Text('Ver Mis Valoraciones'),
+                  label: Text('view_ratings'.tr()),
                   style: ElevatedButton.styleFrom(
                     backgroundColor: Colors.amber,
                     foregroundColor: Colors.white,
@@ -883,11 +882,14 @@ class _UserPageState extends State<UserPage> {
                   onPressed: () {
                     Navigator.push(
                       context,
-                      MaterialPageRoute(builder: (context) => InvitationsPage(username: _username)),
+                      MaterialPageRoute(
+                        builder:
+                            (context) => InvitationsPage(username: _username),
+                      ),
                     );
                   },
                   icon: const Icon(Icons.mail_outline),
-                  label: const Text('Ver Invitaciones'),
+                  label: Text('view_invitations'.tr()),
                   style: ElevatedButton.styleFrom(
                     backgroundColor: Colors.purple,
                     foregroundColor: Colors.white,
@@ -906,7 +908,7 @@ class _UserPageState extends State<UserPage> {
                     );
                   },
                   icon: const Icon(Icons.list_alt),
-                  label: const Text('Mis Solicitudes'),
+                  label: Text('my_requests'.tr()),
                   style: ElevatedButton.styleFrom(
                     backgroundColor: Colors.blueAccent,
                     foregroundColor: Colors.white,
@@ -926,7 +928,7 @@ class _UserPageState extends State<UserPage> {
                     );
                   },
                   icon: const Icon(Icons.block),
-                  label: const Text('Usuarios Bloqueados'),
+                  label: Text('blocked_users'.tr()),
                   style: ElevatedButton.styleFrom(
                     backgroundColor: Colors.redAccent,
                     foregroundColor: Colors.white,
@@ -961,7 +963,7 @@ class _UserPageState extends State<UserPage> {
                           await _loadUserData();
                         },
                         icon: const Icon(Icons.edit),
-                        label: const Text('Editar Perfil'),
+                        label: Text('edit_profile'.tr()),
                         style: ElevatedButton.styleFrom(
                           backgroundColor: Colors.blue,
                           foregroundColor: Colors.white,
@@ -974,7 +976,7 @@ class _UserPageState extends State<UserPage> {
                       child: ElevatedButton.icon(
                         onPressed: () => _eliminarCuenta(context),
                         icon: const Icon(Icons.delete_forever),
-                        label: const Text("Eliminar Cuenta"),
+                        label: Text('delete_account'.tr()),
                         style: ElevatedButton.styleFrom(
                           backgroundColor: Colors.red,
                           foregroundColor: Colors.white,
@@ -991,7 +993,7 @@ class _UserPageState extends State<UserPage> {
                   child: ElevatedButton.icon(
                     onPressed: () => _logout(context),
                     icon: const Icon(Icons.logout),
-                    label: const Text("Cerrar Sesión"),
+                    label: Text('logout'.tr()),
                     style: ElevatedButton.styleFrom(
                       backgroundColor: Colors.grey.shade800,
                       foregroundColor: Colors.white,
@@ -1015,7 +1017,7 @@ class _UserPageState extends State<UserPage> {
 
     // De lo contrario, envuelve el contenido en un Scaffold completo
     return Scaffold(
-      appBar: AppBar(title: const Text("Perfil de Usuario")),
+      appBar: AppBar(title: Text('user_page_title'.tr())),
       body: content,
     );
   }

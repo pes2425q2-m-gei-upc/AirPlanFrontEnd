@@ -212,12 +212,12 @@ void main() {
       await tester.pumpAndSettle();
 
       // Verify buttons are shown
-      expect(find.text('Ver Mis Valoraciones'), findsOneWidget);
-      expect(find.text('Mis Solicitudes'), findsOneWidget);
-      expect(find.text('Usuarios Bloqueados'), findsOneWidget);
-      expect(find.text('Editar Perfil'), findsOneWidget);
-      expect(find.text('Eliminar Cuenta'), findsOneWidget);
-      expect(find.text('Cerrar Sesión'), findsOneWidget);
+      expect(find.text('view_ratings'), findsOneWidget);
+      expect(find.text('my_requests'), findsOneWidget);
+      expect(find.text('blocked_users'), findsOneWidget);
+      expect(find.text('edit_profile'), findsOneWidget);
+      expect(find.text('delete_account'), findsOneWidget);
+      expect(find.text('logout'), findsOneWidget);
     });
 
     testWidgets('logout button shows confirmation dialog', (
@@ -229,6 +229,7 @@ void main() {
       addTearDown(tester.view.resetPhysicalSize);
       addTearDown(tester.view.resetDevicePixelRatio);
 
+      debugPrint('Starting test for logout button');
       await tester.pumpWidget(
         MaterialApp(
           home: UserPage(
@@ -239,23 +240,27 @@ void main() {
           ),
         ),
       );
+      debugPrint('Widget pumped');
 
       await tester.pumpAndSettle();
 
+      debugPrint('Pumped and settled');
       // Find the logout button and ensure it's visible by scrolling to it
       final logoutButtonFinder = find.text('Cerrar Sesión');
       await tester.scrollUntilVisible(logoutButtonFinder, 500);
       await tester.pumpAndSettle();
-
+      debugPrint('Scrolled to logout button');
       // Tap logout button
       await tester.tap(logoutButtonFinder);
       await tester.pumpAndSettle();
 
+      debugPrint('Tapped logout button');
       // Verify dialog appears
       expect(
         find.text('¿Estás seguro de que quieres cerrar sesión?'),
         findsOneWidget,
       );
+      debugPrint('Dialog found');
       expect(find.text('Cancelar'), findsOneWidget);
       // The button text appears twice: once on the main page, once in the dialog
       expect(find.text('Cerrar Sesión'), findsWidgets);

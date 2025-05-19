@@ -1055,7 +1055,7 @@ class EditProfilePageState extends State<EditProfilePage> {
     final currentUser = _authService.getCurrentUser();
 
     return Scaffold(
-      appBar: AppBar(title: const Text('Edit Profile')),
+      appBar: AppBar(title: Text('edit_profile_title'.tr())),
       body: SingleChildScrollView(
         padding: const EdgeInsets.all(16.0),
         child: Column(
@@ -1096,7 +1096,7 @@ class EditProfilePageState extends State<EditProfilePage> {
                     // Use icon button for better UX
                     onPressed: _pickImage,
                     icon: const Icon(Icons.camera_alt),
-                    label: const Text('Cambiar Foto de Perfil'),
+                    label: Text('change_profile_picture'.tr()),
                   ),
                 ],
               ),
@@ -1105,7 +1105,7 @@ class EditProfilePageState extends State<EditProfilePage> {
             TextField(
               controller: _nameController,
               decoration: InputDecoration(
-                labelText: 'Nombre', // Translate labels
+                labelText: 'name_label'.tr(),
                 border: const OutlineInputBorder(),
                 prefixIcon: const Icon(Icons.person_outline), // Add icon
                 errorText: _nameError,
@@ -1115,22 +1115,20 @@ class EditProfilePageState extends State<EditProfilePage> {
             const SizedBox(height: 16),
             TextField(
               controller: _usernameController,
-              enabled: false, // Deshabilitar la edición del username
-              decoration: const InputDecoration(
-                labelText: 'Nombre de Usuario', // Translate labels
-                border: OutlineInputBorder(),
-                prefixIcon: Icon(Icons.account_circle_outlined), // Add icon
-                hintText:
-                    'No se puede modificar', // Agregar indicación de que no se puede modificar
-                helperText:
-                    'El nombre de usuario no se puede modificar', // Ayuda adicional
+              enabled: false,
+              decoration: InputDecoration(
+                labelText: 'username_label'.tr(),
+                border: const OutlineInputBorder(),
+                prefixIcon: const Icon(Icons.account_circle_outlined),
+                hintText: 'username_not_modifiable'.tr(),
+                helperText: 'username_helper'.tr(),
               ),
             ),
             const SizedBox(height: 16),
             TextField(
               controller: _emailController,
               decoration: InputDecoration(
-                labelText: 'Correo Electrónico', // Translate labels
+                labelText: 'email_label'.tr(),
                 border: const OutlineInputBorder(),
                 prefixIcon: const Icon(Icons.email_outlined), // Add icon
                 errorText: _emailError,
@@ -1153,8 +1151,8 @@ class EditProfilePageState extends State<EditProfilePage> {
                   _selectedLanguage = value ?? 'Castellano';
                 });
               },
-              decoration: const InputDecoration(
-                labelText: 'Idioma', // Translate labels
+              decoration: InputDecoration(
+                labelText: 'language_label'.tr(),
                 border: OutlineInputBorder(),
                 prefixIcon: Icon(Icons.language), // Add icon
               ),
@@ -1164,7 +1162,7 @@ class EditProfilePageState extends State<EditProfilePage> {
               // Add icon to save button
               onPressed: _saveProfile,
               icon: const Icon(Icons.save),
-              label: const Text('Guardar Cambios'),
+              label: Text('save_changes'.tr()),
               style: ElevatedButton.styleFrom(
                 padding: const EdgeInsets.symmetric(
                   vertical: 12,
@@ -1175,10 +1173,10 @@ class EditProfilePageState extends State<EditProfilePage> {
             // Sección de cambio de contraseña
             const SizedBox(height: 40),
             const Divider(),
-            const Padding(
+            Padding(
               padding: EdgeInsets.symmetric(vertical: 16.0),
               child: Text(
-                'Cambiar Contraseña',
+                'change_password'.tr(),
                 style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold),
                 textAlign: TextAlign.center, // Center title
               ),
@@ -1189,7 +1187,7 @@ class EditProfilePageState extends State<EditProfilePage> {
               controller: _currentPasswordController,
               obscureText: !_isCurrentPasswordVisible,
               decoration: InputDecoration(
-                labelText: 'Contraseña Actual',
+                labelText: 'current_password_label'.tr(),
                 border: const OutlineInputBorder(),
                 prefixIcon: const Icon(Icons.lock_outline), // Add icon
                 suffixIcon: IconButton(
@@ -1213,10 +1211,10 @@ class EditProfilePageState extends State<EditProfilePage> {
               controller: _newPasswordController,
               obscureText: !_isNewPasswordVisible,
               decoration: InputDecoration(
-                labelText: 'Nueva Contraseña',
+                labelText: 'new_password_label'.tr(),
                 border: const OutlineInputBorder(),
                 prefixIcon: const Icon(Icons.lock_outline), // Add icon
-                helperText: 'Mínimo 8 caracteres',
+                helperText: 'helper_min_8_chars'.tr(),
                 suffixIcon: IconButton(
                   icon: Icon(
                     _isNewPasswordVisible
@@ -1238,7 +1236,7 @@ class EditProfilePageState extends State<EditProfilePage> {
               controller: _confirmPasswordController,
               obscureText: !_isConfirmPasswordVisible,
               decoration: InputDecoration(
-                labelText: 'Confirmar Nueva Contraseña',
+                labelText: 'confirm_password_label'.tr(),
                 border: const OutlineInputBorder(),
                 prefixIcon: const Icon(Icons.lock_outline), // Add icon
                 suffixIcon: IconButton(
@@ -1261,7 +1259,7 @@ class EditProfilePageState extends State<EditProfilePage> {
               // Add icon to change password button
               onPressed: _changePassword,
               icon: const Icon(Icons.sync_lock),
-              label: const Text('Actualizar Contraseña'),
+              label: Text('update_password'.tr()),
               style: ElevatedButton.styleFrom(
                 backgroundColor: Colors.blue, // Consider using Theme colors
                 foregroundColor: Colors.white,

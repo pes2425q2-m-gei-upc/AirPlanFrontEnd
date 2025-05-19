@@ -6,6 +6,7 @@ import 'package:airplan/services/auth_service.dart';
 import 'package:intl/intl.dart';
 import 'dart:async';
 import 'package:airplan/services/user_block_service.dart';
+import 'package:easy_localization/easy_localization.dart';
 
 class ChatDetailPage extends StatefulWidget {
   final String username; // Used for backend calls
@@ -655,7 +656,7 @@ class ChatDetailPageState extends State<ChatDetailPage> {
   PreferredSizeWidget _buildAppBar() {
     return AppBar(
       title: Text(
-        widget.name ?? widget.username,
+        widget.name != null ? widget.name! : widget.username,
       ), // Use name if available, otherwise username
       elevation: 1,
       actions: [
@@ -664,7 +665,7 @@ class ChatDetailPageState extends State<ChatDetailPage> {
           itemBuilder:
               (BuildContext context) => [
                 if (_currentUserBlockedOther)
-                  const PopupMenuItem<String>(
+                  PopupMenuItem<String>(
                     value: 'unblock',
                     child: Row(
                       mainAxisSize: MainAxisSize.min, // Prevent overflow
@@ -673,7 +674,7 @@ class ChatDetailPageState extends State<ChatDetailPage> {
                         SizedBox(width: 10),
                         Flexible(
                           child: Text(
-                            'Desbloquear usuario',
+                            'chat_unblock_user'.tr(),
                             style: TextStyle(color: Colors.green),
                             overflow:
                                 TextOverflow.ellipsis, // Handle text overflow
@@ -683,7 +684,7 @@ class ChatDetailPageState extends State<ChatDetailPage> {
                     ),
                   )
                 else
-                  const PopupMenuItem<String>(
+                  PopupMenuItem<String>(
                     value: 'block',
                     child: Row(
                       mainAxisSize: MainAxisSize.min, // Prevent overflow
@@ -692,7 +693,7 @@ class ChatDetailPageState extends State<ChatDetailPage> {
                         SizedBox(width: 10),
                         Flexible(
                           child: Text(
-                            'Bloquear usuario',
+                            'chat_block_user'.tr(),
                             style: TextStyle(color: Colors.red),
                             overflow:
                                 TextOverflow.ellipsis, // Handle text overflow
@@ -722,7 +723,7 @@ class ChatDetailPageState extends State<ChatDetailPage> {
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
                 Text(
-                  'Chat bloqueado',
+                  'chat_blocked'.tr(),
                   style: TextStyle(
                     color: Colors.red[700],
                     fontWeight: FontWeight.bold,
@@ -730,8 +731,8 @@ class ChatDetailPageState extends State<ChatDetailPage> {
                 ),
                 Text(
                   _currentUserBlockedOther
-                      ? 'Has bloqueado a este usuario.'
-                      : 'Este usuario te ha bloqueado.',
+                      ? 'chat_blocked_message'.tr()
+                      : 'chat_blocked_by_other'.tr(),
                   style: const TextStyle(fontSize: 12),
                 ),
               ],
@@ -777,8 +778,8 @@ class ChatDetailPageState extends State<ChatDetailPage> {
           Expanded(
             child: TextField(
               controller: _messageController,
-              decoration: const InputDecoration(
-                hintText: 'Escribe un mensaje...',
+              decoration: InputDecoration(
+                hintText: 'chat_message_placeholder'.tr(),
                 border: OutlineInputBorder(
                   borderRadius: BorderRadius.all(Radius.circular(25)),
                   borderSide: BorderSide.none,
@@ -816,7 +817,10 @@ class ChatDetailPageState extends State<ChatDetailPage> {
                             strokeWidth: 2,
                           ),
                         )
-                        : const Icon(Icons.send, color: Colors.white),
+                        : Text(
+                          'chat_send'.tr(),
+                          style: TextStyle(color: Colors.white),
+                        ),
               ),
             ),
           ),
@@ -903,19 +907,17 @@ class ChatDetailPageState extends State<ChatDetailPage> {
       context: context,
       builder:
           (context) => AlertDialog(
-            title: Text('Bloquear a ${widget.username}'),
-            content: const Text(
-              'Si bloqueas a este usuario, no podrás recibir ni enviarle mensajes. ¿Estás seguro?',
-            ),
+            title: Text('chat_confirm_block_title'.tr()),
+            content: Text('chat_confirm_block_message'.tr()),
             actions: [
               TextButton(
                 onPressed: () => Navigator.of(context).pop(false),
-                child: const Text('Cancelar'),
+                child: Text('cancel'.tr()),
               ),
               TextButton(
                 onPressed: () => Navigator.of(context).pop(true),
                 style: TextButton.styleFrom(foregroundColor: Colors.red),
-                child: const Text('Bloquear'),
+                child: Text('chat_block_user'.tr()),
               ),
             ],
           ),
@@ -983,19 +985,17 @@ class ChatDetailPageState extends State<ChatDetailPage> {
       context: context,
       builder:
           (context) => AlertDialog(
-            title: Text('Desbloquear a ${widget.username}'),
-            content: const Text(
-              'Si desbloqueas a este usuario, podrás volver a enviar y recibir mensajes. ¿Estás seguro?',
-            ),
+            title: Text('chat_confirm_unblock_title'.tr()),
+            content: Text('chat_confirm_unblock_message'.tr()),
             actions: [
               TextButton(
                 onPressed: () => Navigator.of(context).pop(false),
-                child: const Text('Cancelar'),
+                child: Text('cancel'.tr()),
               ),
               TextButton(
                 onPressed: () => Navigator.of(context).pop(true),
                 style: TextButton.styleFrom(foregroundColor: Colors.green),
-                child: const Text('Desbloquear'),
+                child: Text('chat_unblock_user'.tr()),
               ),
             ],
           ),

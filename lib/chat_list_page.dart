@@ -8,6 +8,7 @@ import 'package:airplan/chat_detail_page.dart';
 import 'package:airplan/services/api_config.dart';
 import 'package:airplan/services/auth_service.dart'; // Importar AuthService
 import 'package:intl/intl.dart';
+import 'package:easy_localization/easy_localization.dart';
 
 class ChatListPage extends StatefulWidget {
   // Inyectamos los servicios para facilitar pruebas
@@ -201,12 +202,12 @@ class ChatListPageState extends State<ChatListPage> {
   Widget build(BuildContext context) {
     return Scaffold(
       appBar: AppBar(
-        title: const Text('Mis chats'),
+        title: Text('chat_list_title'.tr()),
         actions: [
           IconButton(
             icon: const Icon(Icons.refresh),
             onPressed: _loadChats,
-            tooltip: 'Actualizar',
+            tooltip: 'refresh'.tr(),
           ),
         ],
       ),
@@ -218,7 +219,7 @@ class ChatListPageState extends State<ChatListPage> {
             child: TextField(
               controller: _searchController,
               decoration: InputDecoration(
-                hintText: 'Buscar chats...',
+                hintText: 'chat_search'.tr(),
                 prefixIcon: const Icon(Icons.search),
                 border: OutlineInputBorder(
                   borderRadius: BorderRadius.circular(20.0),
@@ -258,13 +259,13 @@ class ChatListPageState extends State<ChatListPage> {
           children: [
             const Icon(Icons.chat_bubble_outline, size: 80, color: Colors.grey),
             const SizedBox(height: 16),
-            const Text(
-              'No tienes ninguna conversación',
+            Text(
+              'chat_list_empty'.tr(),
               style: TextStyle(fontSize: 16, color: Colors.grey),
             ),
             const SizedBox(height: 8),
-            const Text(
-              'Cuando envíes un mensaje a alguien, aparecerá aquí.',
+            Text(
+              'chat_list_empty_subtitle'.tr(),
               style: TextStyle(fontSize: 14, color: Colors.grey),
               textAlign: TextAlign.center,
             ),
@@ -272,7 +273,7 @@ class ChatListPageState extends State<ChatListPage> {
             ElevatedButton.icon(
               onPressed: () => _loadChats(),
               icon: const Icon(Icons.refresh),
-              label: const Text('Actualizar'),
+              label: Text('chat_list_empty_refresh'.tr()),
             ),
           ],
         ),
@@ -287,7 +288,7 @@ class ChatListPageState extends State<ChatListPage> {
             const Icon(Icons.search_off, size: 64, color: Colors.grey),
             const SizedBox(height: 16),
             Text(
-              'No hay chats que coincidan con "${_searchController.text}"',
+              'chat_list_no_match'.tr(args: [_searchController.text]),
               style: const TextStyle(fontSize: 16, color: Colors.grey),
               textAlign: TextAlign.center,
             ),
