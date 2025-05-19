@@ -583,9 +583,9 @@ class _UserPageState extends State<UserPage> {
 
     // Use local _currentUser
     if (_currentUser == null || _email.isEmpty || _email == 'UsuarioSinEmail') {
-      ScaffoldMessenger.of(contextCaptured).showSnackBar(
-        const SnackBar(content: Text("No hay un usuario autenticado válido.")),
-      );
+      ScaffoldMessenger.of(
+        contextCaptured,
+      ).showSnackBar(SnackBar(content: Text("no_user_autenticated".tr())));
       return;
     }
 
@@ -620,12 +620,12 @@ class _UserPageState extends State<UserPage> {
 
     // Show loading indicator
     ScaffoldMessenger.of(contextCaptured).showSnackBar(
-      const SnackBar(
+      SnackBar(
         content: Row(
           children: [
             CircularProgressIndicator(),
             SizedBox(width: 20),
-            Text("Eliminando cuenta..."),
+            Text("deleting_account".tr()),
           ],
         ),
         duration: Duration(seconds: 10), // Longer duration for deletion
@@ -660,8 +660,8 @@ class _UserPageState extends State<UserPage> {
       // Attempt to sign out locally anyway, as the backend might have succeeded partially
       // or the Firebase user needs deletion.
       await _handleSessionClose(
-        title: 'Error al Eliminar',
-        message: 'Hubo un error al eliminar la cuenta. Se cerrará tu sesión.',
+        title: 'error_deleting_account',
+        message: 'error_deleting_account_message.',
         redirectToLogin: true,
         isRemoteAction: false,
       );
@@ -670,8 +670,8 @@ class _UserPageState extends State<UserPage> {
 
   // Método unificado para manejar cierre de sesión
   Future<void> _handleSessionClose({
-    String title = 'Sesión cerrada',
-    String message = 'Tu sesión ha sido cerrada',
+    String title = 'sesion_closed',
+    String message = 'sesion_closed_message',
     bool redirectToLogin = true,
     bool isRemoteAction =
         false, // Flag to indicate if triggered by remote event
@@ -732,7 +732,7 @@ class _UserPageState extends State<UserPage> {
                 content: Text(message),
                 actions: <Widget>[
                   TextButton(
-                    child: const Text('Entendido'),
+                    child: Text('understood'.tr()),
                     onPressed: () {
                       Navigator.of(dialogContext).pop();
                     },
@@ -756,7 +756,7 @@ class _UserPageState extends State<UserPage> {
       // Attempt to redirect anyway as a fallback
       if (redirectToLogin && contextCaptured.mounted) {
         ScaffoldMessenger.of(contextCaptured).showSnackBar(
-          SnackBar(content: Text("Error crítico al cerrar sesión: $e")),
+          SnackBar(content: Text("${"critical_logout_error".tr()} $e")),
         );
         Navigator.of(contextCaptured).pushAndRemoveUntil(
           MaterialPageRoute(builder: (context) => const LoginPage()),
@@ -776,17 +776,17 @@ class _UserPageState extends State<UserPage> {
       context: contextCaptured,
       builder:
           (dialogContext) => AlertDialog(
-            title: const Text("Cerrar Sesión"),
-            content: const Text("¿Estás seguro de que quieres cerrar sesión?"),
+            title: const Text("close_session_title"),
+            content: const Text("close_session_message"),
             actions: [
               TextButton(
                 onPressed: () => Navigator.of(dialogContext).pop(false),
-                child: const Text("Cancelar"),
+                child: const Text("cancel"),
               ),
               TextButton(
                 onPressed: () => Navigator.of(dialogContext).pop(true),
-                child: const Text(
-                  "Cerrar Sesión",
+                child: Text(
+                  "close_session".tr(),
                   style: TextStyle(color: Colors.red),
                 ),
               ),
@@ -801,8 +801,8 @@ class _UserPageState extends State<UserPage> {
 
     // Use the unified session close handler
     await _handleSessionClose(
-      title: 'Sesión cerrada',
-      message: 'Has cerrado sesión correctamente.',
+      title: 'sesion_closed'.tr(),
+      message: 'sesion_closed_message'.tr(),
       redirectToLogin: true,
       isRemoteAction: false, // Manual logout
     );
@@ -968,7 +968,7 @@ class _UserPageState extends State<UserPage> {
                       child: ElevatedButton.icon(
                         onPressed: () => _eliminarCuenta(context),
                         icon: const Icon(Icons.delete_forever),
-                        label: const Text('Eliminar Cuenta'),
+                        label: Text('delete_account'.tr()),
                         style: ElevatedButton.styleFrom(
                           backgroundColor: Colors.red,
                           foregroundColor: Colors.white,
@@ -985,7 +985,7 @@ class _UserPageState extends State<UserPage> {
                   child: ElevatedButton.icon(
                     onPressed: () => _logout(context),
                     icon: const Icon(Icons.logout),
-                    label: const Text('Cerrar Sesión'),
+                    label: Text('close_session'.tr()),
                     style: ElevatedButton.styleFrom(
                       backgroundColor: Colors.grey.shade800,
                       foregroundColor: Colors.white,

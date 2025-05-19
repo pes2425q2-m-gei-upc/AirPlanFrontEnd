@@ -145,7 +145,7 @@ class ChatListPageState extends State<ChatListPage> {
         });
         _notificationService.showError(
           context,
-          'Error al cargar los chats: ${e.toString()}',
+          '${'chat_list_load_error'.tr()} ${e.toString()}',
         );
       }
     }

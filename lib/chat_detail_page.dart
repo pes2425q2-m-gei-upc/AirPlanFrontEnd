@@ -186,7 +186,10 @@ class ChatDetailPageState extends State<ChatDetailPage> {
             // After removal, scroll to bottom to update view
             _scrollToBottom();
           }
-          _notificationService.showError(context, errorMessage);
+          _notificationService.showError(
+            context,
+            'error_inapropiate_message'.tr(),
+          );
         }
         return;
       }
@@ -449,16 +452,13 @@ class ChatDetailPageState extends State<ChatDetailPage> {
       if (success && mounted) {
         _messageController.clear();
       } else if (mounted) {
-        _notificationService.showError(
-          context,
-          'Error al enviar el mensaje. Inténtalo de nuevo.',
-        );
+        _notificationService.showError(context, 'error_sending_message'.tr());
       }
     } catch (e) {
       if (mounted) {
         _notificationService.showError(
           context,
-          'Error al enviar el mensaje: ${e.toString()}',
+          '${'error_sending_message'.tr()} ${e.toString()}',
         );
       }
     } finally {
@@ -603,10 +603,7 @@ class ChatDetailPageState extends State<ChatDetailPage> {
       );
 
       if (!success && mounted) {
-        _notificationService.showError(
-          context,
-          'Error al editar el mensaje. Inténtalo de nuevo.',
-        );
+        _notificationService.showError(context, 'error_editing_message'.tr());
       }
       // Ya no actualizamos el mensaje aquí, el servidor enviará un mensaje WebSocket
       // con la confirmación y se actualizará en el método handleIncomingMessage
@@ -614,7 +611,7 @@ class ChatDetailPageState extends State<ChatDetailPage> {
       if (mounted) {
         _notificationService.showError(
           context,
-          'Error al editar el mensaje: ${e.toString()}',
+          '${'error_editing_message'.tr()} ${e.toString()}',
         );
       }
     } finally {
@@ -929,14 +926,11 @@ class ChatDetailPageState extends State<ChatDetailPage> {
     final user = _authService.getCurrentUser();
 
     if (user == null || user.displayName == null) {
-      _notificationService.showError(
-        context,
-        'No se pudo identificar tu usuario. Por favor, inicia sesión nuevamente.',
-      );
+      _notificationService.showError(context, 'cant_identify_user'.tr());
       return;
     }
 
-    _showProgressSnackbar('Bloqueando usuario...');
+    _showProgressSnackbar('blocking_user'.tr());
 
     try {
       // Usar UserBlockService que ahora envía directamente por WebSocket
@@ -957,13 +951,10 @@ class ChatDetailPageState extends State<ChatDetailPage> {
 
           _notificationService.showSuccess(
             context,
-            'Has bloqueado a ${widget.username}',
+            '${'chat_blocked_user'.tr()} ${widget.username}',
           );
         } else {
-          _notificationService.showError(
-            context,
-            'No se pudo bloquear al usuario. Inténtalo de nuevo más tarde.',
-          );
+          _notificationService.showError(context, 'cant_block_user'.tr());
         }
       }
     } catch (e) {
@@ -971,7 +962,7 @@ class ChatDetailPageState extends State<ChatDetailPage> {
         ScaffoldMessenger.of(context).hideCurrentSnackBar();
         _notificationService.showError(
           context,
-          'Error al bloquear usuario: ${e.toString()}',
+          '${'error_block_user'.tr()} ${e.toString()}',
         );
       }
     }
@@ -1007,14 +998,11 @@ class ChatDetailPageState extends State<ChatDetailPage> {
     final user = _authService.getCurrentUser();
 
     if (user == null || user.displayName == null) {
-      _notificationService.showError(
-        context,
-        'No se pudo identificar tu usuario. Por favor, inicia sesión nuevamente.',
-      );
+      _notificationService.showError(context, 'cant_identify_user'.tr());
       return;
     }
 
-    _showProgressSnackbar('Desbloqueando usuario...');
+    _showProgressSnackbar('unblocking_user'.tr());
 
     try {
       // Usar UserBlockService que ahora envía directamente por WebSocket
@@ -1038,10 +1026,7 @@ class ChatDetailPageState extends State<ChatDetailPage> {
             '${'reach'.tr()} ${widget.username}',
           );
         } else {
-          _notificationService.showError(
-            context,
-            'No se pudo desbloquear al usuario. Inténtalo de nuevo más tarde.',
-          );
+          _notificationService.showError(context, 'cantreach'.tr());
         }
       }
     } catch (e) {
@@ -1049,7 +1034,7 @@ class ChatDetailPageState extends State<ChatDetailPage> {
         ScaffoldMessenger.of(context).hideCurrentSnackBar();
         _notificationService.showError(
           context,
-          'Error al desbloquear usuario: ${e.toString()}',
+          'error_unblock_user'.tr(args: [e.toString()]),
         );
       }
     }

@@ -340,7 +340,7 @@ class _MiAppState extends State<MiApp> with WidgetsBindingObserver {
             // Usar el servicio global de notificaciones
             GlobalNotificationService().addNotification(
               mensaje,
-              'profile_update',
+              'profile_update'.tr(),
             );
 
             // Actualizar Firebase Auth si es necesario
@@ -362,7 +362,7 @@ class _MiAppState extends State<MiApp> with WidgetsBindingObserver {
   // Crea un mensaje descriptivo basado en los campos actualizados
   String _createProfileUpdateMessage(List<dynamic> updatedFields) {
     if (updatedFields.isEmpty) {
-      return 'Tu perfil ha sido actualizado en otro dispositivo';
+      return 'your_profile_updated'.tr();
     }
 
     // Mapeo de campos a nombres amigables en español
@@ -385,13 +385,13 @@ class _MiAppState extends State<MiApp> with WidgetsBindingObserver {
             .toList();
 
     if (updatedFieldNames.length == 1) {
-      return 'Tu ${updatedFieldNames[0]} ha sido actualizado en otro dispositivo';
+      return '${'profile_field_updated'.tr()} ${updatedFieldNames[0]}';
     } else if (updatedFieldNames.length == 2) {
-      return 'Tu ${updatedFieldNames[0]} y ${updatedFieldNames[1]} han sido actualizados en otro dispositivo';
+      return '${'profile_fields_updated_two'.tr()} ${updatedFieldNames[0]} y ${updatedFieldNames[1]}';
     } else {
       // Para 3 o más campos
       final lastField = updatedFieldNames.removeLast();
-      return 'Tu ${updatedFieldNames.join(", ")} y $lastField han sido actualizados en otro dispositivo';
+      return '${'profile_fields_updated_many'.tr()} ${updatedFieldNames.join(", ")} y $lastField';
     }
   }
 
@@ -417,7 +417,7 @@ class _MiAppState extends State<MiApp> with WidgetsBindingObserver {
             if (user != null) {
               // Usar el servicio global de notificaciones
               GlobalNotificationService().addNotification(
-                'Tu correo electrónico ha sido modificado en otro dispositivo. Necesitas volver a iniciar sesión.',
+                'email_change_verify_again'.tr(),
                 'email_change',
                 isUrgent: true,
               );
@@ -555,7 +555,9 @@ class _MiAppState extends State<MiApp> with WidgetsBindingObserver {
             final actualContext = context;
             if (actualContext.mounted) {
               ScaffoldMessenger.of(actualContext).showSnackBar(
-                SnackBar(content: Text("Error al conectar con el backend: $e")),
+                SnackBar(
+                  content: Text("${"error_connecting_backend".tr()} $e"),
+                ),
               );
             }
           }
@@ -625,7 +627,7 @@ class AuthWrapperState extends State<AuthWrapper> {
       final actualContext = context;
       if (actualContext.mounted) {
         ScaffoldMessenger.of(actualContext).showSnackBar(
-          SnackBar(content: Text("Error al conectar con el backend: $e")),
+          SnackBar(content: Text("${"error_connecting_backend".tr()} $e")),
         );
       }
     }
@@ -651,7 +653,7 @@ class AuthWrapperState extends State<AuthWrapper> {
             // Usar el servicio global de notificaciones
             Future.delayed(Duration.zero, () {
               GlobalNotificationService().addNotification(
-                'Tu sesión ha caducado. Por favor, inicia sesión nuevamente.',
+                'session_expired'.tr(),
                 'session_expired',
                 isUrgent: true,
               );
