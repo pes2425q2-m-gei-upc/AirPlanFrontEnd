@@ -3,7 +3,6 @@
 // Do not manually edit this file.
 
 // ignore_for_file: no_leading_underscores_for_library_prefixes
-// ignore_for_file: missing_override_of_must_be_overridden, override_on_non_overriding_member
 import 'dart:async' as _i9;
 import 'dart:ui' as _i2;
 
@@ -64,6 +63,20 @@ class _FakeEventList_3 extends _i1.SmartFake implements _i4.EventList {
 class _FakeArtboard_4 extends _i1.SmartFake implements _i5.Artboard {
   _FakeArtboard_4(Object parent, Invocation parentInvocation)
     : super(parent, parentInvocation);
+
+  @override
+  // TODO: implement isPlaying
+  bool get isPlaying => throw UnimplementedError();
+
+  @override
+  void pause() {
+    // TODO: implement pause
+  }
+
+  @override
+  void play() {
+    // TODO: implement play
+  }
 }
 
 class _FakeVec2D_5 extends _i1.SmartFake implements _i3.Vec2D {
@@ -102,6 +115,20 @@ class _FakeRuntimeArtboard_11 extends _i1.SmartFake
     implements _i5.RuntimeArtboard {
   _FakeRuntimeArtboard_11(Object parent, Invocation parentInvocation)
     : super(parent, parentInvocation);
+
+  @override
+  // TODO: implement isPlaying
+  bool get isPlaying => throw UnimplementedError();
+
+  @override
+  void pause() {
+    // TODO: implement pause
+  }
+
+  @override
+  void play() {
+    // TODO: implement play
+  }
 }
 
 /// A class which mocks [RiveAnimationControllerHelper].
@@ -254,26 +281,6 @@ class MockRiveAnimationControllerHelper extends _i1.Mock
     Invocation.method(#dispose, []),
     returnValueForMissingStub: null,
   );
-
-  @override
-  void play() {
-    // Concrete implementation for play
-  }
-
-  @override
-  void pause() {
-    // Concrete implementation for pause
-  }
-
-  @override
-  void reset() {
-    // Concrete implementation for reset
-  }
-
-  @override
-  void someMethod() {
-    // Corrected method signature to match inherited method
-  }
 }
 
 /// A class which mocks [Artboard].

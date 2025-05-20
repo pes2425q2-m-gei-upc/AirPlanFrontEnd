@@ -34,6 +34,8 @@ class _FormContentRegisterState extends State<FormContentRegister> {
   String _selectedLanguage = 'Castellano';
   String? _emailError;
   String? _usernameError;
+  String? _nameError; // Add name error variable
+
   final TextEditingController _verificationCodeController =
       TextEditingController();
   final GlobalKey<FormState> _formKey = GlobalKey<FormState>();
@@ -90,18 +92,20 @@ class _FormContentRegisterState extends State<FormContentRegister> {
       setState(() {
         _emailError = null;
         _usernameError = null;
+        _nameError = null; // Reset name error
       });
       _formKey.currentState?.validate(); // Actualizar UI inmediatamente
 
       // 3. Preparar datos del usuario
+      final bool isActuallyAdmin =
+          _isAdmin && _verificationCodeController.text.trim() == 'ab123';
       final usuario = {
         "username": _usernameController.text.trim(),
         "nom": _nameController.text.trim(),
         "email": _emailController.text.trim(),
         "idioma": _selectedLanguage,
-        "sesionIniciada": true,
-        "isAdmin":
-            _isAdmin && _verificationCodeController.text.trim() == 'ab123',
+        "sesionIniciada": false, // Consistent for all new user registrations
+        "isAdmin": isActuallyAdmin,
       };
 
       // 4. Enviar petición al backend
@@ -114,6 +118,24 @@ class _FormContentRegisterState extends State<FormContentRegister> {
       // 5. Manejar respuesta
       if (response.statusCode == 201) {
         _handleRegistrationSuccess();
+      } else if (response.statusCode == 400) {
+        // Backend indicates inappropriate content, parse field-specific error
+        final Map<String, dynamic> body = jsonDecode(response.body);
+        final field = body['field'] as String?;
+        widget.riveHelper.addFailController();
+        setState(() {
+          if (field == 'nom') {
+            _nameError = 'Contenido inapropiado en el nombre';
+          } else if (field == 'username') {
+            _usernameError = 'Contenido inapropiado en el nombre de usuario';
+          } else if (field == 'email') {
+            _emailError = 'Contenido inapropiado en el correo electrónico';
+          } else {
+            // Fallback error
+            _usernameError = _emailError = _nameError = 'Contenido inapropiado';
+          }
+        });
+        _formKey.currentState?.validate();
       } else {
         _handleBackendError(response.body);
       }
@@ -234,11 +256,11 @@ class _FormContentRegisterState extends State<FormContentRegister> {
                       (_) => RiveAnimationControllerHelper().setIdle(),
                   controller: _nameController,
                   validator: (value) {
-                    final result =
-                        value == null || value.isEmpty
-                            ? 'Introdueix el teu nom'
-                            : null;
-                    return result;
+                    if (_nameError != null) return _nameError;
+                    if (value == null || value.isEmpty) {
+                      return 'Introdueix el teu nom';
+                    }
+                    return null;
                   },
                   decoration: const InputDecoration(
                     labelText: 'Nom',
@@ -246,6 +268,7 @@ class _FormContentRegisterState extends State<FormContentRegister> {
                     border: OutlineInputBorder(),
                     errorMaxLines: 2,
                   ),
+                  onChanged: (_) => setState(() => _nameError = null),
                 ),
                 _gap(),
 
@@ -405,6 +428,11 @@ class _FormContentRegisterState extends State<FormContentRegister> {
                     validator: (value) {
                       if (_isAdmin && (value == null || value.isEmpty)) {
                         return 'Introdueix el codi de verificació';
+                      }
+                      if (_isAdmin &&
+                          value != null &&
+                          value.trim() != 'ab123') {
+                        return 'Codi de verificació incorrecte';
                       }
                       return null;
                     },

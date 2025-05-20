@@ -12,6 +12,7 @@ class Message {
   final DateTime timestamp;
   final String content;
   final bool isEdited;
+  bool isHovered;
 
   Message({
     required this.senderUsername,
@@ -19,6 +20,7 @@ class Message {
     required this.timestamp,
     required this.content,
     required this.isEdited,
+    this.isHovered = false,
   });
 
   factory Message.fromJson(Map<String, dynamic> json) {
@@ -247,6 +249,16 @@ class ChatService {
       );
     } catch (e) {
       debugPrint('Error editing message via WebSocket: $e');
+      return false;
+    }
+  }
+
+  Future<bool> deleteMessage(String receiverUsername, String timestamp) async {
+    try {
+      final success = await _chatWebSocketService.sendDeleteMessage(receiverUsername, timestamp);
+      return success;
+    } catch (e) {
+      debugPrint('Error deleting message: $e');
       return false;
     }
   }

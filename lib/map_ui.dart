@@ -17,6 +17,7 @@ class MapUI extends StatelessWidget {
   final List<LatLng>? route; // Make route nullable
   final List<TransitStep>? steps;
   final double? userHeading;
+  final bool isNavigationMode;
 
   const MapUI({
     super.key,
@@ -30,6 +31,7 @@ class MapUI extends StatelessWidget {
     this.route,
     this.steps, // Add this parameter
     this.userHeading,
+    required this.isNavigationMode,
   });
 
   @override
@@ -59,44 +61,48 @@ class MapUI extends StatelessWidget {
 
       if (activitiesList.length == 1) {
         // For single activities, show regular icon
-        activityMarkers.add(Marker(
-          width: 40.0,
-          height: 40.0,
-          point: LatLng(lat, lon),
-          child: GestureDetector(
-            onTap: () => onActivityTap(activitiesList.first),
-            child: Icon(Icons.event, color: Colors.blue, size: 40),
+        activityMarkers.add(
+          Marker(
+            width: 40.0,
+            height: 40.0,
+            point: LatLng(lat, lon),
+            child: GestureDetector(
+              onTap: () => onActivityTap(activitiesList.first),
+              child: Icon(Icons.event, color: Colors.blue, size: 40),
+            ),
           ),
-        ));
+        );
       } else {
         // For multiple activities, show number badge
-        activityMarkers.add(Marker(
-          width: 40.0,
-          height: 40.0,
-          point: LatLng(lat, lon),
-          child: GestureDetector(
-            onTap: () => _showActivitiesDialog(context, activitiesList),
-            child: Container(
-              width: 40.0,
-              height: 40.0,
-              decoration: BoxDecoration(
-                color: Colors.blue,
-                shape: BoxShape.circle,
-                border: Border.all(color: Colors.white, width: 2),
-              ),
-              child: Center(
-                child: Text(
-                  activitiesList.length.toString(),
-                  style: TextStyle(
-                    color: Colors.white,
-                    fontWeight: FontWeight.bold,
-                    fontSize: 16,
+        activityMarkers.add(
+          Marker(
+            width: 40.0,
+            height: 40.0,
+            point: LatLng(lat, lon),
+            child: GestureDetector(
+              onTap: () => _showActivitiesDialog(context, activitiesList),
+              child: Container(
+                width: 40.0,
+                height: 40.0,
+                decoration: BoxDecoration(
+                  color: Colors.blue,
+                  shape: BoxShape.circle,
+                  border: Border.all(color: Colors.white, width: 2),
+                ),
+                child: Center(
+                  child: Text(
+                    activitiesList.length.toString(),
+                    style: TextStyle(
+                      color: Colors.white,
+                      fontWeight: FontWeight.bold,
+                      fontSize: 16,
+                    ),
                   ),
                 ),
               ),
             ),
           ),
-        ));
+        );
       }
     });
 
@@ -112,19 +118,19 @@ class MapUI extends StatelessWidget {
           urlTemplate: "https://tile.openstreetmap.org/{z}/{x}/{y}.png",
         ),
         CircleLayer(circles: circles),
-        MarkerLayer(
-          markers: [
-            ...markers,
-            ...activityMarkers,
-          ],
-        ),
+        MarkerLayer(markers: [...markers, ...activityMarkers]),
         if (steps != null && steps!.isNotEmpty)
           PolylineLayer(
-            polylines: steps!.map((step) => Polyline(
-              points: step.points,
-              strokeWidth: 4.0,
-              color: step.color,
-            )).toList(),
+            polylines:
+                steps!
+                    .map(
+                      (step) => Polyline(
+                        points: step.points,
+                        strokeWidth: 4.0,
+                        color: step.color,
+                      ),
+                    )
+                    .toList(),
           ),
         if (userHeading != null)
           MarkerLayer(
@@ -134,7 +140,9 @@ class MapUI extends StatelessWidget {
                 width: 60.0,
                 height: 60.0,
                 child: Transform.rotate(
-                  angle: (userHeading! * (math.pi / 180)), // Convert degrees to radians
+                  angle:
+                      (userHeading! *
+                          (math.pi / 180)), // Convert degrees to radians
                   child: const Icon(
                     Icons.navigation,
                     color: Colors.blue,
@@ -144,15 +152,21 @@ class MapUI extends StatelessWidget {
               ),
             ],
           ),
-        const MapCompass.cupertino(
-          hideIfRotatedNorth: true,
-          alignment: Alignment.topLeft,
+        Positioned(
+          top: isNavigationMode ? 0 : 65,
+          child: const MapCompass.cupertino(
+            hideIfRotatedNorth: true,
+            alignment: Alignment.topLeft,
+          ),
         ),
       ],
     );
   }
 
-  void _showActivitiesDialog(BuildContext context, List<Map<String, dynamic>> activities) {
+  void _showActivitiesDialog(
+    BuildContext context,
+    List<Map<String, dynamic>> activities,
+  ) {
     showDialog(
       context: context,
       builder: (context) {

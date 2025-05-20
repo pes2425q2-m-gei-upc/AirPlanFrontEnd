@@ -120,11 +120,36 @@ class ChatWebSocketService {
     }
   }
 
+  Future<bool> sendDeleteMessage(
+    String receiverUsername,
+    String timestamp,
+  ) async {
+    if (!_isChatConnected || _chatChannel == null) {
+      debugPrint('WebSocket is not connected. Cannot send delete message.');
+      return false;
+    }
+
+    try {
+      final deleteMessage = {
+        'type': 'DELETE',
+        'usernameSender': _currentUsername,
+        'usernameReceiver': receiverUsername,
+        'timestamp': timestamp,
+      };
+
+      _chatChannel!.sink.add(jsonEncode(deleteMessage));
+      return true;
+    } catch (e) {
+      debugPrint('Error sending delete message: $e');
+      return false;
+    }
+  }
+
   Future<bool> sendEditMessage(
-      String receiverUsername,
-      String originalTimestamp,
-      String newContent
-      ) async {
+    String receiverUsername,
+    String originalTimestamp,
+    String newContent,
+  ) async {
     if (!_isChatConnected || _chatChannel == null) {
       // If no active connection, try to connect first
       connectToChat(receiverUsername);
@@ -132,7 +157,9 @@ class ChatWebSocketService {
       await Future.delayed(const Duration(milliseconds: 500));
 
       if (!_isChatConnected || _chatChannel == null) {
-        debugPrint('No se pudo establecer conexión WebSocket para editar el mensaje');
+        debugPrint(
+          'No se pudo establecer conexión WebSocket para editar el mensaje',
+        );
         return false;
       }
     }
@@ -155,7 +182,11 @@ class ChatWebSocketService {
     }
   }
 
-  Future<bool> sendChatMessage(String receiverUsername, String content, DateTime timestamp) async {
+  Future<bool> sendChatMessage(
+    String receiverUsername,
+    String content,
+    DateTime timestamp,
+  ) async {
     if (!_ensureConnected(receiverUsername)) {
       debugPrint(
         'Cannot send message: WebSocket not connected or not connected to the correct user.',
@@ -237,6 +268,17 @@ class ChatWebSocketService {
         return;
       }
 
+      // Reemplazar las dos ramas de manejo de errores (moderno y legacy) por un único if que cubre ambos casos para mayor eficiencia
+      final String? rawType = messageData['type'] as String?;
+      // Manejar errores modernos y legacy en un único bloque
+      if ((rawType == 'ERROR' && messageData.containsKey('message')) ||
+          messageData.containsKey('error')) {
+        final String errorText = messageData['message'] ?? messageData['error'];
+        _chatMessageController.add({'type': 'ERROR', 'message': errorText});
+        debugPrint('Reenviando mensaje ERROR al UI');
+        return;
+      }
+
       final String? messageType = messageData['type'] as String?;
 
       // Handle Block Status Updates (Preferred Method)
@@ -307,10 +349,24 @@ class ChatWebSocketService {
           'usernameSender': messageData['usernameSender'],
           'originalTimestamp': messageData['originalTimestamp'],
           'newContent': messageData['newContent'],
-          'isEdited': messageData['isEdited'] ?? true
+          'isEdited': messageData['isEdited'] ?? true,
         };
 
         _chatMessageController.add(editData);
+        return;
+      }
+
+      // Handle DELETE message type
+      if (messageData['type'] == 'DELETE') {
+        debugPrint('Processing DELETE message');
+
+        final deleteData = {
+          'type': 'DELETE',
+          'usernameSender': messageData['usernameSender'],
+          'originalTimestamp': messageData['originalTimestamp'],
+        };
+
+        _chatMessageController.add(deleteData);
         return;
       }
 
@@ -318,6 +374,28 @@ class ChatWebSocketService {
       if (_isValidChatMessage(messageData)) {
         _chatMessageController.add(messageData);
         debugPrint('Processed regular chat message.');
+        return;
+      }
+
+      // Verificar si es un mensaje individual en formato JSON
+      if (messageData.containsKey('usernameSender') &&
+          messageData.containsKey('usernameReceiver') &&
+          messageData.containsKey('dataEnviament') &&
+          messageData.containsKey('missatge')) {
+        // Enviar el mensaje al controlador de mensajes de chat
+        _chatMessageController.add({
+          'usernameSender': messageData['usernameSender'],
+          'usernameReceiver': messageData['usernameReceiver'],
+          'dataEnviament': messageData['dataEnviament'],
+          'missatge': messageData['missatge'],
+          'isEdited': messageData['isEdited'] ?? false,
+        });
+        return;
+      }
+
+      // Si el mensaje contiene un error, registrarlo
+      if (messageData.containsKey('error')) {
+        debugPrint('Error recibido del servidor: ${messageData['error']}');
         return;
       }
 

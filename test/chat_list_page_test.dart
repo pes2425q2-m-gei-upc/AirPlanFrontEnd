@@ -86,16 +86,6 @@ class MockAuthService implements AuthService {
   }
 
   @override
-  Future<UserCredential> signInWithPopup(GithubAuthProvider githubProvider) async {
-    throw UnimplementedError();
-  }
-
-  @override
-  Future<UserCredential> signInWithProvider(GithubAuthProvider githubProvider) async {
-    throw UnimplementedError();
-  }
-
-  @override
   Future<void> updateDisplayName(String displayName) async {}
 
   @override
@@ -207,6 +197,12 @@ class FakeChatWebSocketService implements ChatWebSocketService {
   @override
   Future<bool> sendEditMessage(String receiverUsername, String originalTimestamp, String newContent) {
     // TODO: implement sendEditMessage
+    throw UnimplementedError();
+  }
+
+  @override
+  Future<bool> sendDeleteMessage(String receiverUsername, String timestamp) {
+    // TODO: implement sendDeleteMessage
     throw UnimplementedError();
   }
 }
