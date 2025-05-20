@@ -701,6 +701,23 @@ class ChatDetailPageState extends State<ChatDetailPage> {
                       ],
                     ),
                   ),
+                const PopupMenuItem<String>(
+                  value: 'report',
+                  child: Row(
+                    mainAxisSize: MainAxisSize.min,
+                    children: [
+                      Icon(Icons.report, color: Colors.orange),
+                      SizedBox(width: 10),
+                      Flexible(
+                        child: Text(
+                          'Reportar usuario',
+                          style: TextStyle(color: Colors.orange),
+                          overflow: TextOverflow.ellipsis,
+                        ),
+                      ),
+                    ],
+                  ),
+                ),
               ],
         ),
       ],
@@ -895,6 +912,112 @@ class ChatDetailPageState extends State<ChatDetailPage> {
       case 'unblock':
         _showUnblockUserDialog();
         break;
+      case 'report':
+        _showReportUserDialog();
+        break;
+    }
+  }
+
+  void _showReportUserDialog() async {
+    final TextEditingController reasonController = TextEditingController();
+
+    final confirmResult = await showDialog<bool>(
+      context: context,
+      builder: (context) => AlertDialog(
+        title: Text('Reportar a ${widget.username}'),
+        content: Column(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            const Text(
+              'Por favor, introduce el motivo del reporte para facilitar la revisión de un administrador.',
+            ),
+            const SizedBox(height: 10),
+            TextField(
+              controller: reasonController,
+              maxLines: 3,
+              decoration: const InputDecoration(
+                hintText: 'Escribe el motivo aquí...',
+                border: OutlineInputBorder(),
+              ),
+            ),
+          ],
+        ),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.of(context).pop(false),
+            child: const Text('Cancelar'),
+          ),
+          TextButton(
+            onPressed: () => Navigator.of(context).pop(true),
+            style: TextButton.styleFrom(foregroundColor: Colors.orange),
+            child: const Text('Reportar'),
+          ),
+        ],
+      ),
+    );
+
+    if (confirmResult == true) {
+      final reason = reasonController.text.trim();
+      if (reason.isNotEmpty) {
+        await _reportUser(reason);
+      } else {
+        if (mounted) {
+          _notificationService.showError(
+            context,
+            'Por favor, introduce un motivo para el reporte.',
+          );
+        }
+      }
+    }
+  }
+
+  Future<void> _reportUser(String reason) async {
+    final user = _authService.getCurrentUser();
+    if (user == null || user.displayName == null) {
+      _notificationService.showError(
+        context,
+        'No se pudo identificar tu usuario. Por favor, inicia sesión nuevamente.',
+      );
+      return;
+    }
+
+    _showProgressSnackbar('Reportando usuario...');
+
+    try {
+      final result = await _chatService.reportUser(
+        reportedUsername: widget.username,
+        reporterUsername: user.displayName!,
+        reason: reason,
+      );
+
+      if (mounted) {
+        ScaffoldMessenger.of(context).hideCurrentSnackBar();
+
+        if (result == 'already_reported') {
+          _notificationService.showError(
+            context,
+            'Ya has reportado a este usuario, uno de nuestros administradores revisará el reporte lo antes posible.',
+          );
+        } else if (result == true) {
+          _notificationService.showSuccess(
+            context,
+            'Gracias por reportar a ${widget.username}! Nuestro equipo revisará la situación.',
+          );
+        } else {
+          _notificationService.showError(
+            context,
+            'No se pudo reportar al usuario. Inténtalo de nuevo más tarde.',
+          );
+        }
+      }
+    } catch (e) {
+      if (mounted) {
+        ScaffoldMessenger.of(context).hideCurrentSnackBar();
+        _notificationService.showError(
+          context,
+          'Error al reportar usuario: ${e.toString()}',
+        );
+      }
     }
   }
 
