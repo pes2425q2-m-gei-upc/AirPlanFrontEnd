@@ -4,6 +4,8 @@ import 'package:airplan/air_quality.dart';
 import 'package:airplan/air_quality_service.dart';
 import 'package:airplan/map_service.dart';
 import 'package:airplan/services/api_config.dart';
+import 'package:airplan/services/auth_service.dart';
+import 'package:airplan/services/notification_service.dart';
 import 'package:flutter/material.dart';
 import 'package:http/http.dart' as http;
 import 'package:latlong2/latlong.dart';
@@ -22,6 +24,7 @@ class Activity {
   DateTime dataFi;
   LatLng location;
   double distance;
+  bool isFavorite;
   List<AirQualityData> airQuality;
 
   Activity({
@@ -33,6 +36,7 @@ class Activity {
     required this.dataFi,
     required this.location,
     required this.distance,
+    required this.isFavorite,
     required this.airQuality,
   });
 }
@@ -56,13 +60,15 @@ class RecommendedActivitiesPage extends StatefulWidget {
 class RecommendedActivitiesPageState extends State<RecommendedActivitiesPage> {
   List<Activity> _activities = [];
   bool _isLoading = true;
+  int _totalActivities = 0;
+  int _loadedActivities = 0;
+  final activityService = ActivityService();
+  final authService = AuthService();
 
   @override
   void initState() {
     super.initState();
-    // Simulate API loading delay
-    Future.delayed(const Duration(seconds: 1), () {
-      _fetchRecommendedActivities();
+    _fetchRecommendedActivities().then((_) {
       setState(() {
         _isLoading = false;
       });
@@ -77,26 +83,37 @@ class RecommendedActivitiesPageState extends State<RecommendedActivitiesPage> {
     }));
     if (response.statusCode == 200) {
       final activitats = jsonDecode(response.body);
+      setState(() {
+        _totalActivities = activitats.length;
+        _loadedActivities = 0;
+      });
       for (var activitat in activitats) {
         LatLng localitzacioActivitat = LatLng(activitat['ubicacio']['latitud'], activitat['ubicacio']['longitud']);
-        TransitRoute dist = await calculateRoute(false,false,DateTime.now(),DateTime.now(),3,widget.userLocation,localitzacioActivitat);
-        Activity temp = Activity(
-          id: activitat['id'],
-          creador: activitat['creador'],
-          name: activitat['nom'],
-          description: activitat['descripcio'],
-          dataInici: DateTime.parse(activitat['dataInici']),
-          dataFi: DateTime.parse(activitat['dataFi']),
-          location: localitzacioActivitat,
-          distance: dist.distance.toDouble(),
-          airQuality: AirQualityService.findClosestAirQualityData(localitzacioActivitat, widget.contaminantsPerLocation)
-        );
-        try {
-          widget.savedLocations[localitzacioActivitat] = await MapService().fetchPlaceDetails(localitzacioActivitat);
-        } catch (e) {
-          widget.savedLocations[localitzacioActivitat] = "";
+        List<AirQualityData> aqd = AirQualityService.findClosestAirQualityData(localitzacioActivitat, widget.contaminantsPerLocation);
+        if (AirQualityService.isAcceptable(aqd)) {
+          TransitRoute dist = await calculateRoute(false,false,DateTime.now(),DateTime.now(),3,widget.userLocation,localitzacioActivitat);
+          Activity temp = Activity(
+              id: activitat['id'],
+              creador: activitat['creador'],
+              name: activitat['nom'],
+              description: activitat['descripcio'],
+              dataInici: DateTime.parse(activitat['dataInici']),
+              dataFi: DateTime.parse(activitat['dataFi']),
+              location: localitzacioActivitat,
+              distance: dist.distance.toDouble(),
+              isFavorite: await activityService.isActivityFavorite(activitat['id'], authService.getCurrentUsername()!),
+              airQuality: aqd
+          );
+          try {
+            widget.savedLocations[localitzacioActivitat] = await MapService().fetchPlaceDetails(localitzacioActivitat);
+          } catch (e) {
+            widget.savedLocations[localitzacioActivitat] = "";
+          }
+          _activities.add(temp);
         }
-        _activities.add(temp);
+        setState(() {
+          _loadedActivities++;
+        });
       }
       setState(() {
         _activities = _activities;
@@ -321,7 +338,25 @@ class RecommendedActivitiesPageState extends State<RecommendedActivitiesPage> {
         backgroundColor: Colors.teal,
       ),
       body: _isLoading
-          ? const Center(child: CircularProgressIndicator())
+          ? Column(
+              mainAxisAlignment: MainAxisAlignment.center,
+              children: [
+                const Center(child: CircularProgressIndicator()),
+                if (_totalActivities > 0)
+                  Padding(
+                    padding: const EdgeInsets.symmetric(horizontal: 24.0, vertical: 16.0),
+                    child: Column(
+                      children: [
+                        LinearProgressIndicator(
+                          value: _totalActivities > 0 ? _loadedActivities / _totalActivities : null,
+                        ),
+                        const SizedBox(height: 8),
+                        Text('Carregant activitats: $_loadedActivities / $_totalActivities'),
+                      ],
+                    ),
+                  ),
+              ],
+            )
           : Column(
         children: [
           Padding(
@@ -435,79 +470,113 @@ class RecommendedActivitiesPageState extends State<RecommendedActivitiesPage> {
                                 activity.description,
                                 style: TextStyle(color: Colors.grey[700]),
                               ),
-                              const SizedBox(height: 16),
+                              const SizedBox(height: 8),
+                              Row(
+                                children: [
+                                  Icon(Icons.calendar_today, size: 16, color: Colors.teal[700]),
+                                  const SizedBox(width: 4),
+                                  Text(
+                                    'Inici: ${DateFormat('dd/MM/yyyy HH:mm').format(activity.dataInici)}',
+                                    style: TextStyle(fontSize: 13, color: Colors.teal[900]),
+                                  ),
+                                  const SizedBox(width: 12),
+                                  Icon(Icons.event, size: 16, color: Colors.teal[700]),
+                                  const SizedBox(width: 4),
+                                  Text(
+                                    'Fi: ${DateFormat('dd/MM/yyyy HH:mm').format(activity.dataFi)}',
+                                    style: TextStyle(fontSize: 13, color: Colors.teal[900]),
+                                  ),
+                                ],
+                              ),
                             ],
                           ),
                         ),
                         Padding(
                           padding: const EdgeInsets.all(16.0),
                           child: Row(
-                            crossAxisAlignment: CrossAxisAlignment.start,
+                            crossAxisAlignment: CrossAxisAlignment.end,
                             children: [
                               Expanded(
-                                child: Align(
-                                  alignment: Alignment.centerLeft,
-                                  child: Column(
-                                    crossAxisAlignment: CrossAxisAlignment.start,
-                                    children: [
-                                      Text(
-                                        'Air Quality:',
-                                        style: TextStyle(
-                                          fontWeight: FontWeight.bold,
-                                          fontSize: 16,
-                                          color: Colors.teal[800],
-                                        ),
-                                        textAlign: TextAlign.left,
+                                child: Column(
+                                  crossAxisAlignment: CrossAxisAlignment.start,
+                                  children: [
+                                    Text(
+                                      "Qualitat de l'aire:",
+                                      style: TextStyle(
+                                        fontWeight: FontWeight.bold,
+                                        fontSize: 16,
+                                        color: Colors.teal[800],
                                       ),
-                                      const SizedBox(width: 8),
-                                      ...activity.airQuality.map((aq) => Padding(
-                                        padding: const EdgeInsets.only(right: 8.0),
-                                        child: Row(
-                                          children: [
-                                            Icon(
-                                              Icons.circle,
-                                              color: getColorForAirQuality(aq.aqi),
-                                              size: 16,
+                                      textAlign: TextAlign.left,
+                                    ),
+                                    const SizedBox(width: 8),
+                                    ...activity.airQuality.map((aq) => Padding(
+                                      padding: const EdgeInsets.only(right: 8.0),
+                                      child: Row(
+                                        children: [
+                                          Icon(
+                                            Icons.circle,
+                                            color: getColorForAirQuality(aq.aqi),
+                                            size: 16,
+                                          ),
+                                          const SizedBox(width: 2),
+                                          Text(
+                                            '${aq.contaminant.name}: ${aq.value.toStringAsFixed(1)} ${aq.units}',
+                                            style: TextStyle(
+                                              fontSize: 14,
+                                              color: Colors.grey[700],
                                             ),
-                                            const SizedBox(width: 2),
-                                            Text(
-                                              '${aq.contaminant.name}: ${aq.value.toStringAsFixed(1)} ${aq.units}',
-                                              style: TextStyle(
-                                                fontSize: 14,
-                                                color: Colors.grey[700],
-                                              ),
-                                            ),
-                                          ],
-                                        ),
-                                      )),
-                                    ],
-                                  ),
+                                          ),
+                                        ],
+                                      ),
+                                    )),
+                                  ],
                                 ),
                               ),
-                              const SizedBox(width: 8),
+                              const SizedBox(width: 16),
                               Column(
-                                crossAxisAlignment: CrossAxisAlignment.end,
                                 mainAxisAlignment: MainAxisAlignment.end,
+                                crossAxisAlignment: CrossAxisAlignment.end,
                                 children: [
-                                  TextButton.icon(
-                                    icon: const Icon(Icons.favorite_border),
-                                    label: const Text('Desar'),
-                                    onPressed: () {
-                                      ScaffoldMessenger.of(context).showSnackBar(
-                                        SnackBar(content: Text('${activity.name} desada als favorits')),
-                                      );
+                                  ElevatedButton.icon(
+                                    icon: activity.isFavorite ?
+                                          Icon(Icons.favorite, color: Colors.red)
+                                        : Icon(Icons.favorite_border, color: Colors.red),
+                                    label: activity.isFavorite ? Text('Desada') : Text('Desar'),
+                                    onPressed: () async {
+                                      if (!activity.isFavorite) {
+                                        try {
+                                          await activityService.addActivityToFavorites(activity.id, authService.getCurrentUsername()!);
+                                          setState(() {
+                                            activity.isFavorite = true;
+                                          });
+                                          if (context.mounted) NotificationService().showInfo(context, 'Has afegit ${activity.name} a la teva llista de favorits.');
+                                        } catch (e) {
+                                          if (context.mounted) NotificationService().showError(context, 'Error afegint ${activity.name} a la teva llista de favorits.');
+                                        }
+                                      } else {
+                                        try {
+                                          await activityService.removeActivityFromFavorites(activity.id, authService.getCurrentUsername()!);
+                                          setState(() {
+                                            activity.isFavorite = false;
+                                          });
+                                          if (context.mounted) NotificationService().showInfo(context, 'Has eliminat ${activity.name} de la teva llista de favorits.');
+                                        } catch (e) {
+                                          if (context.mounted) NotificationService().showError(context,'Error eliminant ${activity.name} de la teva llista de favorits.');
+                                        }
+                                      }
                                     },
                                   ),
                                   const SizedBox(height: 8),
                                   ElevatedButton.icon(
                                     icon: const Icon(Icons.directions),
-                                    label: const Text('Anar-hi'),
+                                    label: const Text('Com Arribar'),
                                     onPressed: () {
                                       Navigator.pop(context, activity.location);
                                     },
                                   ),
                                 ],
-                              )
+                              ),
                             ],
                           ),
                         ),

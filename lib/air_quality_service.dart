@@ -87,4 +87,13 @@ class AirQualityService {
 
     return listAQD;
   }
+
+  static bool isAcceptable(List<AirQualityData> aqd) {
+    for (var data in aqd) {
+      if (data.aqi.index > AirQuality.bona.index) {
+        return false;
+      }
+    }
+    return true;
+  }
 }

@@ -1982,19 +1982,27 @@ class MapPageState extends State<MapPage> {
     }
   }
 
-  void _showRecommendedActivities() {
+  Future<void> _showRecommendedActivities() async {
     if (!locationPermissionGranted) {
       if (mounted) {
         NotificationService().showError(context, "Per veure les activitats recomanades, concedeix permisos de localització.");
       }
     } else {
-      Navigator.push(
+      final activityLocation = await Navigator.push<LatLng>(
         context,
         MaterialPageRoute(
           builder: (context) => RecommendedActivitiesPage(
-              userLocation: currentPosition, contaminantsPerLocation: contaminantsPerLocation, savedLocations: savedLocations,),
+            userLocation: currentPosition,
+            contaminantsPerLocation: contaminantsPerLocation,
+            savedLocations: savedLocations,
+          ),
         ),
       );
+
+      // If a location was returned, show route options
+      if (activityLocation != null && mounted) {
+        showRouteOptions(context, currentPosition, activityLocation, mapService);
+      }
     }
   }
 
