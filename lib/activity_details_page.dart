@@ -74,7 +74,9 @@ class ActivityDetailsPageState extends State<ActivityDetailsPage> {
 
   // Simulación de carga de participantes
   Future<void> loadParticipants() async {
-    final url = Uri.parse(ApiConfig().buildUrl('api/activitats/${widget.id}/participants')); // Asegúrate que el host es accesible
+    final url = Uri.parse(
+      ApiConfig().buildUrl('api/activitats/${widget.id}/participants'),
+    ); // Asegúrate que el host es accesible
 
     try {
       final response = await http.get(url);
@@ -208,7 +210,10 @@ class ActivityDetailsPageState extends State<ActivityDetailsPage> {
         if (!context.mounted) return;
         _notificationService.showSuccess(context, message);
       } else {
-        final String message = 'Error al guardar la valoración';
+        final String message =
+            response.body.isNotEmpty
+                ? response.body
+                : 'Error al guardar la valoración';
         if (!context.mounted) return;
         _notificationService.showError(context, message);
       }
@@ -414,72 +419,109 @@ class ActivityDetailsPageState extends State<ActivityDetailsPage> {
                     });
                   }
                 },
-                child: Text(showParticipants ? 'Hide Participants' : 'Show Participants'),
+                child: Text(
+                  showParticipants ? 'Hide Participants' : 'Show Participants',
+                ),
               ),
               if (showParticipants)
                 ...participants.map((p) {
-                  bool isCurrentUser = p == currentUser; // Verificamos si el participante es el usuario actual
+                  bool isCurrentUser =
+                      p ==
+                      currentUser; // Verificamos si el participante es el usuario actual
                   return ListTile(
                     dense: true,
                     title: Text(p),
-                    trailing: isCurrentUserCreator && !isCurrentUser
-                        ? IconButton(
-                      icon: Icon(Icons.delete, color: Colors.red),
-                      onPressed: () async {
-                        final confirm = await showDialog<bool>(
-                          context: context,
-                          builder: (context) => AlertDialog(
-                            title: Text('Eliminar participante'),
-                            content: Text('¿Estás seguro de que quieres eliminar a $p de la actividad?'),
-                            actions: [
-                              TextButton(
-                                onPressed: () => Navigator.pop(context, false),
-                                child: Text('No'),
-                              ),
-                              TextButton(
-                                onPressed: () => Navigator.pop(context, true),
-                                child: Text('Sí'),
-                              ),
-                            ],
-                          ),
-                        );
-
-                        if (confirm == true) {
-                          final url = Uri.parse(ApiConfig().buildUrl('api/activitats/${widget.id}/participants/$p'));
-
-                          try {
-                            final response = await http.delete(url);
-                            if (response.statusCode == 200) {
-                              setState(() {
-                                participants.remove(p);
-                              });
-                              final actualContext = context;
-                              if (actualContext.mounted) {
-                                ScaffoldMessenger.of(context).showSnackBar(
-                                  SnackBar(content: Text(
-                                      '$p eliminado correctamente')),
+                    trailing:
+                        isCurrentUserCreator && !isCurrentUser
+                            ? IconButton(
+                              icon: Icon(Icons.delete, color: Colors.red),
+                              onPressed: () async {
+                                final confirm = await showDialog<bool>(
+                                  context: context,
+                                  builder:
+                                      (context) => AlertDialog(
+                                        title: Text('Eliminar participante'),
+                                        content: Text(
+                                          '¿Estás seguro de que quieres eliminar a $p de la actividad?',
+                                        ),
+                                        actions: [
+                                          TextButton(
+                                            onPressed:
+                                                () => Navigator.pop(
+                                                  context,
+                                                  false,
+                                                ),
+                                            child: Text('No'),
+                                          ),
+                                          TextButton(
+                                            onPressed:
+                                                () => Navigator.pop(
+                                                  context,
+                                                  true,
+                                                ),
+                                            child: Text('Sí'),
+                                          ),
+                                        ],
+                                      ),
                                 );
-                              }
-                            } else {
-                              final actualContext = context;
-                              if (actualContext.mounted) {
-                                ScaffoldMessenger.of(context).showSnackBar(
-                                  SnackBar(content: Text('Error al eliminar $p')),
-                                );
-                              }
-                            }
-                          } catch (e) {
-                            final actualContext = context;
-                            if (actualContext.mounted) {
-                              ScaffoldMessenger.of(context).showSnackBar(
-                                SnackBar(content: Text('Error de red al eliminar $p')),
-                              );
-                            }
-                          }
-                        }
-                      },
-                    )
-                        : null,
+
+                                if (confirm == true) {
+                                  final url = Uri.parse(
+                                    ApiConfig().buildUrl(
+                                      'api/activitats/${widget.id}/participants/$p',
+                                    ),
+                                  );
+
+                                  try {
+                                    final response = await http.delete(url);
+                                    if (response.statusCode == 200) {
+                                      setState(() {
+                                        participants.remove(p);
+                                      });
+                                      final actualContext = context;
+                                      if (actualContext.mounted) {
+                                        ScaffoldMessenger.of(
+                                          context,
+                                        ).showSnackBar(
+                                          SnackBar(
+                                            content: Text(
+                                              '$p eliminado correctamente',
+                                            ),
+                                          ),
+                                        );
+                                      }
+                                    } else {
+                                      final actualContext = context;
+                                      if (actualContext.mounted) {
+                                        ScaffoldMessenger.of(
+                                          context,
+                                        ).showSnackBar(
+                                          SnackBar(
+                                            content: Text(
+                                              'Error al eliminar $p',
+                                            ),
+                                          ),
+                                        );
+                                      }
+                                    }
+                                  } catch (e) {
+                                    final actualContext = context;
+                                    if (actualContext.mounted) {
+                                      ScaffoldMessenger.of(
+                                        context,
+                                      ).showSnackBar(
+                                        SnackBar(
+                                          content: Text(
+                                            'Error de red al eliminar $p',
+                                          ),
+                                        ),
+                                      );
+                                    }
+                                  }
+                                }
+                              },
+                            )
+                            : null,
                   );
                 }),
 
@@ -522,7 +564,11 @@ class ActivityDetailsPageState extends State<ActivityDetailsPage> {
                   onPressed: () {
                     showDialog(
                       context: context,
-                      builder: (context) => InviteUsersDialog(activityId: widget.id, creator: widget.creator),
+                      builder:
+                          (context) => InviteUsersDialog(
+                            activityId: widget.id,
+                            creator: widget.creator,
+                          ),
                     );
                   },
                   child: const Text('Invitar Usuarios'),
@@ -584,9 +630,11 @@ class ActivityDetailsPageState extends State<ActivityDetailsPage> {
                           return;
                         }
 
+                        final parentContext =
+                            context; // Capture the page context before showing dialog
                         showDialog(
                           context: context,
-                          builder: (BuildContext context) {
+                          builder: (BuildContext dialogContext) {
                             double rating = 0;
                             TextEditingController commentController =
                                 TextEditingController();
@@ -624,7 +672,8 @@ class ActivityDetailsPageState extends State<ActivityDetailsPage> {
                               ),
                               actions: [
                                 TextButton(
-                                  onPressed: () => Navigator.of(context).pop(),
+                                  onPressed:
+                                      () => Navigator.of(dialogContext).pop(),
                                   child: Text('Cancel'),
                                 ),
                                 ElevatedButton(
@@ -634,9 +683,9 @@ class ActivityDetailsPageState extends State<ActivityDetailsPage> {
                                       userId: currentUser,
                                       rating: rating,
                                       comment: commentController.text,
-                                      context: context,
+                                      context: parentContext,
                                     );
-                                    Navigator.of(context).pop();
+                                    Navigator.of(dialogContext).pop();
                                     // Refresh the page
                                     setState(() {});
                                   },

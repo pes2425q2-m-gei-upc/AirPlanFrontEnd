@@ -56,6 +56,9 @@ class EditProfilePageState extends State<EditProfilePage> {
   // Notification service instance
   final NotificationService _notificationService = NotificationService();
 
+  String? _nameError;
+  String? _emailError;
+
   @override
   void initState() {
     super.initState();
@@ -438,6 +441,11 @@ class EditProfilePageState extends State<EditProfilePage> {
     }
 
     try {
+      // Reset inline errors
+      setState(() {
+        _nameError = null;
+        _emailError = null;
+      });
       final response = await http.post(
         Uri.parse(ApiConfig().buildUrl('api/usuaris/updateFullProfile')),
         headers: {'Content-Type': 'application/json'},
@@ -481,6 +489,20 @@ class EditProfilePageState extends State<EditProfilePage> {
             responseData['error'] ?? 'Error al actualizar el perfil',
           );
         }
+      } else if (response.statusCode == 400) {
+        // Inappropriate content error
+        final errorData = json.decode(response.body);
+        final field = errorData['field'] as String?;
+        final message =
+            errorData['error'] as String? ?? 'Contenido inapropiado';
+        setState(() {
+          if (field == 'nom') {
+            _nameError = message;
+          } else if (field == 'email') {
+            _emailError = message;
+          }
+        });
+        return;
       } else {
         String errorMessage;
         try {
@@ -496,11 +518,8 @@ class EditProfilePageState extends State<EditProfilePage> {
         _notificationService.showError(context, errorMessage);
       }
     } catch (e) {
-      // Added mounted check
       if (!mounted) return;
-      ScaffoldMessenger.of(
-        context,
-      ).hideCurrentSnackBar(); // Ensure hidden on exception
+      ScaffoldMessenger.of(context).hideCurrentSnackBar();
       _notificationService.showError(
         context,
         _getFriendlyErrorMessage(e.toString()),
@@ -1065,11 +1084,13 @@ class EditProfilePageState extends State<EditProfilePage> {
             const SizedBox(height: 24), // Increased space after image section
             TextField(
               controller: _nameController,
-              decoration: const InputDecoration(
+              decoration: InputDecoration(
                 labelText: 'Nombre', // Translate labels
-                border: OutlineInputBorder(),
-                prefixIcon: Icon(Icons.person_outline), // Add icon
+                border: const OutlineInputBorder(),
+                prefixIcon: const Icon(Icons.person_outline), // Add icon
+                errorText: _nameError,
               ),
+              onChanged: (_) => setState(() => _nameError = null),
             ),
             const SizedBox(height: 16),
             TextField(
@@ -1088,11 +1109,13 @@ class EditProfilePageState extends State<EditProfilePage> {
             const SizedBox(height: 16),
             TextField(
               controller: _emailController,
-              decoration: const InputDecoration(
+              decoration: InputDecoration(
                 labelText: 'Correo Electrónico', // Translate labels
-                border: OutlineInputBorder(),
-                prefixIcon: Icon(Icons.email_outlined), // Add icon
+                border: const OutlineInputBorder(),
+                prefixIcon: const Icon(Icons.email_outlined), // Add icon
+                errorText: _emailError,
               ),
+              onChanged: (_) => setState(() => _emailError = null),
               keyboardType: TextInputType.emailAddress,
             ),
             const SizedBox(height: 16),
