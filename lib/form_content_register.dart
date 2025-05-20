@@ -392,8 +392,25 @@ class _FormContentRegisterState extends State<FormContentRegister> {
                 // Selector de Idioma
                 DropdownButtonFormField<String>(
                   value: _selectedLanguage,
-                  onChanged:
-                      (value) => setState(() => _selectedLanguage = value!),
+                  onChanged: (value) {
+                    if (value == null) return;
+                    Locale locale;
+                    switch (value) {
+                      case 'Català':
+                        locale = const Locale('ca');
+                        break;
+                      case 'English':
+                        locale = const Locale('en');
+                        break;
+                      case 'Castellano':
+                      default:
+                        locale = const Locale('es');
+                    }
+                    context.setLocale(locale);
+                    setState(() {
+                      _selectedLanguage = value;
+                    });
+                  },
                   items:
                       ['Català', 'English', 'Castellano']
                           .map(
