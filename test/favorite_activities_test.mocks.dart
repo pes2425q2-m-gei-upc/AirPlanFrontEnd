@@ -297,4 +297,16 @@ class MockActivityService extends _i1.Mock implements _i5.ActivityService {
             ),
           )
           as _i4.Future<List<Map<String, dynamic>>>);
+
+  @override
+  _i4.Future<List<Map<String, dynamic>>> fetchUserActivities(
+    String? username,
+  ) =>
+      (super.noSuchMethod(
+            Invocation.method(#fetchUserActivities, [username]),
+            returnValue: _i4.Future<List<Map<String, dynamic>>>.value(
+              <Map<String, dynamic>>[],
+            ),
+          )
+          as _i4.Future<List<Map<String, dynamic>>>);
 }
