@@ -1,3 +1,5 @@
+
+import 'package:firebase_auth/firebase_auth.dart';
 import 'package:flutter/material.dart';
 import 'package:http/http.dart' as http;
 import 'dart:convert'; // Para usar jsonEncode
@@ -63,6 +65,11 @@ class LoginPageState extends State<LoginPage> {
   }
 
   Future<void> _signIn() async {
+    setState(() {
+      _isLoading = true;
+      _errorMessage = '';
+    });
+
     try {
       // Usar AuthService en lugar de Firebase directamente
       final userCredential = await _authService.signInWithEmailAndPassword(
