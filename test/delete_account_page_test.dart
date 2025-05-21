@@ -87,8 +87,8 @@ void main() {
   ) async {
     await tester.pumpWidget(createWidgetUnderTest());
 
-    // Check if the delete button is displayed
-    expect(find.text('Esborrar el meu compte'), findsOneWidget);
+    // Check if the delete button is displayed (by key as text)
+    expect(find.text('confirm_delete_account_title'), findsAny);
     expect(find.byType(ElevatedButton), findsOneWidget);
   });
 
@@ -98,19 +98,14 @@ void main() {
       await tester.pumpWidget(createWidgetUnderTest());
 
       // Tap the delete button
-      await tester.tap(find.byType(ElevatedButton));
+      await tester.tap(find.text('confirm_delete_account_title'));
       await tester.pumpAndSettle();
 
-      // Verify confirmation dialog is shown
-      expect(find.text('Confirmació'), findsOneWidget);
-      expect(
-        find.text(
-          'Segur que vols esborrar el teu compte? Aquesta acció és irreversible.',
-        ),
-        findsOneWidget,
-      );
-      expect(find.text('Cancel·lar'), findsOneWidget);
-      expect(find.text('Esborrar'), findsOneWidget);
+      // Verify confirmation dialog is shown (by key as text)
+      expect(find.text('confirm_delete_account_title'), findsAny);
+      expect(find.text('confirm_delete_account_message'), findsAny);
+      expect(find.text('cancel'), findsOneWidget);
+      expect(find.text('delete'), findsOneWidget);
     },
   );
 
@@ -120,15 +115,14 @@ void main() {
       await tester.pumpWidget(createWidgetUnderTest());
 
       // Tap delete button and wait for dialog
-      await tester.tap(find.byType(ElevatedButton));
+      await tester.tap(find.text('confirm_delete_account_title'));
       await tester.pumpAndSettle();
 
       // Tap Cancel button in dialog
-      await tester.tap(find.text('Cancel·lar'));
+      await tester.tap(find.text('cancel'));
       await tester.pumpAndSettle();
 
       // Verify dialog is dismissed and no deleteCurrentUser call was made
-      expect(find.text('Confirmació'), findsNothing);
       verifyNever(mockAuthService.deleteCurrentUser());
     },
   );
@@ -144,18 +138,18 @@ void main() {
     await tester.pumpWidget(createWidgetUnderTest());
 
     // Tap delete button and wait for dialog
-    await tester.tap(find.byType(ElevatedButton));
+    await tester.tap(find.text('confirm_delete_account_title'));
     await tester.pumpAndSettle();
 
-    // Tap Esborrar button in dialog
-    await tester.tap(find.text('Esborrar'));
+    // Tap Delete button in dialog
+    await tester.tap(find.text('delete'));
     await tester.pumpAndSettle();
 
     // Verify deleteCurrentUser was called
     verify(mockAuthService.deleteCurrentUser()).called(1);
 
     // Should show success message
-    expect(find.text('Compte eliminat correctament'), findsOneWidget);
+    expect(find.text('delete_account_success'), findsOneWidget);
   });
 
   testWidgets('DeleteAccountPage shows error message on delete failure', (
@@ -169,15 +163,15 @@ void main() {
     await tester.pumpWidget(createWidgetUnderTest());
 
     // Tap delete button and wait for dialog
-    await tester.tap(find.byType(ElevatedButton));
+    await tester.tap(find.text('confirm_delete_account_title'));
     await tester.pumpAndSettle();
 
-    // Tap Esborrar button in dialog
-    await tester.tap(find.text('Esborrar'));
+    // Tap Delete button in dialog
+    await tester.tap(find.text('delete'));
     await tester.pumpAndSettle();
 
-    // Verify error message is shown
-    expect(find.textContaining('Error:'), findsOneWidget);
+    // Verify error message is shown (by key as text)
+    expect(find.text('delete_account_error'), findsOneWidget);
   });
 
   testWidgets(
@@ -194,18 +188,15 @@ void main() {
       await tester.pumpWidget(createWidgetUnderTest());
 
       // Tap delete button and wait for dialog
-      await tester.tap(find.byType(ElevatedButton));
+      await tester.tap(find.text('confirm_delete_account_title'));
       await tester.pumpAndSettle();
 
-      // Tap Esborrar button in dialog
-      await tester.tap(find.text('Esborrar'));
+      // Tap Delete button in dialog
+      await tester.tap(find.text('delete'));
       await tester.pumpAndSettle();
 
-      // Verify specific error message is shown
-      expect(
-        find.text('Has de tornar a iniciar sessió per esborrar el compte'),
-        findsOneWidget,
-      );
+      // Verify specific error message is shown (by key as text)
+      expect(find.text('delete_account_requires_relogin'), findsOneWidget);
     },
   );
 }

@@ -3,9 +3,9 @@ import 'package:airplan/services/chat_service.dart';
 import 'package:airplan/services/notification_service.dart';
 import 'package:airplan/services/chat_websocket_service.dart';
 import 'package:airplan/services/auth_service.dart';
-import 'package:intl/intl.dart';
 import 'dart:async';
 import 'package:airplan/services/user_block_service.dart';
+import 'package:easy_localization/easy_localization.dart';
 
 class ChatDetailPage extends StatefulWidget {
   final String username; // Used for backend calls
@@ -166,7 +166,7 @@ class ChatDetailPageState extends State<ChatDetailPage> {
         }
         return;
       } // Manejar mensajes de error
-      if (messageType == 'ERROR' && messageData.containsKey('message')) {
+      if (messageType == 'ERROR') {
         if (mounted) {
           final errorMessage = messageData['message'] as String;
 
@@ -186,7 +186,10 @@ class ChatDetailPageState extends State<ChatDetailPage> {
             // After removal, scroll to bottom to update view
             _scrollToBottom();
           }
-          _notificationService.showError(context, errorMessage);
+          _notificationService.showError(
+            context,
+            'error_inapropiate_message'.tr(),
+          );
         }
         return;
       }
@@ -449,16 +452,13 @@ class ChatDetailPageState extends State<ChatDetailPage> {
       if (success && mounted) {
         _messageController.clear();
       } else if (mounted) {
-        _notificationService.showError(
-          context,
-          'Error al enviar el mensaje. Inténtalo de nuevo.',
-        );
+        _notificationService.showError(context, 'error_sending_message'.tr());
       }
     } catch (e) {
       if (mounted) {
         _notificationService.showError(
           context,
-          'Error al enviar el mensaje: ${e.toString()}',
+          '${'error_sending_message'.tr()} ${e.toString()}',
         );
       }
     } finally {
@@ -500,7 +500,7 @@ class ChatDetailPageState extends State<ChatDetailPage> {
       context: context,
       builder:
           (context) => AlertDialog(
-            title: const Text('Editar mensaje'),
+            title: Text('chat_edit_message'.tr()),
             content: SizedBox(
               width: 250, // Ajusta el ancho del campo de texto
               child: TextField(
@@ -530,7 +530,7 @@ class ChatDetailPageState extends State<ChatDetailPage> {
                     children: [
                       TextButton(
                         onPressed: () => Navigator.of(context).pop(),
-                        child: const Text('Cancelar'),
+                        child: Text('cancel_button'.tr()),
                       ),
                       TextButton(
                         onPressed: () {
@@ -540,7 +540,7 @@ class ChatDetailPageState extends State<ChatDetailPage> {
                             editingController.text.trim(),
                           );
                         },
-                        child: const Text('Guardar'),
+                        child: Text('confirm'.tr()),
                       ),
                     ],
                   ),
@@ -556,22 +556,20 @@ class ChatDetailPageState extends State<ChatDetailPage> {
       context: context,
       builder:
           (context) => AlertDialog(
-            title: const Text('Eliminar mensaje'),
-            content: const Text(
-              '¿Estás seguro de que deseas eliminar este mensaje?',
-            ),
+            title: Text('chat_delete_message'.tr()),
+            content: Text('chat_confirm_delete'.tr()),
             actions: [
               TextButton(
                 onPressed: () => Navigator.of(context).pop(),
-                child: const Text('Cancelar'),
+                child: Text('cancel_button'.tr()),
               ),
               TextButton(
                 onPressed: () {
                   Navigator.of(context).pop();
                   _deleteMessage(message);
                 },
-                child: const Text(
-                  'Eliminar',
+                child: Text(
+                  'delete_button_label'.tr(),
                   style: TextStyle(color: Colors.red),
                 ),
               ),
@@ -605,10 +603,7 @@ class ChatDetailPageState extends State<ChatDetailPage> {
       );
 
       if (!success && mounted) {
-        _notificationService.showError(
-          context,
-          'Error al editar el mensaje. Inténtalo de nuevo.',
-        );
+        _notificationService.showError(context, 'error_editing_message'.tr());
       }
       // Ya no actualizamos el mensaje aquí, el servidor enviará un mensaje WebSocket
       // con la confirmación y se actualizará en el método handleIncomingMessage
@@ -616,7 +611,7 @@ class ChatDetailPageState extends State<ChatDetailPage> {
       if (mounted) {
         _notificationService.showError(
           context,
-          'Error al editar el mensaje: ${e.toString()}',
+          '${'error_editing_message'.tr()} ${e.toString()}',
         );
       }
     } finally {
@@ -655,7 +650,7 @@ class ChatDetailPageState extends State<ChatDetailPage> {
   PreferredSizeWidget _buildAppBar() {
     return AppBar(
       title: Text(
-        widget.name ?? widget.username,
+        widget.name != null ? widget.name! : widget.username,
       ), // Use name if available, otherwise username
       elevation: 1,
       actions: [
@@ -664,7 +659,7 @@ class ChatDetailPageState extends State<ChatDetailPage> {
           itemBuilder:
               (BuildContext context) => [
                 if (_currentUserBlockedOther)
-                  const PopupMenuItem<String>(
+                  PopupMenuItem<String>(
                     value: 'unblock',
                     child: Row(
                       mainAxisSize: MainAxisSize.min, // Prevent overflow
@@ -673,7 +668,7 @@ class ChatDetailPageState extends State<ChatDetailPage> {
                         SizedBox(width: 10),
                         Flexible(
                           child: Text(
-                            'Desbloquear usuario',
+                            'chat_unblock_user'.tr(),
                             style: TextStyle(color: Colors.green),
                             overflow:
                                 TextOverflow.ellipsis, // Handle text overflow
@@ -683,7 +678,7 @@ class ChatDetailPageState extends State<ChatDetailPage> {
                     ),
                   )
                 else
-                  const PopupMenuItem<String>(
+                  PopupMenuItem<String>(
                     value: 'block',
                     child: Row(
                       mainAxisSize: MainAxisSize.min, // Prevent overflow
@@ -692,7 +687,7 @@ class ChatDetailPageState extends State<ChatDetailPage> {
                         SizedBox(width: 10),
                         Flexible(
                           child: Text(
-                            'Bloquear usuario',
+                            'chat_block_user'.tr(),
                             style: TextStyle(color: Colors.red),
                             overflow:
                                 TextOverflow.ellipsis, // Handle text overflow
@@ -739,7 +734,7 @@ class ChatDetailPageState extends State<ChatDetailPage> {
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
                 Text(
-                  'Chat bloqueado',
+                  'chat_blocked'.tr(),
                   style: TextStyle(
                     color: Colors.red[700],
                     fontWeight: FontWeight.bold,
@@ -747,8 +742,8 @@ class ChatDetailPageState extends State<ChatDetailPage> {
                 ),
                 Text(
                   _currentUserBlockedOther
-                      ? 'Has bloqueado a este usuario.'
-                      : 'Este usuario te ha bloqueado.',
+                      ? 'chat_blocked_message'.tr()
+                      : 'chat_blocked_by_other'.tr(),
                   style: const TextStyle(fontSize: 12),
                 ),
               ],
@@ -794,8 +789,8 @@ class ChatDetailPageState extends State<ChatDetailPage> {
           Expanded(
             child: TextField(
               controller: _messageController,
-              decoration: const InputDecoration(
-                hintText: 'Escribe un mensaje...',
+              decoration: InputDecoration(
+                hintText: 'chat_message_placeholder'.tr(),
                 border: OutlineInputBorder(
                   borderRadius: BorderRadius.all(Radius.circular(25)),
                   borderSide: BorderSide.none,
@@ -833,7 +828,10 @@ class ChatDetailPageState extends State<ChatDetailPage> {
                             strokeWidth: 2,
                           ),
                         )
-                        : const Icon(Icons.send, color: Colors.white),
+                        : Text(
+                          'chat_send'.tr(),
+                          style: TextStyle(color: Colors.white),
+                        ),
               ),
             ),
           ),
@@ -1026,19 +1024,17 @@ class ChatDetailPageState extends State<ChatDetailPage> {
       context: context,
       builder:
           (context) => AlertDialog(
-            title: Text('Bloquear a ${widget.username}'),
-            content: const Text(
-              'Si bloqueas a este usuario, no podrás recibir ni enviarle mensajes. ¿Estás seguro?',
-            ),
+            title: Text('chat_confirm_block_title'.tr()),
+            content: Text('chat_confirm_block_message'.tr()),
             actions: [
               TextButton(
                 onPressed: () => Navigator.of(context).pop(false),
-                child: const Text('Cancelar'),
+                child: Text('cancel'.tr()),
               ),
               TextButton(
                 onPressed: () => Navigator.of(context).pop(true),
                 style: TextButton.styleFrom(foregroundColor: Colors.red),
-                child: const Text('Bloquear'),
+                child: Text('chat_block_user'.tr()),
               ),
             ],
           ),
@@ -1053,14 +1049,11 @@ class ChatDetailPageState extends State<ChatDetailPage> {
     final user = _authService.getCurrentUser();
 
     if (user == null || user.displayName == null) {
-      _notificationService.showError(
-        context,
-        'No se pudo identificar tu usuario. Por favor, inicia sesión nuevamente.',
-      );
+      _notificationService.showError(context, 'cant_identify_user'.tr());
       return;
     }
 
-    _showProgressSnackbar('Bloqueando usuario...');
+    _showProgressSnackbar('blocking_user'.tr());
 
     try {
       // Usar UserBlockService que ahora envía directamente por WebSocket
@@ -1081,13 +1074,10 @@ class ChatDetailPageState extends State<ChatDetailPage> {
 
           _notificationService.showSuccess(
             context,
-            'Has bloqueado a ${widget.username}',
+            '${'chat_blocked_user'.tr()} ${widget.username}',
           );
         } else {
-          _notificationService.showError(
-            context,
-            'No se pudo bloquear al usuario. Inténtalo de nuevo más tarde.',
-          );
+          _notificationService.showError(context, 'cant_block_user'.tr());
         }
       }
     } catch (e) {
@@ -1095,7 +1085,7 @@ class ChatDetailPageState extends State<ChatDetailPage> {
         ScaffoldMessenger.of(context).hideCurrentSnackBar();
         _notificationService.showError(
           context,
-          'Error al bloquear usuario: ${e.toString()}',
+          '${'error_block_user'.tr()} ${e.toString()}',
         );
       }
     }
@@ -1106,19 +1096,17 @@ class ChatDetailPageState extends State<ChatDetailPage> {
       context: context,
       builder:
           (context) => AlertDialog(
-            title: Text('Desbloquear a ${widget.username}'),
-            content: const Text(
-              'Si desbloqueas a este usuario, podrás volver a enviar y recibir mensajes. ¿Estás seguro?',
-            ),
+            title: Text('chat_confirm_unblock_title'.tr()),
+            content: Text('chat_confirm_unblock_message'.tr()),
             actions: [
               TextButton(
                 onPressed: () => Navigator.of(context).pop(false),
-                child: const Text('Cancelar'),
+                child: Text('cancel'.tr()),
               ),
               TextButton(
                 onPressed: () => Navigator.of(context).pop(true),
                 style: TextButton.styleFrom(foregroundColor: Colors.green),
-                child: const Text('Desbloquear'),
+                child: Text('chat_unblock_user'.tr()),
               ),
             ],
           ),
@@ -1133,14 +1121,11 @@ class ChatDetailPageState extends State<ChatDetailPage> {
     final user = _authService.getCurrentUser();
 
     if (user == null || user.displayName == null) {
-      _notificationService.showError(
-        context,
-        'No se pudo identificar tu usuario. Por favor, inicia sesión nuevamente.',
-      );
+      _notificationService.showError(context, 'cant_identify_user'.tr());
       return;
     }
 
-    _showProgressSnackbar('Desbloqueando usuario...');
+    _showProgressSnackbar('unblocking_user'.tr());
 
     try {
       // Usar UserBlockService que ahora envía directamente por WebSocket
@@ -1161,13 +1146,10 @@ class ChatDetailPageState extends State<ChatDetailPage> {
 
           _notificationService.showSuccess(
             context,
-            'Has desbloqueado a ${widget.username}',
+            '${'reach'.tr()} ${widget.username}',
           );
         } else {
-          _notificationService.showError(
-            context,
-            'No se pudo desbloquear al usuario. Inténtalo de nuevo más tarde.',
-          );
+          _notificationService.showError(context, 'cantreach'.tr());
         }
       }
     } catch (e) {
@@ -1175,7 +1157,7 @@ class ChatDetailPageState extends State<ChatDetailPage> {
         ScaffoldMessenger.of(context).hideCurrentSnackBar();
         _notificationService.showError(
           context,
-          'Error al desbloquear usuario: ${e.toString()}',
+          'error_unblock_user'.tr(args: [e.toString()]),
         );
       }
     }

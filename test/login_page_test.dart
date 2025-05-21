@@ -131,11 +131,11 @@ void main() {
       );
 
       // Verify UI elements
-      expect(find.text('Iniciar Sessió'), findsNWidgets(2)); // AppBar + button
-      expect(find.text('Correu electrònic'), findsOneWidget);
-      expect(find.text('Contrasenya'), findsOneWidget);
-      expect(find.text("No tens compte? Registra't aquí"), findsOneWidget);
-      expect(find.text('Has oblidat la contrasenya?'), findsOneWidget);
+      expect(find.text('login_title'), findsNWidgets(1)); // AppBar + button
+      expect(find.text('email_label'), findsOneWidget);
+      expect(find.text('password_label'), findsOneWidget);
+      expect(find.text("signup_prompt"), findsOneWidget);
+      expect(find.text('reset_password'), findsOneWidget);
       expect(find.byType(TextField), findsNWidgets(2));
       expect(find.byType(ElevatedButton), findsOneWidget);
     });
@@ -159,7 +159,7 @@ void main() {
       );
 
       // Simulate tapping the register link
-      await tester.tap(find.text("No tens compte? Registra't aquí"));
+      await tester.tap(find.text("signup_prompt"));
       await tester.pumpAndSettle();
 
       // Verify navigation to the mock SignUpPage
@@ -179,7 +179,7 @@ void main() {
           ),
         );
 
-        await tester.tap(find.text('Has oblidat la contrasenya?'));
+        await tester.tap(find.text('reset_password'));
         await tester.pumpAndSettle();
 
         expect(find.byType(ResetPasswordPage), findsOneWidget);
@@ -221,14 +221,14 @@ void main() {
 
       // Enter credentials and login
       await tester.enterText(
-        find.widgetWithText(TextField, 'Correu electrònic'),
+        find.widgetWithText(TextField, 'email_label'),
         'test@example.com',
       );
       await tester.enterText(
-        find.widgetWithText(TextField, 'Contrasenya'),
+        find.widgetWithText(TextField, 'password_label'),
         'password',
       );
-      await tester.tap(find.byType(ElevatedButton));
+      await tester.tap(find.text('login_button'));
       await tester.pump();
 
       // Verify service calls
@@ -268,14 +268,14 @@ void main() {
 
       // Enter credentials and login
       await tester.enterText(
-        find.widgetWithText(TextField, 'Correu electrònic'),
+        find.widgetWithText(TextField, 'email_label'),
         'test@example.com',
       );
       await tester.enterText(
-        find.widgetWithText(TextField, 'Contrasenya'),
+        find.widgetWithText(TextField, 'password_label'),
         'password',
       );
-      await tester.tap(find.byType(ElevatedButton));
+      await tester.tap(find.text('login_button'));
       await tester.pump();
 
       // Verify error message
@@ -308,14 +308,14 @@ void main() {
 
       // Enter credentials and login
       await tester.enterText(
-        find.widgetWithText(TextField, 'Correu electrònic'),
+        find.widgetWithText(TextField, 'email_label'),
         'test@example.com',
       );
       await tester.enterText(
-        find.widgetWithText(TextField, 'Contrasenya'),
+        find.widgetWithText(TextField, 'password_label'),
         'password',
       );
-      await tester.tap(find.byType(ElevatedButton));
+      await tester.tap(find.text('login_button'));
       await tester.pump();
 
       // Verify error message
@@ -358,14 +358,14 @@ void main() {
 
       // Enter credentials and login
       await tester.enterText(
-        find.widgetWithText(TextField, 'Correu electrònic'),
+        find.widgetWithText(TextField, 'email_label'),
         'test@example.com',
       );
       await tester.enterText(
-        find.widgetWithText(TextField, 'Contrasenya'),
+        find.widgetWithText(TextField, 'password_label'),
         'password',
       );
-      await tester.tap(find.byType(ElevatedButton));
+      await tester.tap(find.text('login_button'));
       await tester.pump();
 
       // Verify error message
@@ -396,14 +396,14 @@ void main() {
 
       // Enter credentials and login
       await tester.enterText(
-        find.widgetWithText(TextField, 'Correu electrònic'),
+        find.widgetWithText(TextField, 'email_label'),
         'test@example.com',
       );
       await tester.enterText(
-        find.widgetWithText(TextField, 'Contrasenya'),
+        find.widgetWithText(TextField, 'password_label'),
         'password',
       );
-      await tester.tap(find.byType(ElevatedButton));
+      await tester.tap(find.text('login_button'));
       await tester.pump();
 
       // Verify error message

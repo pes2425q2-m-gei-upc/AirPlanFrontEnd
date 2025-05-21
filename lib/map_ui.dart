@@ -5,6 +5,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter_map/flutter_map.dart';
 import 'package:latlong2/latlong.dart';
 import 'package:flutter_map_compass/flutter_map_compass.dart';
+import 'package:easy_localization/easy_localization.dart';
 
 class MapUI extends StatelessWidget {
   final MapController mapController;
@@ -171,7 +172,7 @@ class MapUI extends StatelessWidget {
       context: context,
       builder: (context) {
         return AlertDialog(
-          title: Text('Activities at this location'),
+          title: Text(tr('activities_at_location')),
           content: SizedBox(
             width: double.maxFinite,
             child: ListView.builder(
@@ -180,7 +181,7 @@ class MapUI extends StatelessWidget {
               itemBuilder: (context, index) {
                 final activity = activities[index];
                 return ListTile(
-                  title: Text(activity['nom'] ?? 'Unnamed activity'),
+                  title: Text(activity['nom'] ?? tr('unnamed_activity')),
                   onTap: () {
                     Navigator.pop(context);
                     onActivityTap(activity);
@@ -192,7 +193,7 @@ class MapUI extends StatelessWidget {
           actions: [
             TextButton(
               onPressed: () => Navigator.pop(context),
-              child: Text('Close'),
+              child: Text(tr('close')),
             ),
           ],
         );

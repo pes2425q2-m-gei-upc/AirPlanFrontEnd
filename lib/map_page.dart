@@ -8,7 +8,6 @@ import 'package:airplan/transit_service.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_map/flutter_map.dart';
 import 'package:geolocator/geolocator.dart';
-import 'package:intl/intl.dart';
 import 'package:latlong2/latlong.dart';
 import 'air_quality.dart';
 import 'form_dialog.dart';
@@ -20,6 +19,7 @@ import 'package:airplan/services/auth_service.dart';
 import 'package:sensors_plus/sensors_plus.dart';
 import 'dart:math' as math;
 import 'dart:math' show log, ln2, min;
+import 'package:easy_localization/easy_localization.dart';
 
 class MapPage extends StatefulWidget {
   final AuthService authService;
@@ -126,7 +126,7 @@ class MapPageState extends State<MapPage> {
       // Ya tiene comprobación mounted
       final actualContext = context;
       if (actualContext.mounted) {
-        NotificationService().showError(actualContext, "Error al obtenir dades de qualitat de l'aire: ${e.toString()}");
+        NotificationService().showError(actualContext, tr('error_fetch_air_quality', args: [e.toString()]));
       }
     }
   }
@@ -179,7 +179,7 @@ class MapPageState extends State<MapPage> {
     if (!serviceEnabled) {
       final actualContext = context;
       if (actualContext.mounted) {
-        NotificationService().showInfo(actualContext, "Els serveis d'ubicació están desactivats. Activa'ls per continuar.");
+        NotificationService().showInfo(actualContext, tr('location_services_disabled'));
       }
       return;
     }
@@ -191,7 +191,7 @@ class MapPageState extends State<MapPage> {
       if (permission == LocationPermission.denied) {
         final actualContext = context;
         if (actualContext.mounted) {
-          NotificationService().showInfo(actualContext, "No s'ha concedit permís d'ubicació. Activa'l per poder obtenir totes les funcionalitats.");
+          NotificationService().showInfo(actualContext, tr('location_permissions_denied'));
         }
         return;
       }
@@ -200,7 +200,7 @@ class MapPageState extends State<MapPage> {
     if (permission == LocationPermission.deniedForever) {
       final actualContext = context;
       if (actualContext.mounted) {
-        NotificationService().showInfo(actualContext, "Els permisos d'ubicació estan denegats permanentment. Activa'ls manualment per poder obtenir totes les funcionalitats.");
+        NotificationService().showInfo(actualContext, tr('location_permissions_permanently_denied'));
       }
       return;
     }
@@ -219,7 +219,7 @@ class MapPageState extends State<MapPage> {
     } catch (e) {
       final actualContext = context;
       if (actualContext.mounted) {
-        NotificationService().showError(actualContext, "Error en obtenir la ubicació: ${e.toString()}");
+        NotificationService().showError(actualContext, tr('failed_fetch_location', args: [e.toString()]));
       }
     }
   }
@@ -298,9 +298,7 @@ class MapPageState extends State<MapPage> {
       if (actualContext.mounted) {
         ScaffoldMessenger.of(actualContext).showSnackBar(
           SnackBar(
-            content: Text(
-              "Error al obtenir les rutes de l'usuari: ${e.toString()}",
-            ),
+            content: Text('${'error_fetch_user_routes'.tr()}: ${e.toString()}'),
           ),
         );
       }
@@ -348,7 +346,9 @@ class MapPageState extends State<MapPage> {
       if (actualContext.mounted) {
         ScaffoldMessenger.of(actualContext).showSnackBar(
           SnackBar(
-            content: Text('Error al obtenir detalls del lloc: ${e.toString()}'),
+            content: Text(
+              '${'error_fetch_place_details'.tr()} ${e.toString()}',
+            ),
           ),
         );
       }
@@ -364,33 +364,33 @@ class MapPageState extends State<MapPage> {
       context: context,
       builder: (BuildContext context) {
         return AlertDialog(
-          title: const Text('Selecciona el mode de transport'),
+          title: Text('select_transport_mode'.tr()),
           content: Column(
             mainAxisSize: MainAxisSize.min,
             children: [
               ListTile(
                 leading: const Icon(Icons.directions_walk),
-                title: const Text('A peu'),
+                title: Text('walking'.tr()),
                 onTap: () => Navigator.pop(context, 3),
               ),
               ListTile(
                 leading: const Icon(Icons.pedal_bike),
-                title: const Text('Bicicleta'),
+                title: Text('bicycle'.tr()),
                 onTap: () => Navigator.pop(context, 4),
               ),
               ListTile(
                 leading: const Icon(Icons.directions_bus),
-                title: const Text('Transport públic'),
+                title: Text('public_transport'.tr()),
                 onTap: () => Navigator.pop(context, 10),
               ),
               ListTile(
                 leading: const Icon(Icons.directions_car),
-                title: const Text('Cotxe'),
+                title: Text('car'.tr()),
                 onTap: () => Navigator.pop(context, 1),
               ),
               ListTile(
                 leading: const Icon(Icons.directions_bike),
-                title: const Text('Moto'),
+                title: Text('motorcycle'.tr()),
                 onTap: () => Navigator.pop(context, 2),
               ),
             ],
@@ -426,12 +426,12 @@ class MapPageState extends State<MapPage> {
       });
       final actualContext = context;
       if (actualContext.mounted) {
-        NotificationService().showSuccess(actualContext, "Ruta calculada correctament.");
+        NotificationService().showSuccess(actualContext, tr('route_calculated_success'));
       }
     } catch (e) {
       final actualContext = context;
       if (actualContext.mounted) {
-        NotificationService().showError(actualContext, 'Error al calcular la ruta: ${e.toString()}');
+        NotificationService().showError(actualContext, tr('route_calculation_error', args: [e.toString()]));
       }
     }
   }
@@ -484,9 +484,9 @@ class MapPageState extends State<MapPage> {
           (context) => ListView(
             children: [
               ListTile(
-                title: Text('Dades de la ruta'),
+                title: Text('route_details'.tr()),
                 subtitle: Text(
-                  'Duració: ${transitRoute.duration} min - Distància: ${transitRoute.distance} m - Sortida: ${DateFormat.Hm().format(transitRoute.departure)} - Arribada: ${DateFormat.Hm().format(transitRoute.arrival)}',
+                  '${'route_duration'.tr()} ${transitRoute.duration} min - ${'route_distance'.tr()} ${transitRoute.distance} m - ${'route_departure'.tr()} ${DateFormat.Hm().format(transitRoute.departure)} - ${'route_arrival'.tr()} ${DateFormat.Hm().format(transitRoute.arrival)}',
                 ),
               ),
               const Divider(),
@@ -597,9 +597,9 @@ class MapPageState extends State<MapPage> {
                       ),
                     ),
                     const SizedBox(height: 10),
-                    const Text(
-                      'Selected Location',
-                      style: TextStyle(
+                    Text(
+                      'selected_location'.tr(),
+                      style: const TextStyle(
                         fontSize: 18,
                         fontWeight: FontWeight.bold,
                       ),
@@ -621,7 +621,7 @@ class MapPageState extends State<MapPage> {
                               );
                               savedLocations[selectedLocation] = placeDetails;
                             },
-                            child: const Text("Crea Activitat"),
+                            child: Text('create_activity'.tr()),
                           ),
                           const SizedBox(width: 10),
                           ElevatedButton(
@@ -674,7 +674,7 @@ class MapPageState extends State<MapPage> {
                               });
                               Navigator.pop(context);
                             },
-                            child: const Text("Guardar marcador"),
+                            child: Text('save_marker'.tr()),
                           ),
                           const SizedBox(width: 10),
                           ElevatedButton(
@@ -686,7 +686,7 @@ class MapPageState extends State<MapPage> {
                                 mapService,
                               );
                             },
-                            child: const Text("Com Arribar"),
+                            child: Text('get_directions'.tr()),
                           ),
                         ],
                       ),
@@ -706,7 +706,7 @@ class MapPageState extends State<MapPage> {
       context: context,
       builder: (BuildContext context) {
         return AlertDialog(
-          title: Text('Enter Details'),
+          title: Text(tr('enter_details')),
           content: FormDialog(
             initialLocation: '${location.latitude},${location.longitude}',
             initialPlaceDetails: placeDetails,
@@ -725,16 +725,24 @@ class MapPageState extends State<MapPage> {
       try {
         await widget.activityService.sendActivityToBackend(result);
         if (mounted) {
-          ScaffoldMessenger.of(
-            context,
-          ).showSnackBar(SnackBar(content: Text('Actividad creada con éxito')));
+          ScaffoldMessenger.of(context).showSnackBar(
+            SnackBar(content: Text(tr('activity_created_success'))),
+          );
         }
         fetchActivities();
       } catch (e) {
+        String errorMessage = e.toString();
+        if (errorMessage.contains("inapropiats")) {
+          errorMessage = "inappropiat_message".tr();
+        }
         if (mounted) {
-          ScaffoldMessenger.of(
-            context,
-          ).showSnackBar(SnackBar(content: Text(e.toString())));
+          ScaffoldMessenger.of(context).showSnackBar(
+            SnackBar(
+              content: Text(
+                tr('${'error_creating_activity'.tr()} $errorMessage'),
+              ),
+            ),
+          );
         }
       }
     }
@@ -803,7 +811,7 @@ class MapPageState extends State<MapPage> {
                     ),
                     const SizedBox(height: 8),
                     Text(
-                      'Creador: ${activity['creador'] ?? ''}',
+                      '${'creador'.tr()}: ${activity['creador'] ?? ''}',
                       style: const TextStyle(fontSize: 16),
                     ),
                   ],
@@ -825,7 +833,7 @@ class MapPageState extends State<MapPage> {
                         mapService,
                       );
                     },
-                    child: const Text("Com Arribar"),
+                    child: Text('get_directions'.tr()),
                   ),
                   // Favorite button
                   if (currentUser != null) // Only show if user is logged in
@@ -839,8 +847,8 @@ class MapPageState extends State<MapPage> {
                           await removeActivityFromFavorites(activity['id']);
                           if (context.mounted) {
                             ScaffoldMessenger.of(context).showSnackBar(
-                              const SnackBar(
-                                content: Text('Removed from favorites'),
+                              SnackBar(
+                                content: Text(tr('removed_from_favorites')),
                               ),
                             );
                           }
@@ -848,9 +856,7 @@ class MapPageState extends State<MapPage> {
                           await addActivityToFavorites(activity['id']);
                           if (context.mounted) {
                             ScaffoldMessenger.of(context).showSnackBar(
-                              const SnackBar(
-                                content: Text('Added to favorites'),
-                              ),
+                              SnackBar(content: Text(tr('added_to_favorites'))),
                             );
                           }
                         }
@@ -892,14 +898,12 @@ class MapPageState extends State<MapPage> {
                             context: context,
                             builder: (context) {
                               return AlertDialog(
-                                title: const Text('Cancelar solicitud'),
-                                content: const Text(
-                                  '¿Estás seguro de que quieres cancelar tu solicitud?',
-                                ),
+                                title: Text('cancel_request'.tr()),
+                                content: Text('cancel_request_message'.tr()),
                                 actions: [
                                   TextButton(
                                     onPressed: () => Navigator.pop(context),
-                                    child: const Text('Cancelar'),
+                                    child: Text('cancel'.tr()),
                                   ),
                                   TextButton(
                                     onPressed: () async {
@@ -913,16 +917,16 @@ class MapPageState extends State<MapPage> {
                                         ScaffoldMessenger.of(
                                           context,
                                         ).showSnackBar(
-                                          const SnackBar(
+                                          SnackBar(
                                             content: Text(
-                                              'Solicitud cancelada correctamente.',
+                                              'request_canceled_success'.tr(),
                                             ),
                                           ),
                                         );
                                       }
                                     },
-                                    child: const Text(
-                                      'Confirmar',
+                                    child: Text(
+                                      'confirm'.tr(),
                                       style: TextStyle(color: Colors.red),
                                     ),
                                   ),
@@ -958,7 +962,7 @@ class MapPageState extends State<MapPage> {
           mapService,
         );
       },
-      child: const Text("Com Arribar"),
+      child: Text('get_directions'.tr()),
     );
   }
 
@@ -991,7 +995,7 @@ class MapPageState extends State<MapPage> {
       context: parentContext,
       builder: (BuildContext dialogContext) {
         return AlertDialog(
-          title: Text('Editar actividad'),
+          title: Text('edit_activity'.tr()),
           content: Form(
             key: formKey,
             child: SingleChildScrollView(
@@ -1000,40 +1004,40 @@ class MapPageState extends State<MapPage> {
                 children: [
                   TextFormField(
                     controller: titleController,
-                    decoration: InputDecoration(labelText: 'Título'),
+                    decoration: InputDecoration(labelText: 'title'.tr()),
                     validator: (value) {
                       if (value == null || value.isEmpty) {
-                        return 'Por favor, ingresa un título';
+                        return 'please_title'.tr();
                       }
                       return null;
                     },
                   ),
                   TextFormField(
                     controller: descriptionController,
-                    decoration: InputDecoration(labelText: 'Descripción'),
+                    decoration: InputDecoration(labelText: 'description'.tr()),
                     validator: (value) {
                       if (value == null || value.isEmpty) {
-                        return 'Por favor, ingresa una descripción';
+                        return 'please_description'.tr();
                       }
                       return null;
                     },
                   ),
                   TextFormField(
                     controller: startDateController,
-                    decoration: InputDecoration(labelText: 'Fecha de inicio'),
+                    decoration: InputDecoration(labelText: 'start_date'.tr()),
                     validator: (value) {
                       if (value == null || value.isEmpty) {
-                        return 'Por favor, ingresa una fecha de inicio';
+                        return 'please_start_date'.tr();
                       }
                       return null;
                     },
                   ),
                   TextFormField(
                     controller: endDateController,
-                    decoration: InputDecoration(labelText: 'Fecha de fin'),
+                    decoration: InputDecoration(labelText: 'end_date'.tr()),
                     validator: (value) {
                       if (value == null || value.isEmpty) {
-                        return 'Por favor, ingresa una fecha de fin';
+                        return 'please_end_date'.tr();
                       }
                       return null;
                     },
@@ -1059,10 +1063,12 @@ class MapPageState extends State<MapPage> {
                         selectedLocation = value!;
                       });
                     },
-                    decoration: InputDecoration(labelText: 'Selected Location'),
+                    decoration: InputDecoration(
+                      labelText: 'select_location'.tr(),
+                    ),
                     validator: (value) {
                       if (value == null) {
-                        return 'Please select a location';
+                        return 'please_select_location'.tr();
                       }
                       return null;
                     },
@@ -1102,7 +1108,7 @@ class MapPageState extends State<MapPage> {
                       if (!parentContext.mounted) return;
                       ScaffoldMessenger.of(parentContext).showSnackBar(
                         SnackBar(
-                          content: Text('Actividad actualizada con éxito'),
+                          content: Text('activity_updated_success'.tr()),
                         ),
                       );
                     }
@@ -1111,21 +1117,19 @@ class MapPageState extends State<MapPage> {
                     if (mounted) {
                       // Get only the part after the last ': '
                       final parts = e.toString().split(': ');
-                      final String msg =
-                          parts.isNotEmpty ? parts.last : e.toString();
+                      String msg = parts.isNotEmpty ? parts.last : e.toString();
+                      if (msg.contains("inapropiats")) {
+                        msg = "inappropiat_message".tr();
+                      }
                       if (!parentContext.mounted) return;
-                      ScaffoldMessenger.of(parentContext).showSnackBar(
-                        SnackBar(
-                          content: Text(
-                            'Error al actualizar la actividad: $msg',
-                          ),
-                        ),
-                      );
+                      ScaffoldMessenger.of(
+                        parentContext,
+                      ).showSnackBar(SnackBar(content: Text(msg)));
                     }
                   }
                 }
               },
-              child: Text('Guardar'),
+              child: Text('save'.tr()),
             ),
           ],
         );
@@ -1139,16 +1143,14 @@ class MapPageState extends State<MapPage> {
       context: context,
       builder: (context) {
         return AlertDialog(
-          title: Text('Eliminar actividad'),
-          content: Text(
-            '¿Estás seguro de que quieres eliminar esta actividad?',
-          ),
+          title: Text(tr('confirm_delete_activity_title')),
+          content: Text(tr('confirm_delete_activity_content')),
           actions: [
             TextButton(
               onPressed: () {
                 Navigator.pop(context); // Cierra el diálogo
               },
-              child: Text('Cancelar'),
+              child: Text(tr('cancel')),
             ),
             TextButton(
               onPressed: () async {
@@ -1162,9 +1164,7 @@ class MapPageState extends State<MapPage> {
                   );
                   if (context.mounted) {
                     ScaffoldMessenger.of(context).showSnackBar(
-                      SnackBar(
-                        content: Text("Actividad eliminada correctament."),
-                      ),
+                      SnackBar(content: Text(tr('activity_deleted_success'))),
                     );
                   }
                 } catch (e) {
@@ -1172,14 +1172,14 @@ class MapPageState extends State<MapPage> {
                     ScaffoldMessenger.of(context).showSnackBar(
                       SnackBar(
                         content: Text(
-                          "Error al eliminar l'activitat: ${e.toString()}",
+                          tr('activity_delete_error', args: [e.toString()]),
                         ),
                       ),
                     );
                   }
                 }
               },
-              child: Text('Eliminar', style: TextStyle(color: Colors.red)),
+              child: Text(tr('delete'), style: TextStyle(color: Colors.red)),
             ),
           ],
         );
@@ -1233,7 +1233,7 @@ class MapPageState extends State<MapPage> {
   Future<bool> isActivityFavorite(int activityId) async {
     final String? username = widget.authService.getCurrentUsername();
     if (username == null) {
-      throw Exception('User not logged in');
+      throw Exception('user_not_logged_in'.tr());
     }
     return await widget.activityService.isActivityFavorite(
       activityId,
@@ -1244,7 +1244,7 @@ class MapPageState extends State<MapPage> {
   Future<void> addActivityToFavorites(int activityId) async {
     final String? username = widget.authService.getCurrentUsername();
     if (username == null) {
-      throw Exception('User not logged in');
+      throw Exception('user_not_logged_in'.tr());
     }
     await widget.activityService.addActivityToFavorites(activityId, username);
   }
@@ -1252,7 +1252,7 @@ class MapPageState extends State<MapPage> {
   Future<void> removeActivityFromFavorites(int activityId) async {
     final String? username = widget.authService.getCurrentUsername();
     if (username == null) {
-      throw Exception('User not logged in');
+      throw Exception('user_not_logged_in'.tr());
     }
     await widget.activityService.removeActivityFromFavorites(
       activityId,
@@ -1265,9 +1265,7 @@ class MapPageState extends State<MapPage> {
       final String? username = widget.authService.getCurrentUsername();
       if (username == null) {
         ScaffoldMessenger.of(context).showSnackBar(
-          const SnackBar(
-            content: Text('Debes iniciar sesión para ver tus favoritos'),
-          ),
+          SnackBar(content: Text('login_required_to_view_favorites'.tr())),
         );
         return;
       }
@@ -1286,17 +1284,15 @@ class MapPageState extends State<MapPage> {
               crossAxisAlignment: CrossAxisAlignment.start,
               mainAxisSize: MainAxisSize.min,
               children: [
-                const Text(
-                  'Actividades favoritas',
+                Text(
+                  tr('favorite_activities'),
                   style: TextStyle(fontSize: 20, fontWeight: FontWeight.bold),
                 ),
                 const SizedBox(height: 16),
                 Expanded(
                   child:
                       favoriteActivities.isEmpty
-                          ? const Center(
-                            child: Text('No tienes actividades favoritas'),
-                          )
+                          ? Center(child: Text('no_favorites_found'.tr()))
                           : ListView.builder(
                             itemCount: favoriteActivities.length,
                             itemBuilder: (context, index) {
@@ -1304,7 +1300,7 @@ class MapPageState extends State<MapPage> {
                               return ListTile(
                                 title: Text(activity['nom'] ?? 'Sin nombre'),
                                 subtitle: Text(
-                                  'Creador: ${activity['creador'] ?? 'Unknown'}',
+                                  '${'creador'.tr()}: ${activity['creador'] ?? 'Unknown'}',
                                 ),
                                 trailing: IconButton(
                                   icon: const Icon(
@@ -1321,9 +1317,9 @@ class MapPageState extends State<MapPage> {
                                       ScaffoldMessenger.of(
                                         context,
                                       ).showSnackBar(
-                                        const SnackBar(
+                                        SnackBar(
                                           content: Text(
-                                            'Removed from favorites',
+                                            tr('removed_from_favorites'),
                                           ),
                                         ),
                                       );
@@ -1346,7 +1342,9 @@ class MapPageState extends State<MapPage> {
     } catch (e) {
       if (context.mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(content: Text('Error loading favorites: ${e.toString()}')),
+          SnackBar(
+            content: Text(tr('error_loading_favorites', args: [e.toString()])),
+          ),
         );
       }
     }
@@ -1360,15 +1358,15 @@ class MapPageState extends State<MapPage> {
     try {
       await solicitudsService.sendSolicitud(activityId, requester, host);
       if (mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          const SnackBar(content: Text('Solicitud enviada correctamente.')),
-        );
+        ScaffoldMessenger.of(
+          context,
+        ).showSnackBar(SnackBar(content: Text(tr('request_send_success'))));
       }
     } catch (e) {
       if (mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
           SnackBar(
-            content: Text('Error al enviar la solicitud: ${e.toString()}'),
+            content: Text(tr('request_send_error', args: [e.toString()])),
           ),
         );
       }
@@ -1381,12 +1379,12 @@ class MapPageState extends State<MapPage> {
       id = await mapService.sendRouteToBackend(route);
       final actualContext = context;
       if (actualContext.mounted) {
-        NotificationService().showSuccess(actualContext, 'Ruta enviada correctament.');
+        NotificationService().showSuccess(actualContext, tr('route_sent_success'));
       }
     } catch (e) {
       final actualContext = context;
       if (actualContext.mounted) {
-        NotificationService().showError(actualContext, 'Error al enviar la ruta: ${e.toString()}');
+        NotificationService().showError(actualContext, 'route_sent_error'.tr());
       }
     }
     return id;
@@ -1397,12 +1395,12 @@ class MapPageState extends State<MapPage> {
       await mapService.updateRouteInBackend(route);
       final actualContext = context;
       if (actualContext.mounted) {
-        NotificationService().showSuccess(actualContext, 'Ruta actualitzada correctament.');
+        NotificationService().showSuccess(actualContext, tr('route_updated_success'));
       }
     } catch (e) {
       final actualContext = context;
       if (actualContext.mounted) {
-        NotificationService().showError(actualContext, 'Error al actualitzar la ruta: ${e.toString()}');
+        NotificationService().showError(actualContext, tr('route_updated_error', args: [e.toString()]));
       }
     }
   }
@@ -1477,20 +1475,18 @@ class MapPageState extends State<MapPage> {
       context: context,
       builder: (BuildContext context) {
         return AlertDialog(
-          title: const Text(
-            'Selecciona si vols arribar o sortir a una hora concreta',
-          ),
+          title: Text('select_time_option'.tr()),
           content: Column(
             mainAxisSize: MainAxisSize.min,
             children: [
               ListTile(
                 leading: const Icon(Icons.access_time),
-                title: const Text('Hora de sortida'),
+                title: Text('departure_time'.tr()),
                 onTap: () => Navigator.pop(context, 'departure'),
               ),
               ListTile(
                 leading: const Icon(Icons.access_time_filled),
-                title: const Text('Hora d\'arribada'),
+                title: Text("arrival_time".tr()),
                 onTap: () => Navigator.pop(context, 'arrival'),
               ),
             ],
@@ -1550,12 +1546,12 @@ class MapPageState extends State<MapPage> {
             });
             final actualContext = context;
             if (actualContext.mounted) {
-              NotificationService().showSuccess(actualContext, "Ruta calculada correctament.");
+              NotificationService().showSuccess(actualContext, "route_calculated_success".tr());
             }
           } catch (e) {
             final actualContext = context;
             if (actualContext.mounted) {
-              NotificationService().showError(actualContext, 'Error al calcular la ruta: ${e.toString()}');
+              NotificationService().showError(actualContext, '${'route_calculation_error'.tr()} ${e.toString()}');
             }
           }
         }
@@ -1581,7 +1577,7 @@ class MapPageState extends State<MapPage> {
                   children: const [
                     CircularProgressIndicator(),
                     SizedBox(height: 16),
-                    Text('Carregant rutes...', style: TextStyle(fontSize: 18)),
+                    Text('loading_routes', style: TextStyle(fontSize: 18)),
                   ],
                 ),
               );
@@ -1589,7 +1585,7 @@ class MapPageState extends State<MapPage> {
             if (savedRoutes.isEmpty) {
               return Center(
                 child: Text(
-                  'No tens cap ruta guardada',
+                  'no_routes_saved'.tr(),
                   style: TextStyle(fontSize: 20, fontWeight: FontWeight.bold),
                 ),
               );
@@ -1647,7 +1643,7 @@ class MapPageState extends State<MapPage> {
                     child: Padding(
                       padding: const EdgeInsets.all(8.0),
                       child: Text(
-                        'Rutes a activitats',
+                        'routes_activity'.tr(),
                         style: TextStyle(
                           fontSize: 18,
                           fontWeight: FontWeight.bold,
@@ -1666,7 +1662,7 @@ class MapPageState extends State<MapPage> {
                     child: Padding(
                       padding: const EdgeInsets.all(8.0),
                       child: Text(
-                        'Altres rutes',
+                        'other_routes'.tr(),
                         style: TextStyle(
                           fontSize: 18,
                           fontWeight: FontWeight.bold,
@@ -1740,7 +1736,7 @@ class MapPageState extends State<MapPage> {
     return ListTile(
       title: Text(title),
       subtitle: Text(
-        'Duració: ${route.duration} min - Distancia: ${route.distance} m',
+        '${'route_duration_distance'.tr()} ${route.duration} min - ${'route_distance'.tr()} ${route.distance} m',
       ),
       trailing: Row(
         mainAxisSize: MainAxisSize.min,
@@ -1769,10 +1765,8 @@ class MapPageState extends State<MapPage> {
                 context: context,
                 builder: (context) {
                   return AlertDialog(
-                    title: Text('Confirm Deletion'),
-                    content: Text(
-                      'Segur que vols eliminar la ruta seleccionada?',
-                    ),
+                    title: Text('confirm_deletion'.tr()),
+                    content: Text('sure_delete_route'.tr()),
                     actions: [
                       TextButton(
                         onPressed: () {
@@ -1812,7 +1806,7 @@ class MapPageState extends State<MapPage> {
       await mapService.deleteRouteInBackend(id);
       final actualContext = context;
       if (actualContext.mounted) {
-        NotificationService().showSuccess(actualContext, 'Ruta eliminada correctament.');
+        NotificationService().showSuccess(actualContext, 'route_deleted_success'.tr());
       }
       savedRoutes.remove(id);
       setState(() {
@@ -1821,7 +1815,7 @@ class MapPageState extends State<MapPage> {
     } catch (e) {
       final actualContext = context;
       if (actualContext.mounted) {
-        NotificationService().showError(actualContext, 'Error al eliminar la ruta: ${e.toString()}');
+        NotificationService().showError(actualContext, '${'route_delete_error'.tr()} $e');
       }
     }
   }
@@ -1892,7 +1886,7 @@ class MapPageState extends State<MapPage> {
         },
         onError: (error) {
           if (mounted) {
-            NotificationService().showError(context, "Error al obtenir la localització: $error");
+            NotificationService().showError(context, '${'error_getting_location'.tr()}$error');
           }
           _stopNavigation();
         }
@@ -1908,7 +1902,7 @@ class MapPageState extends State<MapPage> {
       isNavigating = false;
     });
     if (mounted) {
-      NotificationService().showInfo(context, "S'ha aturat la navegació.");
+      NotificationService().showInfo(context, 'navigation_stopped'.tr());
     }
   }
 
@@ -2136,10 +2130,7 @@ class MapPageState extends State<MapPage> {
             children: [
               Icon(Icons.warning, color: Colors.yellow),
               SizedBox(width: 8),
-              Text(
-                'Desviació de la ruta! Recalculant...',
-                style: TextStyle(fontSize: 16),
-              ),
+              Text('recalculating_route'.tr(), style: TextStyle(fontSize: 16)),
             ],
           ),
           duration: Duration(seconds: 3),
@@ -2172,7 +2163,7 @@ class MapPageState extends State<MapPage> {
       _updateRouteInBackend(currentRoute);
     } catch (e) {
       if (mounted) {
-        NotificationService().showError(context, "Error recalculant la ruta: ${e.toString()}");
+        NotificationService().showError(context, '${'error_recalculating_route'.tr()} $e');
       }
     }
   }
@@ -2208,17 +2199,17 @@ class MapPageState extends State<MapPage> {
       body: Stack(
         children: [
           map_ui.MapUI(
-              mapController: mapController,
-              currentPosition: currentPosition,
-              circles: showAirQualityCircles ? circles : [],
-              onMapTapped: _onMapTapped,
-              activities: activities,
-              onActivityTap: _showActivityDetails,
-              markers: markers,
-              route: currentRoute.value.fullRoute,
-              steps: currentRoute.value.steps,
-              userHeading: _showCompass ? _deviceHeading : null,
-              isNavigationMode: isNavigating,
+            mapController: mapController,
+            currentPosition: currentPosition,
+            circles: showAirQualityCircles ? circles : [],
+            onMapTapped: _onMapTapped,
+            activities: activities,
+            onActivityTap: _showActivityDetails,
+            markers: markers,
+            route: currentRoute.value.fullRoute,
+            steps: currentRoute.value.steps,
+            userHeading: _showCompass ? _deviceHeading : null,
+            isNavigationMode: isNavigating,
           ),
           Positioned(
             top: 10,
@@ -2378,10 +2369,9 @@ class MapPageState extends State<MapPage> {
                   _showFormWithLocation(savedLocations.keys.first, placeDetails);
                 } else {
                   ScaffoldMessenger.of(context).showSnackBar(
-                    const SnackBar(
+                    SnackBar(
                       content: Text(
-                        'No tens ubicacions guardades. Selecciona una ubicació abans de crear una activitat.',
-                      ),
+                          'no_ubication_saved'.tr()),
                     ),
                   );
                 }

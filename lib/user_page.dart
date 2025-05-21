@@ -13,6 +13,7 @@ import 'main.dart';
 import 'rating_page.dart';
 import 'package:airplan/solicituds_service.dart';
 import 'blocked_users_page.dart'; // Import para la página de usuarios bloqueados
+import 'package:easy_localization/easy_localization.dart';
 
 // Type definitions for function injection
 typedef GetUserRealNameFunc = Future<String> Function(String username);
@@ -44,9 +45,9 @@ class UserRequestsPageState extends State<UserRequestsPage> {
         widget.username,
       );
       if (!mounted) return;
-      ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(content: Text('Solicitud eliminada correctamente.')),
-      );
+      ScaffoldMessenger.of(
+        context,
+      ).showSnackBar(SnackBar(content: Text('request_removed'.tr())));
       setState(() {
         _requestsFuture = SolicitudsService().fetchUserRequests(
           widget.username,
@@ -55,7 +56,7 @@ class UserRequestsPageState extends State<UserRequestsPage> {
     } catch (e) {
       ScaffoldMessenger.of(context).showSnackBar(
         SnackBar(
-          content: Text('Error al eliminar la solicitud: ${e.toString()}'),
+          content: Text('request_error_removing'.tr(args: [e.toString()])),
         ),
       );
     }
@@ -64,7 +65,7 @@ class UserRequestsPageState extends State<UserRequestsPage> {
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      appBar: AppBar(title: const Text("Mis Solicitudes")),
+      appBar: AppBar(title: Text("my_requests_title".tr())),
       body: FutureBuilder<List<Map<String, dynamic>>>(
         future: _requestsFuture,
         builder: (context, snapshot) {
@@ -73,7 +74,7 @@ class UserRequestsPageState extends State<UserRequestsPage> {
           } else if (snapshot.hasError) {
             return Center(child: Text('Error: ${snapshot.error}'));
           } else if (!snapshot.hasData || snapshot.data!.isEmpty) {
-            return const Center(child: Text('No has realizado solicitudes.'));
+            return Center(child: Text('my_requests_empty'.tr()));
           }
 
           final requests = snapshot.data!;
@@ -84,7 +85,7 @@ class UserRequestsPageState extends State<UserRequestsPage> {
               return ListTile(
                 title: Text(request['nom'] ?? 'Actividad sin nombre'),
                 subtitle: Text(
-                  'Creador: ${request['creador'] ?? 'Desconocido'}',
+                  '${'creador'.tr()}: ${request['creador'] ?? 'Desconocido'}',
                 ),
                 trailing: IconButton(
                   icon: const Icon(Icons.close, color: Colors.red),
@@ -138,7 +139,6 @@ class UserInfoCard extends StatelessWidget {
     required this.userLevel,
     required this.isLoading,
   });
-
   @override
   Widget build(BuildContext context) {
     return Card(
@@ -150,14 +150,14 @@ class UserInfoCard extends StatelessWidget {
           children: [
             _buildInfoListTile(
               icon: Icons.person,
-              title: 'Nombre',
+              title: 'user_name_label'.tr(),
               value: realName,
               isLoading: isLoading,
             ),
             const Divider(),
             _buildInfoListTile(
               icon: Icons.alternate_email,
-              title: 'Username',
+              title: 'user_username_label'.tr(),
               value: username,
               isLoading:
                   false, // Username comes directly from Firebase Auth, not loaded async here
@@ -165,7 +165,7 @@ class UserInfoCard extends StatelessWidget {
             const Divider(),
             _buildInfoListTile(
               icon: Icons.email,
-              title: 'Correo',
+              title: 'user_email_label'.tr(),
               value: email,
               isLoading: false, // Email comes directly from Firebase Auth
             ),
@@ -173,7 +173,7 @@ class UserInfoCard extends StatelessWidget {
               const Divider(),
               _buildInfoListTile(
                 icon: Icons.star,
-                title: 'Nivel',
+                title: 'user_level_label'.tr(),
                 value: '$userLevel',
                 isLoading: isLoading,
                 iconColor: Colors.amber,
@@ -391,7 +391,6 @@ class _UserPageState extends State<UserPage> {
         }
       },
       onDone: () {
-        debugPrint("WebSocket connection closed en UserPage");
         // Attempt to reconnect after a delay if mounted
         if (mounted) {
           Future.delayed(const Duration(seconds: 5), () {
@@ -408,15 +407,11 @@ class _UserPageState extends State<UserPage> {
   void _handleCriticalUpdate(bool isEmailUpdate, bool isPasswordUpdate) {
     String message = '';
     if (isEmailUpdate && isPasswordUpdate) {
-      message =
-          'Se han detectado cambios en tu correo y contraseña en otro dispositivo. Es necesario volver a iniciar sesión.';
+      message = tr('email_password_change_detected');
     } else if (isEmailUpdate) {
-      message =
-          'Se ha detectado un cambio de correo electrónico en otro dispositivo. Es necesario volver a iniciar sesión.';
+      message = tr('email_change_detected');
     } else {
-      // isPasswordUpdate
-      message =
-          'Se ha detectado un cambio de contraseña en otro dispositivo. Es necesario volver a iniciar sesión.';
+      message = tr('password_change_detected');
     }
 
     // Show info message and trigger logout/redirect
@@ -427,14 +422,13 @@ class _UserPageState extends State<UserPage> {
   void _handleNonCriticalUpdate(bool isNameUpdate, bool isPhotoUpdate) {
     if (!mounted) return;
 
-    String message = 'Tu perfil ha sido actualizado en otro dispositivo.';
+    String message = 'profile_updated_other_device'.tr();
     if (isNameUpdate && isPhotoUpdate) {
-      message =
-          'Tu nombre y foto de perfil han sido actualizados en otro dispositivo.';
+      message = tr('name_photo_updated_other_device');
     } else if (isNameUpdate) {
-      message = 'Tu nombre ha sido actualizado en otro dispositivo.';
+      message = tr('name_updated_other_device');
     } else if (isPhotoUpdate) {
-      message = 'Tu foto de perfil ha sido actualizada en otro dispositivo.';
+      message = tr('photo_updated_other_device');
     }
 
     final currentContext = context;
@@ -456,14 +450,17 @@ class _UserPageState extends State<UserPage> {
   // Handles account deletion initiated remotely via WebSocket
   void _handleAccountDeletedRemotely() {
     _showInfoAndLogout(
-      'Tu cuenta ha sido eliminada desde otro dispositivo. Serás redirigido a la pantalla de inicio de sesión.',
-      title: 'Cuenta Eliminada',
+      tr('account_deleted_remotely'),
+      title: tr('account_deleted_title'),
     );
   }
 
   // Shows an informational SnackBar and then initiates the logout process
-  void _showInfoAndLogout(String message, {String title = 'Cambio Detectado'}) {
+  void _showInfoAndLogout(String message, {String title = ''}) {
     if (!mounted) return;
+
+    // Use default title if not provided or empty
+    final displayTitle = title.isEmpty ? tr('change_detected_title') : title;
 
     final currentContext = context;
     ScaffoldMessenger.of(currentContext).showSnackBar(
@@ -479,7 +476,7 @@ class _UserPageState extends State<UserPage> {
       if (mounted) {
         // Use _handleSessionClose for unified logout logic
         _handleSessionClose(
-          title: title,
+          title: displayTitle,
           message: message, // Reuse message for dialog
           redirectToLogin: true,
           isRemoteAction: true, // Indicate this is due to a remote action
@@ -554,9 +551,8 @@ class _UserPageState extends State<UserPage> {
       if (mounted) {
         // Handle scenario where user becomes null unexpectedly
         _handleSessionClose(
-          title: 'Sesión Expirada',
-          message:
-              'Tu sesión ha expirado o no se pudo verificar. Por favor, inicia sesión nuevamente.',
+          title: tr('session_expired_title'),
+          message: tr('session_expired_message'),
           redirectToLogin: true,
           isRemoteAction: false,
         );
@@ -587,9 +583,9 @@ class _UserPageState extends State<UserPage> {
 
     // Use local _currentUser
     if (_currentUser == null || _email.isEmpty || _email == 'UsuarioSinEmail') {
-      ScaffoldMessenger.of(contextCaptured).showSnackBar(
-        const SnackBar(content: Text("No hay un usuario autenticado válido.")),
-      );
+      ScaffoldMessenger.of(
+        contextCaptured,
+      ).showSnackBar(SnackBar(content: Text("no_user_autenticated".tr())));
       return;
     }
 
@@ -601,20 +597,18 @@ class _UserPageState extends State<UserPage> {
       context: contextCaptured,
       builder:
           (dialogContext) => AlertDialog(
-            title: const Text("Eliminar cuenta"),
-            content: const Text(
-              "¿Estás seguro de que quieres eliminar tu cuenta? Esta acción no se puede deshacer.",
-            ),
+            title: Text(tr('confirm_delete_account_title')),
+            content: Text(tr('confirm_delete_account_message')),
             actions: [
               TextButton(
                 onPressed: () => Navigator.of(dialogContext).pop(false),
-                child: const Text("Cancelar"),
+                child: Text(tr('cancel')),
               ),
               TextButton(
                 onPressed: () => Navigator.of(dialogContext).pop(true),
-                child: const Text(
-                  "Eliminar",
-                  style: TextStyle(color: Colors.red),
+                child: Text(
+                  tr('delete'),
+                  style: const TextStyle(color: Colors.red),
                 ),
               ),
             ],
@@ -626,12 +620,12 @@ class _UserPageState extends State<UserPage> {
 
     // Show loading indicator
     ScaffoldMessenger.of(contextCaptured).showSnackBar(
-      const SnackBar(
+      SnackBar(
         content: Row(
           children: [
             CircularProgressIndicator(),
             SizedBox(width: 20),
-            Text("Eliminando cuenta..."),
+            Text("deleting_account".tr()),
           ],
         ),
         duration: Duration(seconds: 10), // Longer duration for deletion
@@ -651,27 +645,23 @@ class _UserPageState extends State<UserPage> {
     ScaffoldMessenger.of(contextCaptured).hideCurrentSnackBar();
 
     if (success) {
-      ScaffoldMessenger.of(contextCaptured).showSnackBar(
-        const SnackBar(content: Text("Cuenta eliminada correctamente.")),
-      );
+      ScaffoldMessenger.of(
+        contextCaptured,
+      ).showSnackBar(SnackBar(content: Text(tr('delete_account_success'))));
       // Redirect to login page
       Navigator.of(contextCaptured).pushAndRemoveUntil(
         MaterialPageRoute(builder: (context) => const LoginPage()),
         (route) => false,
       );
     } else {
-      ScaffoldMessenger.of(contextCaptured).showSnackBar(
-        const SnackBar(
-          content: Text(
-            "Error al eliminar la cuenta. Es posible que necesites iniciar sesión de nuevo para completar la eliminación.",
-          ),
-        ),
-      );
+      ScaffoldMessenger.of(
+        contextCaptured,
+      ).showSnackBar(SnackBar(content: Text(tr('delete_account_error'))));
       // Attempt to sign out locally anyway, as the backend might have succeeded partially
       // or the Firebase user needs deletion.
       await _handleSessionClose(
-        title: 'Error al Eliminar',
-        message: 'Hubo un error al eliminar la cuenta. Se cerrará tu sesión.',
+        title: 'error_deleting_account',
+        message: 'error_deleting_account_message.',
         redirectToLogin: true,
         isRemoteAction: false,
       );
@@ -680,8 +670,8 @@ class _UserPageState extends State<UserPage> {
 
   // Método unificado para manejar cierre de sesión
   Future<void> _handleSessionClose({
-    String title = 'Sesión cerrada',
-    String message = 'Tu sesión ha sido cerrada',
+    String title = 'sesion_closed',
+    String message = 'sesion_closed_message',
     bool redirectToLogin = true,
     bool isRemoteAction =
         false, // Flag to indicate if triggered by remote event
@@ -742,7 +732,7 @@ class _UserPageState extends State<UserPage> {
                 content: Text(message),
                 actions: <Widget>[
                   TextButton(
-                    child: const Text('Entendido'),
+                    child: Text('understood'.tr()),
                     onPressed: () {
                       Navigator.of(dialogContext).pop();
                     },
@@ -766,7 +756,7 @@ class _UserPageState extends State<UserPage> {
       // Attempt to redirect anyway as a fallback
       if (redirectToLogin && contextCaptured.mounted) {
         ScaffoldMessenger.of(contextCaptured).showSnackBar(
-          SnackBar(content: Text("Error crítico al cerrar sesión: $e")),
+          SnackBar(content: Text("${"critical_logout_error".tr()} $e")),
         );
         Navigator.of(contextCaptured).pushAndRemoveUntil(
           MaterialPageRoute(builder: (context) => const LoginPage()),
@@ -786,17 +776,17 @@ class _UserPageState extends State<UserPage> {
       context: contextCaptured,
       builder:
           (dialogContext) => AlertDialog(
-            title: const Text("Cerrar Sesión"),
-            content: const Text("¿Estás seguro de que quieres cerrar sesión?"),
+            title: const Text("close_session_title"),
+            content: const Text("close_session_message"),
             actions: [
               TextButton(
                 onPressed: () => Navigator.of(dialogContext).pop(false),
-                child: const Text("Cancelar"),
+                child: const Text("cancel"),
               ),
               TextButton(
                 onPressed: () => Navigator.of(dialogContext).pop(true),
-                child: const Text(
-                  "Cerrar Sesión",
+                child: Text(
+                  "close_session".tr(),
                   style: TextStyle(color: Colors.red),
                 ),
               ),
@@ -811,8 +801,8 @@ class _UserPageState extends State<UserPage> {
 
     // Use the unified session close handler
     await _handleSessionClose(
-      title: 'Sesión cerrada',
-      message: 'Has cerrado sesión correctamente.',
+      title: 'sesion_closed'.tr(),
+      message: 'sesion_closed_message'.tr(),
       redirectToLogin: true,
       isRemoteAction: false, // Manual logout
     );
@@ -827,6 +817,7 @@ class _UserPageState extends State<UserPage> {
       children: [
         // Envolver todo el contenido en SingleChildScrollView para permitir desplazamiento
         SingleChildScrollView(
+          primary: true,
           child: Padding(
             padding: const EdgeInsets.all(16.0),
             child: Column(
@@ -869,7 +860,7 @@ class _UserPageState extends State<UserPage> {
                     );
                   },
                   icon: const Icon(Icons.star),
-                  label: const Text('Ver Mis Valoraciones'),
+                  label: Text('view_ratings'.tr()),
                   style: ElevatedButton.styleFrom(
                     backgroundColor: Colors.amber,
                     foregroundColor: Colors.white,
@@ -883,11 +874,14 @@ class _UserPageState extends State<UserPage> {
                   onPressed: () {
                     Navigator.push(
                       context,
-                      MaterialPageRoute(builder: (context) => InvitationsPage(username: _username)),
+                      MaterialPageRoute(
+                        builder:
+                            (context) => InvitationsPage(username: _username),
+                      ),
                     );
                   },
                   icon: const Icon(Icons.mail_outline),
-                  label: const Text('Ver Invitaciones'),
+                  label: Text('view_invitations'.tr()),
                   style: ElevatedButton.styleFrom(
                     backgroundColor: Colors.purple,
                     foregroundColor: Colors.white,
@@ -906,7 +900,7 @@ class _UserPageState extends State<UserPage> {
                     );
                   },
                   icon: const Icon(Icons.list_alt),
-                  label: const Text('Mis Solicitudes'),
+                  label: Text('my_requests'.tr()),
                   style: ElevatedButton.styleFrom(
                     backgroundColor: Colors.blueAccent,
                     foregroundColor: Colors.white,
@@ -926,7 +920,7 @@ class _UserPageState extends State<UserPage> {
                     );
                   },
                   icon: const Icon(Icons.block),
-                  label: const Text('Usuarios Bloqueados'),
+                  label: Text('blocked_users'.tr()),
                   style: ElevatedButton.styleFrom(
                     backgroundColor: Colors.redAccent,
                     foregroundColor: Colors.white,
@@ -961,7 +955,7 @@ class _UserPageState extends State<UserPage> {
                           await _loadUserData();
                         },
                         icon: const Icon(Icons.edit),
-                        label: const Text('Editar Perfil'),
+                        label: Text('edit_profile'.tr()),
                         style: ElevatedButton.styleFrom(
                           backgroundColor: Colors.blue,
                           foregroundColor: Colors.white,
@@ -974,7 +968,7 @@ class _UserPageState extends State<UserPage> {
                       child: ElevatedButton.icon(
                         onPressed: () => _eliminarCuenta(context),
                         icon: const Icon(Icons.delete_forever),
-                        label: const Text("Eliminar Cuenta"),
+                        label: Text('delete_account'.tr()),
                         style: ElevatedButton.styleFrom(
                           backgroundColor: Colors.red,
                           foregroundColor: Colors.white,
@@ -991,7 +985,7 @@ class _UserPageState extends State<UserPage> {
                   child: ElevatedButton.icon(
                     onPressed: () => _logout(context),
                     icon: const Icon(Icons.logout),
-                    label: const Text("Cerrar Sesión"),
+                    label: Text('close_session'.tr()),
                     style: ElevatedButton.styleFrom(
                       backgroundColor: Colors.grey.shade800,
                       foregroundColor: Colors.white,
@@ -1015,7 +1009,7 @@ class _UserPageState extends State<UserPage> {
 
     // De lo contrario, envuelve el contenido en un Scaffold completo
     return Scaffold(
-      appBar: AppBar(title: const Text("Perfil de Usuario")),
+      appBar: AppBar(title: Text('user_page_title'.tr())),
       body: content,
     );
   }
