@@ -39,12 +39,15 @@ dependencies:
   latlong2: ^0.9.1
   firebase_core: ^3.12.1
   firebase_auth: ^5.5.1
+  google_sign_in: ^6.1.5
   web: ^1.1.1
   cupertino_icons: ^1.0.8
   location: ^8.0.0
   js_interop: ^0.0.1
   rive: ^0.13.20
   rive_common: ^0.4.15
+  sign_button: ^2.0.0
+  oauth2_client: ^4.0.0  # Paquete alternativo para OAuth2 con GitHub
   geolocator: ^13.0.4
   flutter_polyline_points: ^2.1.0
   flexible_polyline_dart: ^1.0.1
@@ -55,6 +58,7 @@ dependencies:
   web_socket_channel: ^2.4.0
   shared_preferences: ^2.5.3
   uuid: ^4.5.1
+  table_calendar: ^3.0.9
 
 dev_dependencies:
   coverage: ^1.6.3

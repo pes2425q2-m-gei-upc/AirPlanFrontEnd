@@ -130,6 +130,14 @@ class MockChatService extends _i1.Mock implements _i5.ChatService {
           as _i6.Future<bool>);
 
   @override
+  _i6.Future<bool> deleteMessage(String? receiverUsername, String? timestamp) =>
+      (super.noSuchMethod(
+            Invocation.method(#deleteMessage, [receiverUsername, timestamp]),
+            returnValue: _i6.Future<bool>.value(false),
+          )
+          as _i6.Future<bool>);
+
+  @override
   void disconnectFromChat() => super.noSuchMethod(
     Invocation.method(#disconnectFromChat, []),
     returnValueForMissingStub: null,
@@ -166,6 +174,20 @@ class MockChatWebSocketService extends _i1.Mock
     Invocation.method(#connectToChat, [otherUsername]),
     returnValueForMissingStub: null,
   );
+
+  @override
+  _i6.Future<bool> sendDeleteMessage(
+    String? receiverUsername,
+    String? timestamp,
+  ) =>
+      (super.noSuchMethod(
+            Invocation.method(#sendDeleteMessage, [
+              receiverUsername,
+              timestamp,
+            ]),
+            returnValue: _i6.Future<bool>.value(false),
+          )
+          as _i6.Future<bool>);
 
   @override
   _i6.Future<bool> sendEditMessage(

@@ -8,6 +8,8 @@ import 'package:airplan/services/notification_service.dart';
 import 'package:airplan/activity_details_page.dart';
 import 'package:airplan/air_quality.dart'; // Add this import for AirQualityData
 import 'package:airplan/services/api_config.dart';
+import 'package:latlong2/latlong.dart';
+import 'package:airplan/map_service.dart';
 
 class Valoracio {
   final String username;
@@ -50,11 +52,14 @@ class _RatingsPageState extends State<RatingsPage> {
   final ActivityService _activityService = ActivityService();
   final NotificationService _notificationService = NotificationService();
   bool _isLoading = true;
+  Map<LatLng, Map<Contaminant, AirQualityData>> contaminantsPerLocation = {};
+  final MapService mapService = MapService();
 
   @override
   void initState() {
     super.initState();
     _loadUserRatings();
+    fetchAirQualityData();
   }
 
   void _loadUserRatings() {
@@ -151,9 +156,12 @@ class _RatingsPageState extends State<RatingsPage> {
       final String startDate =
           activity['dataInici'] ?? DateTime.now().toString();
       final String endDate = activity['dataFi'] ?? DateTime.now().toString();
+      final ubicacio = activity['ubicacio'] as Map<String, dynamic>;
+      final lat = ubicacio['latitud'] as double;
+      final lon = ubicacio['longitud'] as double;
 
       // Create empty air quality data or fetch it if available
-      List<AirQualityData> airQualityData = [];
+      List<AirQualityData> airQualityData = findClosestAirQualityData(LatLng(lat,lon));
 
       // Close loading dialog
       if (context.mounted) Navigator.of(context).pop();
@@ -310,5 +318,43 @@ class _RatingsPageState extends State<RatingsPage> {
         ),
       ),
     );
+  }
+
+  Future<void> fetchAirQualityData() async {
+    try{
+      await mapService.fetchAirQualityData(contaminantsPerLocation);
+    } catch (e) {
+      if (!mounted) return;
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(content: Text('Error loading air quality data: $e')),
+      );
+    }
+  }
+
+  List<AirQualityData> findClosestAirQualityData(LatLng activityLocation) {
+    double closestDistance = double.infinity;
+    LatLng closestLocation = LatLng(0, 0);
+    List<AirQualityData> listAQD = [];
+
+    contaminantsPerLocation.forEach((location, dataMap) {
+      final distance = Distance().as(
+        LengthUnit.Meter,
+        activityLocation,
+        location,
+      );
+      if (distance < closestDistance) {
+        closestDistance = distance;
+        closestLocation = location;
+      }
+    });
+
+    contaminantsPerLocation[closestLocation]?.forEach((
+        contaminant,
+        airQualityData,
+        ) {
+      listAQD.add(airQualityData);
+    });
+
+    return listAQD;
   }
 }

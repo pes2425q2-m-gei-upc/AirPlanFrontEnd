@@ -1,5 +1,8 @@
 // map_page.dart
+import 'package:airplan/recommended_activities_page.dart';
+import 'package:airplan/services/notification_service.dart';
 import 'package:airplan/solicituds_service.dart';
+import 'package:airplan/air_quality_service.dart';
 import 'dart:async';
 import 'package:airplan/transit_service.dart';
 import 'package:flutter/material.dart';
@@ -70,6 +73,7 @@ class MapPageState extends State<MapPage> {
   double _deviceHeading = 0.0;
   bool _showCompass = false;
   OverlayEntry? _currentInstructionOverlay;
+  bool locationPermissionGranted = false;
 
   @override
   void initState() {
@@ -122,11 +126,7 @@ class MapPageState extends State<MapPage> {
       // Ya tiene comprobación mounted
       final actualContext = context;
       if (actualContext.mounted) {
-        ScaffoldMessenger.of(actualContext).showSnackBar(
-          SnackBar(
-            content: Text(tr('error_fetch_air_quality', args: [e.toString()])),
-          ),
-        );
+        NotificationService().showError(actualContext, tr('error_fetch_air_quality', args: [e.toString()]));
       }
     }
   }
@@ -179,9 +179,7 @@ class MapPageState extends State<MapPage> {
     if (!serviceEnabled) {
       final actualContext = context;
       if (actualContext.mounted) {
-        ScaffoldMessenger.of(actualContext).showSnackBar(
-          SnackBar(content: Text(tr('location_services_disabled'))),
-        );
+        NotificationService().showInfo(actualContext, tr('location_services_disabled'));
       }
       return;
     }
@@ -193,9 +191,7 @@ class MapPageState extends State<MapPage> {
       if (permission == LocationPermission.denied) {
         final actualContext = context;
         if (actualContext.mounted) {
-          ScaffoldMessenger.of(actualContext).showSnackBar(
-            SnackBar(content: Text(tr('location_permissions_denied'))),
-          );
+          NotificationService().showInfo(actualContext, tr('location_permissions_denied'));
         }
         return;
       }
@@ -204,11 +200,7 @@ class MapPageState extends State<MapPage> {
     if (permission == LocationPermission.deniedForever) {
       final actualContext = context;
       if (actualContext.mounted) {
-        ScaffoldMessenger.of(actualContext).showSnackBar(
-          SnackBar(
-            content: Text(tr('location_permissions_permanently_denied')),
-          ),
-        );
+        NotificationService().showInfo(actualContext, tr('location_permissions_permanently_denied'));
       }
       return;
     }
@@ -219,6 +211,7 @@ class MapPageState extends State<MapPage> {
         locationSettings: LocationSettings(accuracy: LocationAccuracy.high),
       );
       setState(() {
+        locationPermissionGranted = true;
         currentPosition = LatLng(position.latitude, position.longitude);
         _updateUserMarker(currentPosition); // Use the helper method
       });
@@ -226,11 +219,7 @@ class MapPageState extends State<MapPage> {
     } catch (e) {
       final actualContext = context;
       if (actualContext.mounted) {
-        ScaffoldMessenger.of(actualContext).showSnackBar(
-          SnackBar(
-            content: Text(tr('failed_fetch_location', args: [e.toString()])),
-          ),
-        );
+        NotificationService().showError(actualContext, tr('failed_fetch_location', args: [e.toString()]));
       }
     }
   }
@@ -366,12 +355,11 @@ class MapPageState extends State<MapPage> {
     }
   }
 
-  Future<void> showRouteOptions(
-    BuildContext context,
-    LatLng start,
-    LatLng end,
-    MapService mapService,
-  ) async {
+  Future<void> showRouteOptions(BuildContext context, LatLng start, LatLng end, MapService mapService) async {
+    if (!locationPermissionGranted) {
+      NotificationService().showError(context, "Per calcular la ruta, primer has d'activar la ubicació.");
+      return;
+    }
     final selectedOption = await showDialog<int>(
       context: context,
       builder: (BuildContext context) {
@@ -438,18 +426,12 @@ class MapPageState extends State<MapPage> {
       });
       final actualContext = context;
       if (actualContext.mounted) {
-        ScaffoldMessenger.of(
-          actualContext,
-        ).showSnackBar(SnackBar(content: Text(tr('route_calculated_success'))));
+        NotificationService().showSuccess(actualContext, tr('route_calculated_success'));
       }
     } catch (e) {
       final actualContext = context;
       if (actualContext.mounted) {
-        ScaffoldMessenger.of(actualContext).showSnackBar(
-          SnackBar(
-            content: Text(tr('route_calculation_error', args: [e.toString()])),
-          ),
-        );
+        NotificationService().showError(actualContext, tr('route_calculation_error', args: [e.toString()]));
       }
     }
   }
@@ -1205,41 +1187,12 @@ class MapPageState extends State<MapPage> {
     );
   }
 
-  List<AirQualityData> findClosestAirQualityData(LatLng activityLocation) {
-    double closestDistance = double.infinity;
-    LatLng closestLocation = LatLng(0, 0);
-    List<AirQualityData> listAQD = [];
-
-    contaminantsPerLocation.forEach((location, dataMap) {
-      final distance = Distance().as(
-        LengthUnit.Meter,
-        activityLocation,
-        location,
-      );
-      if (distance < closestDistance) {
-        closestDistance = distance;
-        closestLocation = location;
-      }
-    });
-
-    contaminantsPerLocation[closestLocation]?.forEach((
-      contaminant,
-      airQualityData,
-    ) {
-      listAQD.add(airQualityData);
-    });
-
-    return listAQD;
-  }
-
   // Función para navegar a la página de detalles (código original)
   void _navigateToActivityDetails(Map<String, dynamic> activity) {
     final ubicacio = activity['ubicacio'] as Map<String, dynamic>;
     final lat = ubicacio['latitud'] as double;
     final lon = ubicacio['longitud'] as double;
-    List<AirQualityData> airQualityData = findClosestAirQualityData(
-      LatLng(lat, lon),
-    );
+    List<AirQualityData> airQualityData = AirQualityService.findClosestAirQualityData(LatLng(lat, lon),contaminantsPerLocation);
     Navigator.push(
       context,
       MaterialPageRoute(
@@ -1426,16 +1379,12 @@ class MapPageState extends State<MapPage> {
       id = await mapService.sendRouteToBackend(route);
       final actualContext = context;
       if (actualContext.mounted) {
-        ScaffoldMessenger.of(
-          actualContext,
-        ).showSnackBar(SnackBar(content: Text(tr('route_sent_success'))));
+        NotificationService().showSuccess(actualContext, tr('route_sent_success'));
       }
     } catch (e) {
       final actualContext = context;
       if (actualContext.mounted) {
-        ScaffoldMessenger.of(actualContext).showSnackBar(
-          SnackBar(content: Text(tr('route_sent_error', args: [e.toString()]))),
-        );
+        NotificationService().showError(actualContext, 'route_sent_error', args: [e.toString()]));
       }
     }
     return id;
@@ -1446,18 +1395,12 @@ class MapPageState extends State<MapPage> {
       await mapService.updateRouteInBackend(route);
       final actualContext = context;
       if (actualContext.mounted) {
-        ScaffoldMessenger.of(
-          actualContext,
-        ).showSnackBar(SnackBar(content: Text(tr('route_updated_success'))));
+        NotificationService().showSuccess(actualContext, tr('route_updated_success'));
       }
     } catch (e) {
       final actualContext = context;
       if (actualContext.mounted) {
-        ScaffoldMessenger.of(actualContext).showSnackBar(
-          SnackBar(
-            content: Text(tr('route_updated_error', args: [e.toString()])),
-          ),
-        );
+        NotificationService().showError(actualContext, tr('route_updated_error', args: [e.toString()]));
       }
     }
   }
@@ -1492,10 +1435,8 @@ class MapPageState extends State<MapPage> {
     final worldLatDiff = 180.0;
     final worldLngDiff = 360.0;
 
-    final latDiff =
-        (bounds.northEast.latitude - bounds.southWest.latitude).abs();
-    final lngDiff =
-        (bounds.northEast.longitude - bounds.southWest.longitude).abs();
+    final latDiff = (bounds.northEast.latitude - bounds.southWest.latitude).abs();
+    final lngDiff = (bounds.northEast.longitude - bounds.southWest.longitude).abs();
 
     final latZoom = (log(worldLatDiff / latDiff) / ln2).floor();
     final lngZoom = (log(worldLngDiff / lngDiff) / ln2).floor();
@@ -1605,20 +1546,12 @@ class MapPageState extends State<MapPage> {
             });
             final actualContext = context;
             if (actualContext.mounted) {
-              ScaffoldMessenger.of(actualContext).showSnackBar(
-                SnackBar(content: Text("route_calculated_success".tr())),
-              );
+              NotificationService().showSuccess(actualContext, "route_calculated_success".tr());
             }
           } catch (e) {
             final actualContext = context;
             if (actualContext.mounted) {
-              ScaffoldMessenger.of(actualContext).showSnackBar(
-                SnackBar(
-                  content: Text(
-                    '${'route_calculation_error'.tr()} ${e.toString()}',
-                  ),
-                ),
-              );
+              NotificationService().showError(actualContext, '${'route_calculation_error'.tr()} ${e.toString()}');
             }
           }
         }
@@ -1873,9 +1806,7 @@ class MapPageState extends State<MapPage> {
       await mapService.deleteRouteInBackend(id);
       final actualContext = context;
       if (actualContext.mounted) {
-        ScaffoldMessenger.of(
-          actualContext,
-        ).showSnackBar(SnackBar(content: Text('route_deleted_success'.tr())));
+        NotificationService().showSuccess(actualContext, 'route_deleted_success'.tr());
       }
       savedRoutes.remove(id);
       setState(() {
@@ -1884,9 +1815,7 @@ class MapPageState extends State<MapPage> {
     } catch (e) {
       final actualContext = context;
       if (actualContext.mounted) {
-        ScaffoldMessenger.of(actualContext).showSnackBar(
-          SnackBar(content: Text('${'route_delete_error'.tr()} $e')),
-        );
+        NotificationService().showError(actualContext, '${'route_delete_error'.tr()} $e');
       }
     }
   }
@@ -1945,24 +1874,22 @@ class MapPageState extends State<MapPage> {
           // User is on a valid step
           final currentStep = currentRoute.value.steps[currentStepIndex];
 
-          // Show instruction for current step
-          _showCurrentInstruction(currentStep, currentStepIndex);
-        } else {
-          // User is off route
-          _showOffRouteWarning();
+            // Show instruction for current step
+            _showCurrentInstruction(currentStep, currentStepIndex);
+          } else {
+            // User is off route
+            _showOffRouteWarning();
+          }
+          // 3. Check if user is off-route
+          mapController.rotate(-_deviceHeading);
+          // ---
+        },
+        onError: (error) {
+          if (mounted) {
+            NotificationService().showError(context, '${'error_getting_location'.tr()}$error');
+          }
+          _stopNavigation();
         }
-        // 3. Check if user is off-route
-        mapController.rotate(-_deviceHeading);
-        // ---
-      },
-      onError: (error) {
-        if (mounted) {
-          ScaffoldMessenger.of(context).showSnackBar(
-            SnackBar(content: Text('${'error_getting_location'.tr()}$error')),
-          );
-        }
-        _stopNavigation();
-      },
     );
   }
 
@@ -1975,9 +1902,7 @@ class MapPageState extends State<MapPage> {
       isNavigating = false;
     });
     if (mounted) {
-      ScaffoldMessenger.of(
-        context,
-      ).showSnackBar(SnackBar(content: Text('navigation_stopped'.tr())));
+      NotificationService().showInfo(context, 'navigation_stopped'.tr());
     }
   }
 
@@ -2037,8 +1962,7 @@ class MapPageState extends State<MapPage> {
               nextWaypoint = currentStep.points[i + 1];
             } else if (currentStepIndex + 1 < currentRoute.value.steps.length) {
               // If we're at the last point of the step, use the first point of the next step
-              nextWaypoint =
-                  currentRoute.value.steps[currentStepIndex + 1].points[0];
+              nextWaypoint = currentRoute.value.steps[currentStepIndex + 1].points[0];
             }
           }
         }
@@ -2239,9 +2163,31 @@ class MapPageState extends State<MapPage> {
       _updateRouteInBackend(currentRoute);
     } catch (e) {
       if (mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(content: Text('${'error_recalculating_route'.tr()} $e')),
-        );
+        NotificationService().showError(context, '${'error_recalculating_route'.tr()} $e');
+      }
+    }
+  }
+
+  Future<void> _showRecommendedActivities() async {
+    if (!locationPermissionGranted) {
+      if (mounted) {
+        NotificationService().showError(context, "Per veure les activitats recomanades, concedeix permisos de localització.");
+      }
+    } else {
+      final activityLocation = await Navigator.push<LatLng>(
+        context,
+        MaterialPageRoute(
+          builder: (context) => RecommendedActivitiesPage(
+            userLocation: currentPosition,
+            contaminantsPerLocation: contaminantsPerLocation,
+            savedLocations: savedLocations,
+          ),
+        ),
+      );
+
+      // If a location was returned, show route options
+      if (activityLocation != null && mounted) {
+        showRouteOptions(context, currentPosition, activityLocation, mapService);
       }
     }
   }
@@ -2315,7 +2261,12 @@ class MapPageState extends State<MapPage> {
                       if (isNavigating) {
                         _stopNavigation();
                       } else {
-                        _startNavigation();
+                        if (!locationPermissionGranted) {
+                          NotificationService().showError(context, "Per iniciar la navegació, concedeix permisos de localització.");
+                          return;
+                        } else {
+                          _startNavigation();
+                        }
                       }
                     },
                     child: Icon(
@@ -2389,7 +2340,7 @@ class MapPageState extends State<MapPage> {
               ),
             ),
           ],
-          if (!isNavigating)
+          if (!isNavigating) ...[
             Positioned(
               top: 10,
               left: 10,
@@ -2398,20 +2349,37 @@ class MapPageState extends State<MapPage> {
                 child: const Icon(Icons.favorite),
               ),
             ),
+          ],
         ],
       ),
-      floatingActionButton: FloatingActionButton(
-        heroTag: "addLocation",
-        onPressed: () {
-          if (savedLocations.entries.isNotEmpty) {
-            _showFormWithLocation(savedLocations.keys.first, placeDetails);
-          } else {
-            ScaffoldMessenger.of(
-              context,
-            ).showSnackBar(SnackBar(content: Text('no_ubication_saved'.tr())));
-          }
-        },
-        child: const Icon(Icons.add_location),
+      floatingActionButton: Column(
+        mainAxisSize: MainAxisSize.min,
+        children: [
+          if (!isNavigating) ...[
+            FloatingActionButton(
+              heroTag: "recommendedActivities",
+              onPressed: _showRecommendedActivities,
+              child: const Icon(Icons.recommend_outlined),
+            ),
+            const SizedBox(height: 12),
+            FloatingActionButton(
+              heroTag: "addLocation",
+              onPressed: () {
+                if (savedLocations.entries.isNotEmpty) {
+                  _showFormWithLocation(savedLocations.keys.first, placeDetails);
+                } else {
+                  ScaffoldMessenger.of(context).showSnackBar(
+                    const SnackBar(
+                      content: Text(
+                          'no_ubication_saved'.tr(),                      ),
+                    ),
+                  );
+                }
+              },
+              child: const Icon(Icons.add_location),
+            ),
+          ]
+        ],
       ),
     );
   }

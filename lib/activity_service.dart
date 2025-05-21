@@ -215,4 +215,16 @@ class ActivityService {
       throw Exception('${'error_obtaining_favorites'.tr()} ${response.body}');
     }
   }
+
+  Future<List<Map<String, dynamic>>> fetchUserActivities(String username) {
+    final url = Uri.parse(ApiConfig().buildUrl('api/activitats/participant/$username'));
+    return http.get(url).then((response) {
+      if (response.statusCode == 200) {
+        final List<dynamic> data = jsonDecode(response.body);
+        return data.cast<Map<String, dynamic>>();
+      } else {
+        throw Exception('Error al cargar las actividades del usuario');
+      }
+    });
+  }
 }
