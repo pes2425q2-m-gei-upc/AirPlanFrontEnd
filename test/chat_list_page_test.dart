@@ -117,6 +117,16 @@ class MockAuthService implements AuthService {
 
   @override
   Future<void> deleteCurrentUser() async {}
+
+  @override
+  Future<UserCredential> signInWithPopup(GithubAuthProvider githubProvider) {
+    throw UnimplementedError();
+  }
+
+  @override
+  Future<UserCredential> signInWithProvider(GithubAuthProvider githubProvider) {
+    throw UnimplementedError();
+  }
 }
 
 // Mock ChatDetailPage to avoid Firebase initialization
