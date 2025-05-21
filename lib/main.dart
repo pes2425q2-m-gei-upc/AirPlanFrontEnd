@@ -146,6 +146,12 @@ class GlobalNotificationService {
         return Colors.blue;
       case 'session_expired':
         return Colors.red.shade700;
+      case 'message':
+        return Colors.green;
+      case 'activity_reminder':
+        return Colors.yellow;
+      case 'invitacions':
+        return Colors.purple;
       default:
         return Colors.grey;
     }

@@ -199,6 +199,53 @@ class WebSocketService {
     });
   }
 
+  void _handleRealTimeEventNotification(Map<String, dynamic> data) {
+    try {
+      final String type = data['type'] ?? '';
+      final String message = data['message'] ?? '';
+      final String username = data['username'] ?? '';
+      final int timestamp = data['timestamp'] ?? DateTime.now().millisecondsSinceEpoch;
+
+      // Determina el tipo de notificación según el tipo de evento recibido
+      String notificationType = 'info';
+      bool isUrgent = false;
+
+      // Mapeo de tipos de eventos a configuración de notificaciones
+      switch (type) {
+        case 'ACTIVITY_REMINDER':
+          notificationType = 'activity_reminder';
+          break;
+        case 'INVITACIONS':
+          notificationType = 'invitacions';
+          break;
+        case 'MESSAGE':
+          notificationType = 'message';
+          isUrgent = false;
+          break;
+      // Añadir más mappings según los tipos de eventos que envíe tu backend
+        default:
+          notificationType = 'general';
+      }
+
+      // Usar el servicio global de notificaciones
+      GlobalNotificationService().addNotification(
+        message,
+        notificationType,
+        isUrgent: isUrgent,
+      );
+
+      // Corregido: Convertir objeto a JSON string antes de enviarlo
+      final eventData = {
+        'type': type,
+        'message': message,
+        'username': username,
+        'timestamp': timestamp,
+      };
+      _profileUpdateController.add(json.encode(eventData));
+    } catch (e) {
+      debugPrint('Error al procesar notificación de evento en tiempo real: $e');
+    }
+  }
   // Manejar mensajes entrantes del WebSocket
   void _handleIncomingMessage(String message) {
     // Filter out ping/pong messages
@@ -216,6 +263,13 @@ class WebSocketService {
       // Handle account deletion separately
       if (data['type'] == 'ACCOUNT_DELETED') {
         _handleAccountDeletedMessage(data);
+        return;
+      }
+      if (data['type'] == 'ACTIVITY_REMINDER' ||
+          data['type'] == 'INVITACIONS' ||
+          data['type'] == 'MESSAGE') {
+        // Este parece ser un mensaje de notificación en tiempo real
+        _handleRealTimeEventNotification(data);
         return;
       }
       // Forward JSON message payload as raw string
