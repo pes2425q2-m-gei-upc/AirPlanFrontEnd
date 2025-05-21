@@ -446,7 +446,7 @@ class LoginPageState extends State<LoginPage> {
               onPressed: _isLoading ? null : _signIn,
               child: _isLoading
                   ? const CircularProgressIndicator()
-                  : const Text('login_button'.tr()),
+                  : Text('login_button'.tr()),
             ),
             const SizedBox(height: 12),
             Padding(

@@ -1384,7 +1384,7 @@ class MapPageState extends State<MapPage> {
     } catch (e) {
       final actualContext = context;
       if (actualContext.mounted) {
-        NotificationService().showError(actualContext, 'route_sent_error', args: [e.toString()]));
+        NotificationService().showError(actualContext, 'route_sent_error'.tr());
       }
     }
     return id;
@@ -2369,9 +2369,9 @@ class MapPageState extends State<MapPage> {
                   _showFormWithLocation(savedLocations.keys.first, placeDetails);
                 } else {
                   ScaffoldMessenger.of(context).showSnackBar(
-                    const SnackBar(
+                    SnackBar(
                       content: Text(
-                          'no_ubication_saved'.tr(),                      ),
+                          'no_ubication_saved'.tr()),
                     ),
                   );
                 }
