@@ -82,7 +82,7 @@ class CalendarPageState extends State<CalendarPage> {
     return _userNotes[normalizedDay] ?? [];
   }
 
-  void _showAddNoteDialog(DateTime day, [Nota? existingNote]) {
+  Future<void> _showAddNoteDialog(DateTime day, [Nota? existingNote]) async {
     final TextEditingController noteController = TextEditingController(
         text: existingNote?.comentario
     );
@@ -105,7 +105,8 @@ class CalendarPageState extends State<CalendarPage> {
       return;
     }
 
-    showDialog(
+    // Show dialog to collect note content and time, return inputs as result
+    final result = await showDialog<Map<String, dynamic>>(
       context: context,
       builder: (context) => StatefulBuilder(
         builder: (context, setState) => AlertDialog(
@@ -154,66 +155,11 @@ class CalendarPageState extends State<CalendarPage> {
             ),
             ElevatedButton(
               onPressed: () {
-                // Capture values before any async operations
-                final content = noteController.text.trim();
-                final capturedDay = day;
-                final timeString = '${selectedTime.hour.toString().padLeft(2, '0')}:${selectedTime.minute.toString().padLeft(2, '0')}';
-
-                // Close the dialog FIRST before any async operations
-                Navigator.of(context).pop();
-
-                // Then do the async work
-                Future(() async {
-                  try {
-                    setState(() {
-                      _isLoading = true;
-                    });
-
-                    // Delete existing note
-                    if (content.isEmpty && existingNote != null && existingNote.id != null) {
-                      await noteService.deleteNote(existingNote.id!);
-                      _userNotes.remove(normalizedDay);
-                    }
-                    // Update existing note
-                    else if (content.isNotEmpty && existingNote != null && existingNote.id != null) {
-                      final updatedNota = Nota(
-                        id: existingNote.id,
-                        username: username,
-                        fechacreacion: normalizedDay,
-                        horarecordatorio: timeString,
-                        comentario: content,
-                      );
-                      await noteService.updateNote(existingNote.id!, updatedNota);
-                      final existingNotes = _userNotes[normalizedDay] ?? [];
-                      final updatedNotes = existingNotes.map((note) =>
-                      note.id == existingNote.id ? updatedNota : note
-                      ).toList();
-                      _userNotes[normalizedDay] = updatedNotes;
-                    }
-                    // Create new note
-                    else if (content.isNotEmpty) {
-                      final newNota = Nota(
-                        username: username,
-                        fechacreacion: normalizedDay,
-                        horarecordatorio: timeString,
-                        comentario: content,
-                      );
-                      await noteService.createNote(newNota);
-                      await _loadUserNotes(); // Reload to get the ID
-                    }
-                  }
-                  finally {
-                    if (mounted) {
-                      setState(() {
-                        _isLoading = false;
-                      });
-
-                      // Show activities dialog after everything is done
-                      if (mounted) {
-                        _showActivitiesDialog(capturedDay);
-                      }
-                    }
-                  }
+                // Return collected data to outer function
+                Navigator.of(context).pop({
+                  'content': noteController.text.trim(),
+                  'time': selectedTime,
+                  'existingNote': existingNote,
                 });
               },
               child: const Text('Guardar'),
@@ -222,6 +168,48 @@ class CalendarPageState extends State<CalendarPage> {
         ),
       ),
     );
+
+    // After dialog closes, perform CRUD operations and update state
+    if (result != null) {
+      final content = result['content'] as String;
+      final time = result['time'] as TimeOfDay;
+      final existing = result['existingNote'] as Nota?;
+      final timeString = '${time.hour.toString().padLeft(2, '0')}:${time.minute.toString().padLeft(2, '0')}';
+      // Start loading
+      setState(() => _isLoading = true);
+      try {
+        if (content.isEmpty && existing != null && existing.id != null) {
+          await noteService.deleteNote(existing.id!);
+        } else if (content.isNotEmpty && existing != null && existing.id != null) {
+          final updatedNota = Nota(
+            id: existing.id,
+            username: username,
+            fechacreacion: normalizedDay,
+            horarecordatorio: timeString,
+            comentario: content,
+          );
+          await noteService.updateNote(existing.id!, updatedNota);
+        } else if (content.isNotEmpty) {
+          final newNota = Nota(
+            username: username,
+            fechacreacion: normalizedDay,
+            horarecordatorio: timeString,
+            comentario: content,
+          );
+          await noteService.createNote(newNota);
+        }
+        await _loadUserNotes();
+      } catch (e) {
+        if (mounted) {
+          ScaffoldMessenger.of(context).showSnackBar(
+            SnackBar(content: Text('Error procesando nota: $e')),
+          );
+        }
+      } finally {
+        if (mounted) setState(() => _isLoading = false);
+        if (mounted) _showActivitiesDialog(day);
+      }
+    }
   }
 
   Future<void> _loadActivities() async {
@@ -319,68 +307,68 @@ class CalendarPageState extends State<CalendarPage> {
       body: _isLoading
           ? const Center(child: CircularProgressIndicator())
           : Column(
-            children: [
-              Expanded(
-                child: SingleChildScrollView( // Add scrolling capability as safety
-                  child: ConstrainedBox(
-                    constraints: BoxConstraints(
-                      maxHeight: availableHeight - 10, // Extra safety margin
-                    ),
-                    child: TableCalendar(
-                      focusedDay: _focusedDay,
-                      firstDay: DateTime(2020, 1, 1),
-                      lastDay: DateTime(2030, 12, 31),
-                      selectedDayPredicate: (day) => isSameDay(_selectedDay, day),
-                      onDaySelected: (selectedDay, focusedDay) {
-                        setState(() {
-                          _selectedDay = selectedDay;
-                          _focusedDay = focusedDay;
-                        });
-                        _showActivitiesDialog(selectedDay);
-                      },
-                      calendarFormat: _calendarFormat,
-                      onFormatChanged: (format) {
-                        setState(() {
-                          _calendarFormat = format;
-                        });
-                      },
-                      eventLoader: _getEventsForDay,
-                      rowHeight: dynamicRowHeight,
-                      daysOfWeekHeight: 20, // Explicit height for days of week
-                      headerStyle: const HeaderStyle(
-                        formatButtonVisible: true,
-                        titleCentered: true,
-                        formatButtonShowsNext: false,
-                      ),
-                      calendarStyle: const CalendarStyle(
-                        isTodayHighlighted: true,
-                        markersMaxCount: 0,
-                        markerSize: 0,
-                        markerMargin: EdgeInsets.zero,
-                        markerDecoration: BoxDecoration(color: Colors.transparent),
-                        cellMargin: EdgeInsets.all(2), // Reduce cell margin
-                      ),
-                      calendarBuilders: CalendarBuilders(
-                        defaultBuilder: (context, day, focusedDay) {
-                          final events = _getEventsForDay(day);
-                          return _buildDayCell(day, events, false, false);
-                        },
-                        selectedBuilder: (context, day, focusedDay) {
-                          final events = _getEventsForDay(day);
-                          return _buildDayCell(day, events, true, false);
-                        },
-                        todayBuilder: (context, day, focusedDay) {
-                          final events = _getEventsForDay(day);
-                          return _buildDayCell(day, events, false, true);
-                        },
-                      ),
-                    ),
+        children: [
+          Expanded(
+            child: SingleChildScrollView( // Add scrolling capability as safety
+              child: ConstrainedBox(
+                constraints: BoxConstraints(
+                  maxHeight: availableHeight - 10, // Extra safety margin
+                ),
+                child: TableCalendar(
+                  focusedDay: _focusedDay,
+                  firstDay: DateTime(2020, 1, 1),
+                  lastDay: DateTime(2030, 12, 31),
+                  selectedDayPredicate: (day) => isSameDay(_selectedDay, day),
+                  onDaySelected: (selectedDay, focusedDay) {
+                    setState(() {
+                      _selectedDay = selectedDay;
+                      _focusedDay = focusedDay;
+                    });
+                    _showActivitiesDialog(selectedDay);
+                  },
+                  calendarFormat: _calendarFormat,
+                  onFormatChanged: (format) {
+                    setState(() {
+                      _calendarFormat = format;
+                    });
+                  },
+                  eventLoader: _getEventsForDay,
+                  rowHeight: dynamicRowHeight,
+                  daysOfWeekHeight: 20, // Explicit height for days of week
+                  headerStyle: const HeaderStyle(
+                    formatButtonVisible: true,
+                    titleCentered: true,
+                    formatButtonShowsNext: false,
+                  ),
+                  calendarStyle: const CalendarStyle(
+                    isTodayHighlighted: true,
+                    markersMaxCount: 0,
+                    markerSize: 0,
+                    markerMargin: EdgeInsets.zero,
+                    markerDecoration: BoxDecoration(color: Colors.transparent),
+                    cellMargin: EdgeInsets.all(2), // Reduce cell margin
+                  ),
+                  calendarBuilders: CalendarBuilders(
+                    defaultBuilder: (context, day, focusedDay) {
+                      final events = _getEventsForDay(day);
+                      return _buildDayCell(day, events, false, false);
+                    },
+                    selectedBuilder: (context, day, focusedDay) {
+                      final events = _getEventsForDay(day);
+                      return _buildDayCell(day, events, true, false);
+                    },
+                    todayBuilder: (context, day, focusedDay) {
+                      final events = _getEventsForDay(day);
+                      return _buildDayCell(day, events, false, true);
+                    },
                   ),
                 ),
               ),
-            ],
+            ),
           ),
-      );
+        ],
+      ),
+    );
   }
 
   Widget _buildDayCell(DateTime day, List<Map<String, dynamic>> events, bool isSelected, bool isToday) {
@@ -789,15 +777,15 @@ class CalendarPageState extends State<CalendarPage> {
   }
 
   Future<void> fetchAirQualityData() async {
-      try{
-        await mapService.fetchAirQualityData(contaminantsPerLocation);
-      } catch (e) {
-        if (mounted) {
-          ScaffoldMessenger.of(context).showSnackBar(
-            SnackBar(content: Text('Error loading air quality data: $e')),
-          );
-        }
+    try{
+      await mapService.fetchAirQualityData(contaminantsPerLocation);
+    } catch (e) {
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(content: Text('Error loading air quality data: $e')),
+        );
       }
+    }
   }
 
   List<AirQualityData> findClosestAirQualityData(LatLng activityLocation) {
