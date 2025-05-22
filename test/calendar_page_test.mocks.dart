@@ -420,7 +420,6 @@ class MockMapService extends _i1.Mock implements _i11.MapService {
           )
           as _i7.Future<List<_i12.CircleMarker<Object>>>);
 
-  @override
   List<_i12.CircleMarker<Object>> createCirclesFromAirQualityData(
     dynamic data,
     Map<_i13.LatLng, Map<_i14.Contaminant, _i14.AirQualityData>>?

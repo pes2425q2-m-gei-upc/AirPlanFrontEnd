@@ -115,7 +115,7 @@ void main() {
     await tester.pumpAndSettle();
 
     // Verify empty state message
-    expect(find.text('No tienes usuarios bloqueados'), findsOneWidget);
+    expect(find.text('no_blocked_users_message'), findsOneWidget);
   });
 
   testWidgets('BlockedUsersPage shows error state on fetch error', (
@@ -131,11 +131,8 @@ void main() {
     await tester.pumpAndSettle();
 
     // Verify error state - using partial text match since the actual error message includes exception details
-    expect(
-      find.textContaining('Error al cargar los usuarios bloqueados'),
-      findsOneWidget,
-    );
-    expect(find.text('Reintentar'), findsOneWidget);
+    expect(find.textContaining('error_loading_blocked_users'), findsOneWidget);
+    expect(find.text('retry_button'), findsOneWidget);
   });
 
   testWidgets('BlockedUsersPage retry button reloads data after error', (
@@ -150,10 +147,7 @@ void main() {
     await tester.pumpAndSettle();
 
     // Verify error state
-    expect(
-      find.textContaining('Error al cargar los usuarios bloqueados'),
-      findsOneWidget,
-    );
+    expect(find.textContaining('error_loading_blocked_users'), findsOneWidget);
 
     // Setup mock for second call
     final completer = Completer<List<dynamic>>();
@@ -162,7 +156,7 @@ void main() {
     ).thenAnswer((_) => completer.future);
 
     // Tap retry button
-    await tester.tap(find.text('Reintentar'));
+    await tester.tap(find.text('retry_button'));
     await tester.pump(); // Process tap event
 
     // Now the UI should be in loading state
@@ -183,8 +177,8 @@ void main() {
       await tester.pumpWidget(createWidgetUnderTest());
       await tester.pumpAndSettle(); // Wait for initial data to load
 
-      // Find the unblock button by finding the button with the specific text
-      final unblockButton = find.text('Desbloquear');
+      // Find the unblock button by translation key
+      final unblockButton = find.text('unblock_button');
       expect(unblockButton, findsWidgets, reason: 'No unblock buttons found');
 
       // Tap the first unblock button
@@ -192,11 +186,9 @@ void main() {
       await tester.pumpAndSettle(); // Wait for dialog animation
 
       // Verify dialog content
-      expect(find.text('Desbloquear a TestUser1'), findsOneWidget);
+      expect(find.textContaining('unblock_user_dialog_title'), findsOneWidget);
       expect(
-        find.textContaining(
-          '¿Estás seguro de que quieres desbloquear a este usuario?',
-        ),
+        find.textContaining('unblock_user_dialog_content'),
         findsOneWidget,
       );
     },
@@ -218,8 +210,8 @@ void main() {
       await tester.pump(const Duration(milliseconds: 50));
     }
 
-    // Find the unblock button with text 'Desbloquear'
-    final unblockButton = find.text('Desbloquear');
+    // Find the unblock button with text 'unblock_button'
+    final unblockButton = find.text('unblock_button');
     expect(unblockButton, findsWidgets, reason: 'No unblock buttons found');
 
     // Tap the first unblock button
@@ -231,7 +223,8 @@ void main() {
     }
 
     // Find and tap confirm button in dialog
-    final confirmButton = find.widgetWithText(TextButton, 'Desbloquear').last;
+    final confirmButton =
+        find.widgetWithText(TextButton, 'unblock_button').last;
     expect(
       confirmButton,
       findsOneWidget,
@@ -264,8 +257,8 @@ void main() {
       await tester.pump(const Duration(milliseconds: 50));
     }
 
-    // Find the unblock button with text 'Desbloquear'
-    final unblockButton = find.text('Desbloquear');
+    // Find the unblock button with text 'unblock_button'
+    final unblockButton = find.text('unblock_button');
     expect(unblockButton, findsWidgets, reason: 'No unblock buttons found');
 
     // Tap the first unblock button
@@ -277,7 +270,7 @@ void main() {
     }
 
     // Find and tap cancel button
-    final cancelButton = find.widgetWithText(TextButton, 'Cancelar');
+    final cancelButton = find.widgetWithText(TextButton, 'cancel_button');
     expect(
       cancelButton,
       findsOneWidget,

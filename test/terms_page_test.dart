@@ -9,16 +9,16 @@ void main() {
       await tester.pumpWidget(const MaterialApp(home: TermsPage()));
 
       // Verify that the main title is displayed
-      expect(find.text('TERMES I CONDICIONS D\'ÚS'), findsOneWidget);
+      expect(find.text('terms_title'), findsOneWidget);
 
       // Verify that all section titles are displayed
-      expect(find.text('1. Acceptació dels termes'), findsOneWidget);
-      expect(find.text('2. Compte d\'usuari'), findsOneWidget);
-      expect(find.text('3. Conducta acceptable'), findsOneWidget);
-      expect(find.text('4. Propietat intel·lectual'), findsOneWidget);
-      expect(find.text('5. Limitació de responsabilitat'), findsOneWidget);
-      expect(find.text('6. Modificacions'), findsOneWidget);
-      expect(find.text('7. Llei aplicable'), findsOneWidget);
+      expect(find.text('terms_section_1_title'), findsOneWidget);
+      expect(find.text('terms_section_2_title'), findsOneWidget);
+      expect(find.text('terms_section_3_title'), findsOneWidget);
+      expect(find.text('terms_section_4_title'), findsOneWidget);
+      expect(find.text('terms_section_5_title'), findsOneWidget);
+      expect(find.text('terms_section_6_title'), findsOneWidget);
+      expect(find.text('terms_section_7_title'), findsOneWidget);
 
       // Verify that the back button is present in the AppBar
       expect(find.byIcon(Icons.arrow_back), findsOneWidget);
@@ -77,7 +77,7 @@ void main() {
       expect(scrollView, findsOneWidget);
 
       // Check for a widget at the bottom that should be off-screen initially
-      final lastUpdatedFinder = find.textContaining('Última actualització');
+      final lastUpdatedFinder = find.textContaining('terms_last_updated');
 
       // Check visibility by comparing positions before and after scrolling
       final initialPosition = tester.getRect(lastUpdatedFinder);
@@ -106,7 +106,7 @@ void main() {
       await tester.pumpWidget(const MaterialApp(home: TermsPage()));
 
       // Find one of the section titles
-      final titleFinder = find.text('1. Acceptació dels termes');
+      final titleFinder = find.text('terms_section_1_title');
       expect(titleFinder, findsOneWidget);
 
       // Get the Text widget
@@ -134,7 +134,7 @@ void main() {
       await tester.pumpWidget(const MaterialApp(home: TermsPage()));
 
       // Find text containing the date parts
-      final dateFinder = find.textContaining('Última actualització');
+      final dateFinder = find.textContaining('terms_last_updated');
       expect(dateFinder, findsOneWidget);
 
       // Extract the date text

@@ -7,6 +7,7 @@ import 'dart:convert';
 import 'package:flutter/material.dart';
 import 'package:airplan/main.dart';
 import 'api_config.dart';
+import 'package:easy_localization/easy_localization.dart';
 
 /// Clase principal para gestionar la conexión WebSocket y distribuir mensajes
 class WebSocketService {
@@ -166,7 +167,7 @@ class WebSocketService {
       _startPingTimer();
     } catch (e) {
       _isConnected = false;
-      debugPrint('Error al conectar WebSocket: $e');
+      debugPrint(tr('websocket_connection_error', args: [e.toString()]));
       _scheduleReconnect();
     }
   }
@@ -224,7 +225,7 @@ class WebSocketService {
       // Non-JSON message: forward as-is
       _profileUpdateController.add(message);
     } catch (e) {
-      debugPrint('Error handling WebSocket message: $e');
+      debugPrint(tr('websocket_message_error', args: [e.toString()]));
     }
   }
 
@@ -262,14 +263,11 @@ class WebSocketService {
         barrierDismissible: false,
         builder: (BuildContext dialogContext) {
           return AlertDialog(
-            title: const Text('Cuenta eliminada'),
-            content: const Text(
-              'Tu cuenta ha sido eliminada desde otro dispositivo. '
-              'Esta sesión se cerrará automáticamente.',
-            ),
+            title: Text(tr('account_deleted_title')),
+            content: Text(tr('account_deleted_message')),
             actions: <Widget>[
               TextButton(
-                child: const Text('Entendido'),
+                child: Text(tr('understood')),
                 onPressed: () {
                   Navigator.of(dialogContext).pop();
                   _forceLogout();
@@ -314,7 +312,7 @@ class WebSocketService {
       try {
         _channel!.sink.close();
       } catch (e) {
-        debugPrint('Error al cerrar WebSocket: $e');
+        debugPrint(tr('websocket_close_error', args: [e.toString()]));
       } finally {
         _isConnected = false;
         _channel = null;
