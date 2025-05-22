@@ -1,3 +1,4 @@
+import 'package:airplan/trophies_page.dart';
 import 'package:flutter/material.dart';
 import 'package:firebase_auth/firebase_auth.dart';
 import 'package:airplan/user_services.dart';
@@ -859,6 +860,24 @@ class _UserPageState extends State<UserPage> {
                   userLevel: _userLevel,
                   isLoading: _isLoading,
                 ),
+                const SizedBox(height: 16), // Espaciado entre botones
+                ElevatedButton.icon(
+                  onPressed: () {
+                    Navigator.of(context).push(
+                      MaterialPageRoute(
+                        builder: (context) => TrophiesPage(username: _username),
+                      ),
+                    );
+                  },
+                  icon: const Icon(Icons.emoji_events),
+                  label: const Text('Ver Mis Trofeos'),
+                  style: ElevatedButton.styleFrom(
+                    backgroundColor: Colors.amber,
+                    foregroundColor: Colors.white,
+                    minimumSize: const Size(double.infinity, 50),
+                    padding: const EdgeInsets.symmetric(vertical: 12),
+                  ),
+                ),
                 const SizedBox(height: 16),
                 ElevatedButton.icon(
                   onPressed: () {
@@ -871,7 +890,7 @@ class _UserPageState extends State<UserPage> {
                   icon: const Icon(Icons.star),
                   label: const Text('Ver Mis Valoraciones'),
                   style: ElevatedButton.styleFrom(
-                    backgroundColor: Colors.amber,
+                    backgroundColor: Colors.green,
                     foregroundColor: Colors.white,
                     minimumSize: const Size(double.infinity, 50),
                     padding: const EdgeInsets.symmetric(vertical: 12),
