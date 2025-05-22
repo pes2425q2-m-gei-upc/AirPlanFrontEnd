@@ -166,6 +166,12 @@ class GlobalNotificationService {
         return Icons.person;
       case 'session_expired':
         return Icons.lock_clock;
+      case 'activity_reminder':
+        return Icons.access_alarm;
+      case 'message':
+        return Icons.message;
+      case 'invitacions':
+        return Icons.group_add;
       default:
         return Icons.notifications;
     }
