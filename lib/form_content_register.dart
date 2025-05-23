@@ -8,6 +8,7 @@ import 'package:airplan/terms_page.dart';
 import 'package:airplan/user_services.dart';
 import 'rive_controller.dart';
 import 'services/auth_service.dart';
+import 'package:easy_localization/easy_localization.dart';
 
 class FormContentRegister extends StatefulWidget {
   final RiveAnimationControllerHelper riveHelper;
@@ -34,6 +35,8 @@ class _FormContentRegisterState extends State<FormContentRegister> {
   String _selectedLanguage = 'Castellano';
   String? _emailError;
   String? _usernameError;
+  String? _nameError; // Add name error variable
+
   final TextEditingController _verificationCodeController =
       TextEditingController();
   final GlobalKey<FormState> _formKey = GlobalKey<FormState>();
@@ -90,18 +93,20 @@ class _FormContentRegisterState extends State<FormContentRegister> {
       setState(() {
         _emailError = null;
         _usernameError = null;
+        _nameError = null; // Reset name error
       });
       _formKey.currentState?.validate(); // Actualizar UI inmediatamente
 
       // 3. Preparar datos del usuario
+      final bool isActuallyAdmin =
+          _isAdmin && _verificationCodeController.text.trim() == 'ab123';
       final usuario = {
         "username": _usernameController.text.trim(),
         "nom": _nameController.text.trim(),
         "email": _emailController.text.trim(),
         "idioma": _selectedLanguage,
-        "sesionIniciada": true,
-        "isAdmin":
-            _isAdmin && _verificationCodeController.text.trim() == 'ab123',
+        "sesionIniciada": false, // Consistent for all new user registrations
+        "isAdmin": isActuallyAdmin,
       };
 
       // 4. Enviar petición al backend
@@ -114,6 +119,24 @@ class _FormContentRegisterState extends State<FormContentRegister> {
       // 5. Manejar respuesta
       if (response.statusCode == 201) {
         _handleRegistrationSuccess();
+      } else if (response.statusCode == 400) {
+        // Backend indicates inappropriate content, parse field-specific error
+        final Map<String, dynamic> body = jsonDecode(response.body);
+        final field = body['field'] as String?;
+        widget.riveHelper.addFailController();
+        setState(() {
+          if (field == 'nom') {
+            _nameError = 'Contenido inapropiado en el nombre';
+          } else if (field == 'username') {
+            _usernameError = 'Contenido inapropiado en el nombre de usuario';
+          } else if (field == 'email') {
+            _emailError = 'Contenido inapropiado en el correo electrónico';
+          } else {
+            // Fallback error
+            _usernameError = _emailError = _nameError = 'Contenido inapropiado';
+          }
+        });
+        _formKey.currentState?.validate();
       } else {
         _handleBackendError(response.body);
       }
@@ -234,18 +257,19 @@ class _FormContentRegisterState extends State<FormContentRegister> {
                       (_) => RiveAnimationControllerHelper().setIdle(),
                   controller: _nameController,
                   validator: (value) {
-                    final result =
-                        value == null || value.isEmpty
-                            ? 'Introdueix el teu nom'
-                            : null;
-                    return result;
+                    if (_nameError != null) return _nameError;
+                    if (value == null || value.isEmpty) {
+                      return tr('register_enter_name');
+                    }
+                    return null;
                   },
-                  decoration: const InputDecoration(
-                    labelText: 'Nom',
+                  decoration: InputDecoration(
+                    labelText: tr('register_name_label'),
                     prefixIcon: Icon(Icons.person_outline),
                     border: OutlineInputBorder(),
                     errorMaxLines: 2,
                   ),
+                  onChanged: (_) => setState(() => _nameError = null),
                 ),
                 _gap(),
 
@@ -258,13 +282,13 @@ class _FormContentRegisterState extends State<FormContentRegister> {
                   validator: (value) {
                     if (_usernameError != null) return _usernameError;
                     if (value == null || value.isEmpty) {
-                      final result = 'Introdueix el teu nom d\'usuari';
+                      final result = tr('register_enter_username');
                       return result;
                     }
                     return null;
                   },
-                  decoration: const InputDecoration(
-                    labelText: 'Nom d\'usuari',
+                  decoration: InputDecoration(
+                    labelText: tr('register_username_label'),
                     prefixIcon: Icon(Icons.person),
                     border: OutlineInputBorder(),
                     errorMaxLines: 2,
@@ -281,18 +305,18 @@ class _FormContentRegisterState extends State<FormContentRegister> {
                       return _emailError;
                     }
                     if (value == null || value.isEmpty) {
-                      final result = 'Introdueix el teu correu electrònic';
+                      final result = tr('register_enter_email');
                       return result;
                     }
                     bool emailValid = RegExp(
                       r"^[a-zA-Z0-9._%+-]+@[a-zA-Z0-9.-]+\.[a-zA-Z]{2,}$",
                     ).hasMatch(value);
                     final result =
-                        emailValid ? null : 'Introdueix un correu vàlid';
+                        emailValid ? null : tr('register_invalid_email');
                     return result;
                   },
-                  decoration: const InputDecoration(
-                    labelText: 'Correu electrònic',
+                  decoration: InputDecoration(
+                    labelText: tr('register_email_label'),
                     prefixIcon: Icon(Icons.email_outlined),
                     border: OutlineInputBorder(),
                     errorMaxLines: 2,
@@ -309,12 +333,12 @@ class _FormContentRegisterState extends State<FormContentRegister> {
                     final result =
                         value != null && value.length >= 8
                             ? null
-                            : 'Mínim 8 caràcters';
+                            : tr('register_password_min_chars');
                     return result;
                   },
                   obscureText: !_isPasswordVisible,
                   decoration: InputDecoration(
-                    labelText: 'Contrasenya',
+                    labelText: tr('register_password_label'),
                     prefixIcon: const Icon(Icons.lock_outline_rounded),
                     border: const OutlineInputBorder(),
                     suffixIcon: IconButton(
@@ -340,12 +364,12 @@ class _FormContentRegisterState extends State<FormContentRegister> {
                     final result =
                         value == _passwordController.text
                             ? null
-                            : 'Les contrasenyes no coincideixen';
+                            : tr('register_password_mismatch');
                     return result;
                   },
                   obscureText: !_isConfirmPasswordVisible,
                   decoration: InputDecoration(
-                    labelText: 'Confirmar contrasenya',
+                    labelText: tr('register_confirm_password_label'),
                     prefixIcon: const Icon(Icons.lock_outline_rounded),
                     border: const OutlineInputBorder(),
                     suffixIcon: IconButton(
@@ -368,8 +392,25 @@ class _FormContentRegisterState extends State<FormContentRegister> {
                 // Selector de Idioma
                 DropdownButtonFormField<String>(
                   value: _selectedLanguage,
-                  onChanged:
-                      (value) => setState(() => _selectedLanguage = value!),
+                  onChanged: (value) {
+                    if (value == null) return;
+                    Locale locale;
+                    switch (value) {
+                      case 'Català':
+                        locale = const Locale('ca');
+                        break;
+                      case 'English':
+                        locale = const Locale('en');
+                        break;
+                      case 'Castellano':
+                      default:
+                        locale = const Locale('es');
+                    }
+                    context.setLocale(locale);
+                    setState(() {
+                      _selectedLanguage = value;
+                    });
+                  },
                   items:
                       ['Català', 'English', 'Castellano']
                           .map(
@@ -379,8 +420,8 @@ class _FormContentRegisterState extends State<FormContentRegister> {
                             ),
                           )
                           .toList(),
-                  decoration: const InputDecoration(
-                    labelText: 'Idioma',
+                  decoration: InputDecoration(
+                    labelText: tr('register_language_label'),
                     prefixIcon: Icon(Icons.language),
                     border: OutlineInputBorder(),
                   ),
@@ -392,7 +433,7 @@ class _FormContentRegisterState extends State<FormContentRegister> {
                   value: _isAdmin,
                   onChanged:
                       (value) => setState(() => _isAdmin = value ?? false),
-                  title: const Text('¿Eres administrador?'),
+                  title: Text(tr('register_admin_title')),
                   controlAffinity: ListTileControlAffinity.leading,
                   dense: true,
                 ),
@@ -404,12 +445,17 @@ class _FormContentRegisterState extends State<FormContentRegister> {
                     controller: _verificationCodeController,
                     validator: (value) {
                       if (_isAdmin && (value == null || value.isEmpty)) {
-                        return 'Introdueix el codi de verificació';
+                        return tr('register_verification_code_enter');
+                      }
+                      if (_isAdmin &&
+                          value != null &&
+                          value.trim() != 'ab123') {
+                        return tr('register_verification_code_invalid');
                       }
                       return null;
                     },
-                    decoration: const InputDecoration(
-                      labelText: 'Codi de verificació',
+                    decoration: InputDecoration(
+                      labelText: tr('register_verification_code_label'),
                       prefixIcon: Icon(Icons.lock),
                       border: OutlineInputBorder(),
                     ),
@@ -422,7 +468,7 @@ class _FormContentRegisterState extends State<FormContentRegister> {
                   value: _agreeToTerms,
                   onChanged:
                       (value) => setState(() => _agreeToTerms = value ?? false),
-                  title: const Text('Accepto els termes i condicions'),
+                  title: Text(tr('register_agree_terms')),
                   controlAffinity: ListTileControlAffinity.leading,
                   dense: true,
                 ),
@@ -439,8 +485,8 @@ class _FormContentRegisterState extends State<FormContentRegister> {
                       ),
                     ),
                     onPressed: _registerUser,
-                    child: const Text(
-                      'Registra\'t',
+                    child: Text(
+                      tr('register_button'),
                       style: TextStyle(
                         fontSize: 16,
                         fontWeight: FontWeight.bold,
@@ -458,8 +504,8 @@ class _FormContentRegisterState extends State<FormContentRegister> {
                       ),
                     );
                   },
-                  child: const Text(
-                    "Veure termes i condicions",
+                  child: Text(
+                    tr('register_view_terms'),
                     style: TextStyle(
                       fontSize: 14,
                       decoration: TextDecoration.underline,
@@ -471,8 +517,8 @@ class _FormContentRegisterState extends State<FormContentRegister> {
                 // Enlace a Login
                 TextButton(
                   onPressed: () => Navigator.pop(context),
-                  child: const Text(
-                    "Ja tens un compte? Inicia sessió",
+                  child: Text(
+                    tr('register_have_account_login'),
                     style: TextStyle(fontSize: 14),
                   ),
                 ),

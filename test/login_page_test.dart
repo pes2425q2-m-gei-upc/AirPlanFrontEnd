@@ -29,7 +29,7 @@ class MockFirebaseAppPlatform extends FirebaseAppPlatform
     projectId: 'mock_project_id',
   );
 
-  // Override methods used by your code if necessary, otherwise the mixin handles them.
+// Override methods used by your code if necessary, otherwise the mixin handles them.
 }
 
 // Update MockFirebasePlatform to extend FirebasePlatform and use MockPlatformInterfaceMixin
@@ -51,7 +51,7 @@ class MockFirebasePlatform extends FirebasePlatform
     return MockFirebaseAppPlatform(); // Return the mock platform app
   }
 
-  // Implement other methods if they are called during your tests
+// Implement other methods if they are called during your tests
 }
 
 // Create stubs for Firebase types
@@ -71,8 +71,8 @@ class TestUser implements User {
   final String? _displayName;
 
   TestUser({String? email, String? displayName})
-    : _email = email,
-      _displayName = displayName;
+      : _email = email,
+        _displayName = displayName;
 
   @override
   String? get email => _email;
@@ -117,8 +117,9 @@ void main() {
 
   group('LoginPage UI Tests', () {
     testWidgets('renders all required UI elements', (
-      WidgetTester tester,
-    ) async {
+        WidgetTester tester,
+        ) async {
+      await tester.binding.setSurfaceSize(const Size(600, 800));
       await tester.pumpWidget(
         MaterialApp(
           home: LoginPage(
@@ -130,18 +131,18 @@ void main() {
       );
 
       // Verify UI elements
-      expect(find.text('Iniciar Sessió'), findsNWidgets(2)); // AppBar + button
-      expect(find.text('Correu electrònic'), findsOneWidget);
-      expect(find.text('Contrasenya'), findsOneWidget);
-      expect(find.text("No tens compte? Registra't aquí"), findsOneWidget);
-      expect(find.text('Has oblidat la contrasenya?'), findsOneWidget);
+      expect(find.text('login_title'), findsNWidgets(1)); // AppBar + button
+      expect(find.text('email_label'), findsOneWidget);
+      expect(find.text('password_label'), findsOneWidget);
+      expect(find.text("signup_prompt"), findsOneWidget);
+      expect(find.text('reset_password'), findsOneWidget);
       expect(find.byType(TextField), findsNWidgets(2));
       expect(find.byType(ElevatedButton), findsOneWidget);
     });
 
     testWidgets('navigates to signup page when register link is tapped', (
-      WidgetTester tester,
-    ) async {
+        WidgetTester tester,
+        ) async {
       final mockSignUpPage = Scaffold(
         appBar: AppBar(title: const Text('Mock SignUpPage')),
       );
@@ -158,7 +159,7 @@ void main() {
       );
 
       // Simulate tapping the register link
-      await tester.tap(find.text("No tens compte? Registra't aquí"));
+      await tester.tap(find.text("signup_prompt"));
       await tester.pumpAndSettle();
 
       // Verify navigation to the mock SignUpPage
@@ -167,7 +168,7 @@ void main() {
 
     testWidgets(
       'navigates to reset password page when forgot password link is tapped',
-      (WidgetTester tester) async {
+          (WidgetTester tester) async {
         await tester.pumpWidget(
           MaterialApp(
             home: LoginPage(
@@ -178,7 +179,7 @@ void main() {
           ),
         );
 
-        await tester.tap(find.text('Has oblidat la contrasenya?'));
+        await tester.tap(find.text('reset_password'));
         await tester.pumpAndSettle();
 
         expect(find.byType(ResetPasswordPage), findsOneWidget);
@@ -220,14 +221,14 @@ void main() {
 
       // Enter credentials and login
       await tester.enterText(
-        find.widgetWithText(TextField, 'Correu electrònic'),
+        find.widgetWithText(TextField, 'email_label'),
         'test@example.com',
       );
       await tester.enterText(
-        find.widgetWithText(TextField, 'Contrasenya'),
+        find.widgetWithText(TextField, 'password_label'),
         'password',
       );
-      await tester.tap(find.byType(ElevatedButton));
+      await tester.tap(find.text('login_button'));
       await tester.pump();
 
       // Verify service calls
@@ -248,8 +249,8 @@ void main() {
     });
 
     testWidgets('shows error when user is null after authentication', (
-      WidgetTester tester,
-    ) async {
+        WidgetTester tester,
+        ) async {
       // Arrange - Setup null user response
       when(
         mockAuthService.signInWithEmailAndPassword(any, any),
@@ -267,14 +268,14 @@ void main() {
 
       // Enter credentials and login
       await tester.enterText(
-        find.widgetWithText(TextField, 'Correu electrònic'),
+        find.widgetWithText(TextField, 'email_label'),
         'test@example.com',
       );
       await tester.enterText(
-        find.widgetWithText(TextField, 'Contrasenya'),
+        find.widgetWithText(TextField, 'password_label'),
         'password',
       );
-      await tester.tap(find.byType(ElevatedButton));
+      await tester.tap(find.text('login_button'));
       await tester.pump();
 
       // Verify error message
@@ -285,8 +286,8 @@ void main() {
     });
 
     testWidgets('shows error when user email is missing', (
-      WidgetTester tester,
-    ) async {
+        WidgetTester tester,
+        ) async {
       // Arrange - Setup user with missing email
       final testUser = TestUser(displayName: 'Test User', email: null);
       final testCredential = TestUserCredential(user: testUser);
@@ -307,14 +308,14 @@ void main() {
 
       // Enter credentials and login
       await tester.enterText(
-        find.widgetWithText(TextField, 'Correu electrònic'),
+        find.widgetWithText(TextField, 'email_label'),
         'test@example.com',
       );
       await tester.enterText(
-        find.widgetWithText(TextField, 'Contrasenya'),
+        find.widgetWithText(TextField, 'password_label'),
         'password',
       );
-      await tester.tap(find.byType(ElevatedButton));
+      await tester.tap(find.text('login_button'));
       await tester.pump();
 
       // Verify error message
@@ -322,8 +323,8 @@ void main() {
     });
 
     testWidgets('shows error when backend returns non-200 status', (
-      WidgetTester tester,
-    ) async {
+        WidgetTester tester,
+        ) async {
       // Arrange
       final testUser = TestUser(
         email: 'test@example.com',
@@ -342,7 +343,7 @@ void main() {
           body: anyNamed('body'),
         ),
       ).thenAnswer(
-        (_) async => http.Response('{"error": "Server error"}', 500),
+            (_) async => http.Response('{"error": "Server error"}', 500),
       );
 
       await tester.pumpWidget(
@@ -357,14 +358,14 @@ void main() {
 
       // Enter credentials and login
       await tester.enterText(
-        find.widgetWithText(TextField, 'Correu electrònic'),
+        find.widgetWithText(TextField, 'email_label'),
         'test@example.com',
       );
       await tester.enterText(
-        find.widgetWithText(TextField, 'Contrasenya'),
+        find.widgetWithText(TextField, 'password_label'),
         'password',
       );
-      await tester.tap(find.byType(ElevatedButton));
+      await tester.tap(find.text('login_button'));
       await tester.pump();
 
       // Verify error message
@@ -376,8 +377,8 @@ void main() {
     });
 
     testWidgets('handles authentication exceptions correctly', (
-      WidgetTester tester,
-    ) async {
+        WidgetTester tester,
+        ) async {
       // Arrange - Setup auth exception
       when(
         mockAuthService.signInWithEmailAndPassword(any, any),
@@ -395,14 +396,14 @@ void main() {
 
       // Enter credentials and login
       await tester.enterText(
-        find.widgetWithText(TextField, 'Correu electrònic'),
+        find.widgetWithText(TextField, 'email_label'),
         'test@example.com',
       );
       await tester.enterText(
-        find.widgetWithText(TextField, 'Contrasenya'),
+        find.widgetWithText(TextField, 'password_label'),
         'password',
       );
-      await tester.tap(find.byType(ElevatedButton));
+      await tester.tap(find.text('login_button'));
       await tester.pump();
 
       // Verify error message
@@ -410,8 +411,8 @@ void main() {
     });
 
     testWidgets('properly disposes HTTP client if created internally', (
-      WidgetTester tester,
-    ) async {
+        WidgetTester tester,
+        ) async {
       // This test needs a MaterialApp to host the LoginPage state
       await tester.pumpWidget(MaterialApp(home: LoginPage()));
 

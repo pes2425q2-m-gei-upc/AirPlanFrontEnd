@@ -13,6 +13,7 @@ import 'services/notification_service.dart';
 import 'services/api_config.dart'; // Importar la configuración de API
 import 'services/auth_service.dart'; // Import AuthService
 import 'main.dart'; // Importamos main.dart para acceder a profileUpdateStreamController
+import 'package:easy_localization/easy_localization.dart';
 
 class EditProfilePage extends StatefulWidget {
   final AuthService?
@@ -35,6 +36,7 @@ class EditProfilePageState extends State<EditProfilePage> {
   final TextEditingController _newPasswordController = TextEditingController();
   final TextEditingController _confirmPasswordController =
       TextEditingController();
+  late final String _initialLanguage;
   String _selectedLanguage = 'Castellano'; // Default language
   bool _isCurrentPasswordVisible = false;
   bool _isNewPasswordVisible = false;
@@ -56,6 +58,9 @@ class EditProfilePageState extends State<EditProfilePage> {
   // Notification service instance
   final NotificationService _notificationService = NotificationService();
 
+  String? _nameError;
+  String? _emailError;
+
   @override
   void initState() {
     super.initState();
@@ -68,6 +73,8 @@ class EditProfilePageState extends State<EditProfilePage> {
       // Intentar cargar los datos actuales del usuario
       _loadUserData();
     }
+
+    _initialLanguage = _selectedLanguage;
 
     // Añadir listener para los cambios de autenticación
     _authStateSubscription = _authService.authStateChanges.listen((User? user) {
@@ -173,6 +180,7 @@ class EditProfilePageState extends State<EditProfilePage> {
             // Idioma si está disponible
             if (userData['idioma'] != null) {
               _selectedLanguage = userData['idioma'];
+              _initialLanguage = _selectedLanguage;
             }
           });
         } else {
@@ -242,10 +250,7 @@ class EditProfilePageState extends State<EditProfilePage> {
 
     final currentUser = _authService.getCurrentUser();
     if (currentUser == null) {
-      _notificationService.showError(
-        context,
-        'No hay ningún usuario con sesión iniciada.',
-      );
+      _notificationService.showError(context, 'no_logged_in'.tr());
       return;
     }
 
@@ -265,7 +270,7 @@ class EditProfilePageState extends State<EditProfilePage> {
     }
 
     // 2. Show Loading Indicator
-    _showLoadingIndicator("Actualizando perfil...");
+    _showLoadingIndicator("updating_profile".tr());
     // Added mounted check
     if (!mounted) return;
 
@@ -291,7 +296,23 @@ class EditProfilePageState extends State<EditProfilePage> {
       emailChanged,
     );
 
-    // 5. Hide Loading Indicator (regardless of success/failure)
+    // 5. Si el usuario cambió idioma y la actualización fue exitosa, aplicar nuevo locale
+    if (_selectedLanguage != _initialLanguage) {
+      final raw = _selectedLanguage.toLowerCase();
+      final code =
+          raw.contains('eng')
+              ? 'en'
+              : raw.contains('castellano')
+              ? 'es'
+              : raw.contains('ca')
+              ? 'ca'
+              : 'en';
+      if (!mounted) return;
+      await context.setLocale(Locale(code));
+      _initialLanguage = _selectedLanguage;
+    }
+
+    // 6. Hide Loading Indicator (regardless of success/failure)
     if (mounted) {
       ScaffoldMessenger.of(context).hideCurrentSnackBar();
     }
@@ -318,20 +339,20 @@ class EditProfilePageState extends State<EditProfilePage> {
 
   bool _validateInputFields() {
     if (_nameController.text.trim().isEmpty) {
-      _showErrorDialog('El nombre no puede estar vacío.');
+      _showErrorDialog('error_name_empty'.tr());
       return false;
     }
     if (_usernameController.text.trim().isEmpty) {
-      _showErrorDialog('El nombre de usuario no puede estar vacío.');
+      _showErrorDialog('error_username_empty'.tr());
       return false;
     }
     if (_emailController.text.trim().isEmpty) {
-      _showErrorDialog('El correo electrónico no puede estar vacío.');
+      _showErrorDialog('error_email_empty'.tr());
       return false;
     }
     final emailRegex = RegExp(r'^[\w-\.]+@([\w-]+\.)+[\w-]{2,4}$');
     if (!emailRegex.hasMatch(_emailController.text.trim())) {
-      _showErrorDialog('Por favor, introduce un correo electrónico válido.');
+      _showErrorDialog('please_enter_valid_email'.tr());
       return false;
     }
     return true;
@@ -342,7 +363,7 @@ class EditProfilePageState extends State<EditProfilePage> {
     // Added mounted check
     if (!mounted) return null;
     if (password == null || password.isEmpty) {
-      _notificationService.showInfo(context, 'Cambio de perfil cancelado.');
+      _notificationService.showInfo(context, 'profile_update_cancelled'.tr());
       return null;
     }
     final reauthSuccess = await _reauthenticateUser(password);
@@ -438,6 +459,11 @@ class EditProfilePageState extends State<EditProfilePage> {
     }
 
     try {
+      // Reset inline errors
+      setState(() {
+        _nameError = null;
+        _emailError = null;
+      });
       final response = await http.post(
         Uri.parse(ApiConfig().buildUrl('api/usuaris/updateFullProfile')),
         headers: {'Content-Type': 'application/json'},
@@ -454,7 +480,7 @@ class EditProfilePageState extends State<EditProfilePage> {
         final responseData = json.decode(response.body);
         final bool success = responseData['success'] ?? false;
         final String message =
-            responseData['message'] ?? 'Perfil actualizado correctamente';
+            responseData['message'] ?? 'profile_updated_successfully'.tr();
         final String? customToken = responseData['customToken'] as String?;
         // Obtener la URL de la imagen desde la respuesta si se subió una imagen
         final String? imageUrlFromResponse =
@@ -478,29 +504,38 @@ class EditProfilePageState extends State<EditProfilePage> {
         } else {
           _notificationService.showError(
             context,
-            responseData['error'] ?? 'Error al actualizar el perfil',
+            responseData['error'] ?? 'error_updating_profile'.tr(),
           );
         }
+      } else if (response.statusCode == 400) {
+        // Inappropriate content error
+        final errorData = json.decode(response.body);
+        final field = errorData['field'] as String?;
+        setState(() {
+          if (field == 'nom') {
+            _nameError = 'inappropiate_message'.tr();
+          } else if (field == 'email') {
+            _emailError = "inappropiate_message".tr();
+          }
+        });
+        return;
       } else {
         String errorMessage;
         try {
           final errorData = json.decode(response.body);
           errorMessage =
               errorData['error'] ??
-              'Error desconocido (${response.statusCode})';
+              '${'unknown_error'.tr()}(${response.statusCode})';
           errorMessage = _getFriendlyErrorMessage(errorMessage);
         } catch (e) {
           errorMessage =
-              'Error de comunicación con el servidor (${response.statusCode})';
+              '${'error_communicating'.tr()}(${response.statusCode})';
         }
         _notificationService.showError(context, errorMessage);
       }
     } catch (e) {
-      // Added mounted check
       if (!mounted) return;
-      ScaffoldMessenger.of(
-        context,
-      ).hideCurrentSnackBar(); // Ensure hidden on exception
+      ScaffoldMessenger.of(context).hideCurrentSnackBar();
       _notificationService.showError(
         context,
         _getFriendlyErrorMessage(e.toString()),
@@ -588,7 +623,7 @@ class EditProfilePageState extends State<EditProfilePage> {
       if (!mounted) return;
       _notificationService.showInfo(
         context,
-        '$message\nPero hubo un problema con tu sesión. Puede que tengas que iniciar sesión nuevamente.',
+        '${'profile_update_session_problem'.tr()} $message',
       );
     }
   }
@@ -596,7 +631,7 @@ class EditProfilePageState extends State<EditProfilePage> {
   void _handleEmailChangeWithoutToken(String message) {
     _notificationService.showInfo(
       context,
-      '$message\nPor favor, inicia sesión nuevamente con tu nuevo correo.',
+      '${'profile_update_session_problem'.tr()}\n$message\n${'profile_update_login_again'.tr()}',
     );
     // _authStateSubscription should handle redirection automatically
   }
@@ -626,7 +661,7 @@ class EditProfilePageState extends State<EditProfilePage> {
       if (!mounted) return;
       _notificationService.showInfo(
         context,
-        '$message\nAlgunos cambios podrían no verse reflejados inmediatamente.',
+        '$message\n${'profile_update_session_problem_note'.tr()}',
       );
     }
   }
@@ -696,27 +731,31 @@ class EditProfilePageState extends State<EditProfilePage> {
       switch (e.code) {
         case 'wrong-password':
           errorMessage =
-              'La contraseña introducida es incorrecta. Por favor, verifica e intenta nuevamente.';
+              'wrong_password_verify_again'
+                  .tr(); // Use translation for wrong password
           break;
         case 'user-mismatch':
-          errorMessage = 'Las credenciales no corresponden al usuario actual.';
+          errorMessage =
+              'wrong_user_verify_again'
+                  .tr(); // Use translation for user mismatch
           break;
         case 'user-not-found':
-          errorMessage = 'No se encontró el usuario en el sistema.';
+          errorMessage =
+              'cant_find_user'.tr(); // Use translation for user not found
           break;
         case 'invalid-credential':
-          errorMessage =
-              'Las credenciales de autenticación proporcionadas no son válidas.';
+          errorMessage = 'wrong_credential'.tr();
           break;
         case 'invalid-email':
-          errorMessage = 'El formato del correo electrónico no es válido.';
+          errorMessage =
+              'wrong_email_format'.tr(); // Use translation for invalid email
           break;
         case 'too-many-requests':
           errorMessage =
-              'Demasiados intentos fallidos. Por favor, espera un momento antes de volver a intentarlo.';
+              'too_many_requests'.tr(); // Use translation for too many requests
           break;
         default:
-          errorMessage = 'Error en la autenticación: ${e.message}';
+          errorMessage = '${'auth_error'.tr()}\$${e.message}';
           break;
       }
       _notificationService.showError(context, errorMessage);
@@ -752,20 +791,18 @@ class EditProfilePageState extends State<EditProfilePage> {
           builder: (context, setStateDialog) {
             // Use context from StatefulBuilder
             return AlertDialog(
-              title: const Text('Verificación necesaria'),
+              title: Text('need_verification'.tr()),
               content: SingleChildScrollView(
                 child: Column(
                   mainAxisSize: MainAxisSize.min,
                   children: [
-                    const Text(
-                      'Esta operación requiere verificación reciente. Por favor, ingresa tu contraseña para continuar.',
-                    ),
+                    Text('need_recent_verification'.tr()),
                     const SizedBox(height: 16),
                     TextField(
                       controller: passwordController,
                       obscureText: obscurePassword,
                       decoration: InputDecoration(
-                        labelText: 'Contraseña',
+                        labelText: 'password'.tr(),
                         border: const OutlineInputBorder(),
                         suffixIcon: IconButton(
                           icon: Icon(
@@ -789,14 +826,14 @@ class EditProfilePageState extends State<EditProfilePage> {
                 TextButton(
                   // Use dialogContext to pop
                   onPressed: () => Navigator.of(dialogContext).pop(null),
-                  child: const Text('Cancelar'),
+                  child: Text('cancel'.tr()),
                 ),
                 TextButton(
                   onPressed:
                       () =>
                       // Use dialogContext to pop
                       Navigator.of(dialogContext).pop(passwordController.text),
-                  child: const Text('Verificar'),
+                  child: Text('verify'.tr()),
                 ),
               ],
             );
@@ -813,30 +850,30 @@ class EditProfilePageState extends State<EditProfilePage> {
 
     // Validations for passwords
     if (_currentPasswordController.text.isEmpty) {
-      _showErrorDialog('Debes introducir tu contraseña actual');
+      _showErrorDialog('insert_password_here'.tr());
       return;
     }
     if (_newPasswordController.text.isEmpty) {
-      _showErrorDialog('La nueva contraseña no puede estar vacía');
+      _showErrorDialog('new_password_cantbe_empty'.tr());
       return;
     }
     if (_newPasswordController.text.length < 8) {
-      _showErrorDialog('La nueva contraseña debe tener al menos 8 caracteres');
+      _showErrorDialog('new_password_too_short'.tr());
       return;
     }
     if (_newPasswordController.text != _confirmPasswordController.text) {
-      _showErrorDialog('Las contraseñas no coinciden');
+      _showErrorDialog('passwords_do_not_match'.tr());
       return;
     }
 
     final user = _authService.getCurrentUser();
     if (user == null || user.email == null) {
-      _showErrorDialog('No hay usuario autenticado o falta el email.');
+      _showErrorDialog('not_autenticated_or_no_email'.tr());
       return;
     }
 
     // Show loading indicator
-    _showLoadingIndicator("Actualizando contraseña...");
+    _showLoadingIndicator("uploading_password".tr());
     // Added mounted check
     if (!mounted) return;
 
@@ -870,7 +907,7 @@ class EditProfilePageState extends State<EditProfilePage> {
       _confirmPasswordController.clear();
       _notificationService.showSuccess(
         context,
-        'Contraseña actualizada correctamente',
+        'password_changed_successfully'.tr(),
       );
     } on FirebaseAuthException catch (e) {
       // Added mounted check
@@ -880,26 +917,22 @@ class EditProfilePageState extends State<EditProfilePage> {
       String errorMessage;
       switch (e.code) {
         case 'wrong-password':
-          errorMessage = 'La contraseña actual es incorrecta';
+          errorMessage = 'actual_password_incorrect'.tr();
           break;
         case 'requires-recent-login':
-          errorMessage =
-              'Esta operación es sensible y requiere una autenticación reciente. Por favor, cierra sesión y vuelve a iniciarla.';
+          errorMessage = 'operation_requires_recent_login'.tr();
           break;
         case 'weak-password':
-          errorMessage =
-              'La nueva contraseña es débil. Usa una contraseña más segura que incluya letras, números y símbolos.';
+          errorMessage = 'weak_password'.tr();
           break;
         case 'invalid-credential':
-          errorMessage =
-              'Las credenciales proporcionadas no son válidas. Verifica tu contraseña actual.';
+          errorMessage = 'wrong_credential_verify_password'.tr();
           break;
         case 'user-token-expired':
-          errorMessage =
-              'Tu sesión ha expirado. Por favor, vuelve a iniciar sesión.';
+          errorMessage = 'your_session_has_expired'.tr();
           break;
         default:
-          errorMessage = 'Error al cambiar la contraseña: ${e.message}';
+          errorMessage = '${'error_changing_password'.tr()}\$${e.message}';
       }
       _notificationService.showError(context, errorMessage);
     } catch (e) {
@@ -908,7 +941,7 @@ class EditProfilePageState extends State<EditProfilePage> {
       ScaffoldMessenger.of(context).hideCurrentSnackBar();
       _notificationService.showError(
         context,
-        'Error al cambiar la contraseña: ${_getFriendlyErrorMessage(e.toString())}',
+        '${'error_changing_password'.tr()}\$${_getFriendlyErrorMessage(e.toString())}',
       );
     }
   }
@@ -946,41 +979,41 @@ class EditProfilePageState extends State<EditProfilePage> {
         return 'El nombre de usuario ya está en uso. Por favor, elige otro nombre de usuario.';
       }
       if (errorMessage.contains('email')) {
-        return 'El correo electrónico ya está registrado. Por favor, usa otro correo electrónico o inicia sesión con esa cuenta.';
+        return 'email_already_in_use'.tr();
       }
     }
     if (errorMessage.contains('invalid-email') ||
         (errorMessage.contains('email') && errorMessage.contains('formato'))) {
-      return 'El formato del correo electrónico no es válido.';
+      return 'wrong_email_format'.tr();
     }
     if (errorMessage.contains('wrong-password') ||
         errorMessage.contains('incorrecta')) {
-      return 'La contraseña proporcionada es incorrecta. Por favor, verifica tus credenciales.';
+      return 'wrong_password'.tr();
     }
     if (errorMessage.contains('network error') || // Generic network error
         errorMessage.contains('refused') ||
         errorMessage.contains('timeout') ||
         errorMessage.contains('SocketException')) {
       // Common Dart network error
-      return 'No se pudo conectar con el servidor. Por favor, verifica tu conexión a internet e inténtalo de nuevo.';
+      return 'network_error'.tr();
     }
     if (errorMessage.contains('requires-recent-login')) {
-      return 'Esta operación requiere una autenticación reciente. Por favor, cierra sesión y vuelve a iniciarla.';
+      return 'operation_requires_recent_login'.tr();
     }
     if (errorMessage.contains('weak-password')) {
-      return 'La nueva contraseña es débil. Usa una contraseña más segura.';
+      return 'weak_password'.tr();
     }
     if (errorMessage.contains('user-not-found')) {
-      return 'Usuario no encontrado.';
+      return 'user_not_found'.tr();
     }
     if (errorMessage.contains('invalid-credential')) {
-      return 'Credenciales inválidas.';
+      return 'invalid_credentials'.tr();
     }
 
     // Default fallback
     // Avoid showing overly technical details if possible
     if (errorMessage.length > 150 || errorMessage.contains('Exception')) {
-      return 'Ocurrió un error inesperado. Por favor, inténtalo de nuevo más tarde.';
+      return 'unknown_error'.tr();
     }
 
     return errorMessage; // Return original if it's somewhat readable
@@ -1016,7 +1049,7 @@ class EditProfilePageState extends State<EditProfilePage> {
     final currentUser = _authService.getCurrentUser();
 
     return Scaffold(
-      appBar: AppBar(title: const Text('Edit Profile')),
+      appBar: AppBar(title: Text('edit_profile_title'.tr())),
       body: SingleChildScrollView(
         padding: const EdgeInsets.all(16.0),
         child: Column(
@@ -1057,42 +1090,47 @@ class EditProfilePageState extends State<EditProfilePage> {
                     // Use icon button for better UX
                     onPressed: _pickImage,
                     icon: const Icon(Icons.camera_alt),
-                    label: const Text('Cambiar Foto de Perfil'),
+                    label: Text('change_profile_picture'.tr()),
                   ),
                 ],
               ),
             ),
             const SizedBox(height: 24), // Increased space after image section
             TextField(
+              key: const Key('name_label'),
               controller: _nameController,
-              decoration: const InputDecoration(
-                labelText: 'Nombre', // Translate labels
-                border: OutlineInputBorder(),
-                prefixIcon: Icon(Icons.person_outline), // Add icon
+              decoration: InputDecoration(
+                labelText: 'name_label'.tr(),
+                border: const OutlineInputBorder(),
+                prefixIcon: const Icon(Icons.person_outline), // Add icon
+                errorText: _nameError,
               ),
+              onChanged: (_) => setState(() => _nameError = null),
             ),
             const SizedBox(height: 16),
             TextField(
+              key: const Key('username_label'),
               controller: _usernameController,
-              enabled: false, // Deshabilitar la edición del username
-              decoration: const InputDecoration(
-                labelText: 'Nombre de Usuario', // Translate labels
-                border: OutlineInputBorder(),
-                prefixIcon: Icon(Icons.account_circle_outlined), // Add icon
-                hintText:
-                    'No se puede modificar', // Agregar indicación de que no se puede modificar
-                helperText:
-                    'El nombre de usuario no se puede modificar', // Ayuda adicional
+              enabled: false,
+              decoration: InputDecoration(
+                labelText: 'username_label'.tr(),
+                border: const OutlineInputBorder(),
+                prefixIcon: const Icon(Icons.account_circle_outlined),
+                hintText: 'username_not_modifiable'.tr(),
+                helperText: 'username_helper'.tr(),
               ),
             ),
             const SizedBox(height: 16),
             TextField(
+              key: const Key('email_label'),
               controller: _emailController,
-              decoration: const InputDecoration(
-                labelText: 'Correo Electrónico', // Translate labels
-                border: OutlineInputBorder(),
-                prefixIcon: Icon(Icons.email_outlined), // Add icon
+              decoration: InputDecoration(
+                labelText: 'email_label'.tr(),
+                border: const OutlineInputBorder(),
+                prefixIcon: const Icon(Icons.email_outlined), // Add icon
+                errorText: _emailError,
               ),
+              onChanged: (_) => setState(() => _emailError = null),
               keyboardType: TextInputType.emailAddress,
             ),
             const SizedBox(height: 16),
@@ -1110,8 +1148,8 @@ class EditProfilePageState extends State<EditProfilePage> {
                   _selectedLanguage = value ?? 'Castellano';
                 });
               },
-              decoration: const InputDecoration(
-                labelText: 'Idioma', // Translate labels
+              decoration: InputDecoration(
+                labelText: 'language_label'.tr(),
                 border: OutlineInputBorder(),
                 prefixIcon: Icon(Icons.language), // Add icon
               ),
@@ -1121,7 +1159,7 @@ class EditProfilePageState extends State<EditProfilePage> {
               // Add icon to save button
               onPressed: _saveProfile,
               icon: const Icon(Icons.save),
-              label: const Text('Guardar Cambios'),
+              label: Text('save_changes'.tr()),
               style: ElevatedButton.styleFrom(
                 padding: const EdgeInsets.symmetric(
                   vertical: 12,
@@ -1132,10 +1170,10 @@ class EditProfilePageState extends State<EditProfilePage> {
             // Sección de cambio de contraseña
             const SizedBox(height: 40),
             const Divider(),
-            const Padding(
+            Padding(
               padding: EdgeInsets.symmetric(vertical: 16.0),
               child: Text(
-                'Cambiar Contraseña',
+                'change_password'.tr(),
                 style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold),
                 textAlign: TextAlign.center, // Center title
               ),
@@ -1143,10 +1181,11 @@ class EditProfilePageState extends State<EditProfilePage> {
 
             // Contraseña actual
             TextField(
+              key: const Key('current_password_label'),
               controller: _currentPasswordController,
               obscureText: !_isCurrentPasswordVisible,
               decoration: InputDecoration(
-                labelText: 'Contraseña Actual',
+                labelText: 'current_password_label'.tr(),
                 border: const OutlineInputBorder(),
                 prefixIcon: const Icon(Icons.lock_outline), // Add icon
                 suffixIcon: IconButton(
@@ -1167,13 +1206,14 @@ class EditProfilePageState extends State<EditProfilePage> {
 
             // Nueva contraseña
             TextField(
+              key: const Key('new_password_label'),
               controller: _newPasswordController,
               obscureText: !_isNewPasswordVisible,
               decoration: InputDecoration(
-                labelText: 'Nueva Contraseña',
+                labelText: 'new_password_label'.tr(),
                 border: const OutlineInputBorder(),
                 prefixIcon: const Icon(Icons.lock_outline), // Add icon
-                helperText: 'Mínimo 8 caracteres',
+                helperText: 'helper_min_8_chars'.tr(),
                 suffixIcon: IconButton(
                   icon: Icon(
                     _isNewPasswordVisible
@@ -1192,10 +1232,11 @@ class EditProfilePageState extends State<EditProfilePage> {
 
             // Confirmar nueva contraseña
             TextField(
+              key: const Key('confirm_password_label'),
               controller: _confirmPasswordController,
               obscureText: !_isConfirmPasswordVisible,
               decoration: InputDecoration(
-                labelText: 'Confirmar Nueva Contraseña',
+                labelText: 'confirm_password_label'.tr(),
                 border: const OutlineInputBorder(),
                 prefixIcon: const Icon(Icons.lock_outline), // Add icon
                 suffixIcon: IconButton(
@@ -1218,7 +1259,7 @@ class EditProfilePageState extends State<EditProfilePage> {
               // Add icon to change password button
               onPressed: _changePassword,
               icon: const Icon(Icons.sync_lock),
-              label: const Text('Actualizar Contraseña'),
+              label: Text('update_password'.tr()),
               style: ElevatedButton.styleFrom(
                 backgroundColor: Colors.blue, // Consider using Theme colors
                 foregroundColor: Colors.white,

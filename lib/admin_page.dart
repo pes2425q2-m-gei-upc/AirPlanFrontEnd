@@ -1,8 +1,10 @@
 // admin_page.dart
+import 'package:easy_localization/easy_localization.dart';
 import 'package:flutter/material.dart';
 import 'package:airplan/user_page.dart';
 import 'services/websocket_service.dart';
 import 'services/auth_service.dart'; // Import AuthService
+import 'package:airplan/filtros_admin_content.dart'; // Import the new filters content page
 
 class AdminPage extends StatefulWidget {
   // Add support for dependency injection
@@ -22,8 +24,9 @@ class AdminPageState extends State<AdminPage> {
 
   // Títulos para la AppBar según la pestaña seleccionada
   static final List<String> _appBarTitles = [
-    'Perfil de Administrador',
-    'Panel de Administración',
+    'admin_profile_title'.tr(),
+    'admin_panel_title'.tr(),
+    'content_filters_title'.tr(), // Updated title for the Filters tab
   ];
 
   void _onItemTapped(int index) {
@@ -59,24 +62,38 @@ class AdminPageState extends State<AdminPage> {
           ),
 
           // Pestaña 2: Panel de administración
-          const Center(
+          Center(
             child: Padding(
-              padding: EdgeInsets.all(16.0),
+              padding: const EdgeInsets.all(16.0),
               child: Text(
-                "Panel de administración\n(En construcción)",
+                "admin_panel_construction".tr(),
                 textAlign: TextAlign.center,
-                style: TextStyle(fontSize: 24, fontWeight: FontWeight.bold),
+                style: const TextStyle(
+                  fontSize: 24,
+                  fontWeight: FontWeight.bold,
+                ),
               ),
             ),
           ),
+
+          // Pestaña 3: Filtros (content of the new filters page)
+          const FiltrosAdminContent(), // Use the new widget here
         ],
       ),
       bottomNavigationBar: BottomNavigationBar(
-        items: const <BottomNavigationBarItem>[
-          BottomNavigationBarItem(icon: Icon(Icons.person), label: 'Perfil'),
+        items: <BottomNavigationBarItem>[
           BottomNavigationBarItem(
-            icon: Icon(Icons.admin_panel_settings),
-            label: 'Admin',
+            icon: const Icon(Icons.person),
+            label: 'profile_tab_label'.tr(),
+          ),
+          BottomNavigationBarItem(
+            icon: const Icon(Icons.admin_panel_settings),
+            label: 'admin_tab_label'.tr(),
+          ),
+          BottomNavigationBarItem(
+            // Nueva pestaña Filtros
+            icon: const Icon(Icons.filter_list),
+            label: 'filters_tab_label'.tr(),
           ),
         ],
         currentIndex: _selectedIndex,
