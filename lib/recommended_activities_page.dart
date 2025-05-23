@@ -675,7 +675,7 @@ class RecommendedActivitiesPageState extends State<RecommendedActivitiesPage> {
                                                   setState(() {
                                                     activity.isFavorite = true;
                                                   });
-                                                  if (context.mounted)
+                                                  if (context.mounted) {
                                                     NotificationService().showInfo(
                                                       context,
                                                       'added_to_favorites_message'
@@ -685,17 +685,15 @@ class RecommendedActivitiesPageState extends State<RecommendedActivitiesPage> {
                                                             ],
                                                           ),
                                                     );
+                                                  }
                                                 } catch (e) {
-                                                  if (context.mounted)
+                                                  if (context.mounted) {
                                                     NotificationService().showError(
                                                       context,
                                                       'error_adding_to_favorites_message'
-                                                          .tr(
-                                                            args: [
-                                                              activity.name,
-                                                            ],
-                                                          ),
+                                                          .tr(),
                                                     );
+                                                  }
                                                 }
                                               } else {
                                                 try {
@@ -708,7 +706,7 @@ class RecommendedActivitiesPageState extends State<RecommendedActivitiesPage> {
                                                   setState(() {
                                                     activity.isFavorite = false;
                                                   });
-                                                  if (context.mounted)
+                                                  if (context.mounted) {
                                                     NotificationService().showInfo(
                                                       context,
                                                       'removed_from_favorites_message'
@@ -718,8 +716,9 @@ class RecommendedActivitiesPageState extends State<RecommendedActivitiesPage> {
                                                             ],
                                                           ),
                                                     );
+                                                  }
                                                 } catch (e) {
-                                                  if (context.mounted)
+                                                  if (context.mounted) {
                                                     NotificationService().showError(
                                                       context,
                                                       'error_removing_from_favorites_message'
@@ -729,6 +728,7 @@ class RecommendedActivitiesPageState extends State<RecommendedActivitiesPage> {
                                                             ],
                                                           ),
                                                     );
+                                                  }
                                                 }
                                               }
                                             },

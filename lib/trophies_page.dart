@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'dart:convert';
 import 'package:http/http.dart' as http;
+import 'package:easy_localization/easy_localization.dart';
 
 class TrophiesPage extends StatefulWidget {
   final String username;
@@ -29,27 +30,31 @@ class _TrophiesPageState extends State<TrophiesPage> {
       if (response.statusCode == 200) {
         return List<Map<String, dynamic>>.from(json.decode(response.body));
       } else {
-        throw Exception('Failed to load trophies');
+        throw Exception('trophies_page_error_load_trophies'.tr());
       }
     } catch (e) {
       debugPrint('Error fetching trophies: $e');
-      throw Exception('Error fetching trophies');
+      throw Exception('trophies_page_error_fetch_trophies'.tr());
     }
   }
 
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      appBar: AppBar(title: const Text('Mis Trofeos')),
+      appBar: AppBar(title: Text('trophies_page_title'.tr())),
       body: FutureBuilder<List<Map<String, dynamic>>>(
         future: _trophiesFuture,
         builder: (context, snapshot) {
           if (snapshot.connectionState == ConnectionState.waiting) {
             return const Center(child: CircularProgressIndicator());
           } else if (snapshot.hasError) {
-            return Center(child: Text('Error: ${snapshot.error}'));
+            return Center(
+              child: Text(
+                '${'trophies_page_error_generic'.tr()}: ${snapshot.error}',
+              ),
+            );
           } else if (!snapshot.hasData || snapshot.data!.isEmpty) {
-            return const Center(child: Text('No tienes trofeos aún.'));
+            return Center(child: Text('trophies_page_no_trophies'.tr()));
           }
 
           final trophies = snapshot.data!;
@@ -72,20 +77,30 @@ class _TrophiesPageState extends State<TrophiesPage> {
                         width: 60, // Size of the square frame
                         height: 60,
                         decoration: BoxDecoration(
-                          borderRadius: BorderRadius.circular(8), // Rounded corners
-                          image: trophy['imatge'] != null
-                              ? DecorationImage(
-                            image: NetworkImage(trophy['imatge']),
-                            fit: BoxFit.cover, // Adjust the image to fit the frame
-                          )
-                              : null,
+                          borderRadius: BorderRadius.circular(
+                            8,
+                          ), // Rounded corners
+                          image:
+                              trophy['imatge'] != null
+                                  ? DecorationImage(
+                                    image: NetworkImage(trophy['imatge']),
+                                    fit:
+                                        BoxFit
+                                            .cover, // Adjust the image to fit the frame
+                                  )
+                                  : null,
                         ),
                         child: Stack(
                           children: [
                             if (!obtained) // If the trophy is not obtained
                               Container(
                                 decoration: BoxDecoration(
-                                  color: Color.fromRGBO(0, 0, 0, 0.5), // Dark overlay
+                                  color: Color.fromRGBO(
+                                    0,
+                                    0,
+                                    0,
+                                    0.5,
+                                  ), // Dark overlay
                                   borderRadius: BorderRadius.circular(8),
                                 ),
                               ),
@@ -97,7 +112,8 @@ class _TrophiesPageState extends State<TrophiesPage> {
                                   size: 30,
                                 ),
                               ),
-                            if (trophy['imatge'] == null) // Fallback for missing image
+                            if (trophy['imatge'] ==
+                                null) // Fallback for missing image
                               const Center(
                                 child: Icon(
                                   Icons.image_not_supported,
@@ -114,7 +130,7 @@ class _TrophiesPageState extends State<TrophiesPage> {
                           crossAxisAlignment: CrossAxisAlignment.start,
                           children: [
                             Text(
-                              trophy['nom'] ?? 'Sin nombre',
+                              tr(trophy['nom']),
                               style: const TextStyle(
                                 fontWeight: FontWeight.bold,
                                 fontSize: 16,
@@ -122,14 +138,14 @@ class _TrophiesPageState extends State<TrophiesPage> {
                             ),
                             const SizedBox(height: 4),
                             Text(
-                              trophy['descripcio'] ?? 'Sin descripción',
+                              tr(trophy['descripcio']),
                               style: const TextStyle(color: Colors.grey),
                             ),
                             if (obtainedDate != null)
                               Padding(
                                 padding: const EdgeInsets.only(top: 8.0),
                                 child: Text(
-                                  'Obtenido: ${DateTime.parse(obtainedDate).toLocal()}',
+                                  '${'trophies_page_obtained_on'.tr()}: ${DateFormat('dd/MM/yyyy').format(DateTime.parse(obtainedDate).toLocal())}',
                                   style: const TextStyle(
                                     fontSize: 12,
                                     color: Colors.green,

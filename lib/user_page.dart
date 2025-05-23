@@ -861,7 +861,7 @@ class _UserPageState extends State<UserPage> {
                     );
                   },
                   icon: const Icon(Icons.emoji_events),
-                  label: const Text('Ver Mis Trofeos'),
+                  label: Text('show_trophies'.tr()),
                   style: ElevatedButton.styleFrom(
                     backgroundColor: Colors.amber,
                     foregroundColor: Colors.white,

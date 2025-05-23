@@ -367,10 +367,35 @@ class CalendarPageState extends State<CalendarPage> {
                   eventLoader: _getEventsForDay,
                   rowHeight: dynamicRowHeight,
                   daysOfWeekHeight: 20, // Explicit height for days of week
-                  headerStyle: const HeaderStyle(
+                  daysOfWeekStyle: DaysOfWeekStyle(
+                    // Use a custom builder for each day of the week
+                    weekdayStyle: const TextStyle(
+                      color: Color(0xFF4F4F4F),
+                    ), // Default style for weekdays
+                    weekendStyle: const TextStyle(
+                      color: Color(0xFF6A6A6A),
+                    ), // Default style for weekends
+                    dowTextFormatter: (date, locale) {
+                      // Use EasyLocalization's context.locale to get current app locale
+                      return DateFormat.E(
+                        context.locale.toString(),
+                      ).format(date);
+                    },
+                  ),
+                  headerStyle: HeaderStyle(
                     formatButtonVisible: true,
                     titleCentered: true,
                     formatButtonShowsNext: false,
+                    titleTextStyle: const TextStyle(
+                      fontSize: 17.0,
+                    ), // Default style
+                    titleTextFormatter: (date, locale) {
+                      // Use EasyLocalization's context.locale to get current app locale
+                      // The 'locale' parameter from titleTextFormatter is the device locale, not necessarily app's one.
+                      return DateFormat.yMMMM(
+                        context.locale.toString(),
+                      ).format(date);
+                    },
                   ),
                   calendarStyle: const CalendarStyle(
                     isTodayHighlighted: true,
