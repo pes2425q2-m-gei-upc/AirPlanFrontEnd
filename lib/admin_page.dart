@@ -1,13 +1,13 @@
-// admin_page.dart
+import 'package:airplan/report_service.dart';
 import 'package:easy_localization/easy_localization.dart';
 import 'package:flutter/material.dart';
 import 'package:airplan/user_page.dart';
 import 'services/websocket_service.dart';
-import 'services/auth_service.dart'; // Import AuthService
-import 'package:airplan/filtros_admin_content.dart'; // Import the new filters content page
+import 'services/auth_service.dart';
+import 'package:airplan/filtros_admin_content.dart';
+import 'package:intl/intl.dart';
 
 class AdminPage extends StatefulWidget {
-  // Add support for dependency injection
   final WebSocketService? webSocketService;
   final AuthService? authService;
 
@@ -22,11 +22,10 @@ class AdminPageState extends State<AdminPage> {
   late final WebSocketService _webSocketService;
   late final AuthService _authService;
 
-  // Títulos para la AppBar según la pestaña seleccionada
   static final List<String> _appBarTitles = [
     'admin_profile_title'.tr(),
-    'admin_panel_title'.tr(),
-    'content_filters_title'.tr(), // Updated title for the Filters tab
+    'Reports'.tr(),
+    'content_filters_title'.tr(),
   ];
 
   void _onItemTapped(int index) {
@@ -38,14 +37,12 @@ class AdminPageState extends State<AdminPage> {
   @override
   void initState() {
     super.initState();
-    // Initialize services with injected or default instances
     _webSocketService = widget.webSocketService ?? WebSocketService();
     _authService = widget.authService ?? AuthService();
   }
 
   @override
   Widget build(BuildContext context) {
-    // Asegurar que WebSocket esté conectado
     if (!_webSocketService.isConnected) {
       _webSocketService.connect();
     }
@@ -55,29 +52,12 @@ class AdminPageState extends State<AdminPage> {
       body: IndexedStack(
         index: _selectedIndex,
         children: [
-          // Pestaña 1: Perfil de usuario (usando UserProfileContent en lugar del Scaffold completo)
           UserProfileContent(
             authService: _authService,
             webSocketService: _webSocketService,
           ),
-
-          // Pestaña 2: Panel de administración
-          Center(
-            child: Padding(
-              padding: const EdgeInsets.all(16.0),
-              child: Text(
-                "admin_panel_construction".tr(),
-                textAlign: TextAlign.center,
-                style: const TextStyle(
-                  fontSize: 24,
-                  fontWeight: FontWeight.bold,
-                ),
-              ),
-            ),
-          ),
-
-          // Pestaña 3: Filtros (content of the new filters page)
-          const FiltrosAdminContent(), // Use the new widget here
+          AdminReportsPanel(),
+          const FiltrosAdminContent(),
         ],
       ),
       bottomNavigationBar: BottomNavigationBar(
@@ -88,10 +68,9 @@ class AdminPageState extends State<AdminPage> {
           ),
           BottomNavigationBarItem(
             icon: const Icon(Icons.admin_panel_settings),
-            label: 'admin_tab_label'.tr(),
+            label: 'Reports'.tr(),
           ),
           BottomNavigationBarItem(
-            // Nueva pestaña Filtros
             icon: const Icon(Icons.filter_list),
             label: 'filters_tab_label'.tr(),
           ),
@@ -104,7 +83,6 @@ class AdminPageState extends State<AdminPage> {
   }
 }
 
-// Clase que contiene solo el contenido de UserPage sin el Scaffold
 class UserProfileContent extends StatelessWidget {
   final AuthService? authService;
   final WebSocketService? webSocketService;
@@ -121,6 +99,102 @@ class UserProfileContent extends StatelessWidget {
       isEmbedded: true,
       authService: authService,
       webSocketService: webSocketService,
+    );
+  }
+}
+
+class AdminReportsPanel extends StatefulWidget {
+  const AdminReportsPanel({super.key});
+
+  @override
+  _AdminReportsPanelState createState() => _AdminReportsPanelState();
+}
+
+class _AdminReportsPanelState extends State<AdminReportsPanel> {
+  late Future<List<Report>> _reportsFuture;
+  final ReportService _reportService = ReportService();
+
+  @override
+  void initState() {
+    super.initState();
+    _reportsFuture = _reportService.fetchReports();
+  }
+
+  void _handleDeleteReport(Report report) async {
+    try {
+      await _reportService.deleteReport(report);
+      setState(() {
+        _reportsFuture = _reportService.fetchReports();
+      });
+    } catch (e) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(content: Text(tr('error_deleting_report'))),
+      );
+    }
+  }
+
+  void _handleBlockUser(Report report) async {
+    try {
+      await _reportService.blockUser(report.reportingUser, report.reportedUser);
+      _handleDeleteReport(report); // Eliminar el reporte después de bloquear al usuario
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(content: Text(tr('user_blocked_successfully'))),
+      );
+    } catch (e) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(content: Text(tr('error_blocking_user'))),
+      );
+    }
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    return FutureBuilder<List<Report>>(
+      future: _reportsFuture,
+      builder: (context, snapshot) {
+        if (snapshot.connectionState == ConnectionState.waiting) {
+          return const Center(child: CircularProgressIndicator());
+        } else if (snapshot.hasError) {
+          return Center(child: Text(tr('error_loading_reports')));
+        } else if (!snapshot.hasData || snapshot.data!.isEmpty) {
+          return Center(child: Text(tr('no_reports_found')));
+        }
+
+        final reports = snapshot.data!;
+        return ListView.builder(
+          itemCount: reports.length,
+          itemBuilder: (context, index) {
+            final report = reports[index];
+            return Card(
+              margin: const EdgeInsets.all(8.0),
+              child: ListTile(
+                title: Text('${tr('Usuario Reportado')}: ${report.reportedUser}'),
+                subtitle: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Text('${tr('Usuario Reportador')}: ${report.reportingUser}'),
+                    Text('${tr('Motivo')}: ${report.reason}'),
+                    Text('${tr('Fecha')}: ${DateFormat('dd/MM/yy HH:mm:ss').format(report.date.toLocal())}'),
+                  ],
+                ),
+                trailing: Row(
+                  mainAxisSize: MainAxisSize.min,
+                  children: [
+                    IconButton(
+                      icon: const Icon(Icons.block, color: Colors.red),
+                      onPressed: () => _handleBlockUser(report),
+                    ),
+                    IconButton(
+                      icon: const Icon(Icons.delete, color: Colors.grey),
+                      onPressed: () => _handleDeleteReport(report),
+                    ),
+                  ],
+                ),
+              ),
+            );
+          },
+        );
+      },
     );
   }
 }
