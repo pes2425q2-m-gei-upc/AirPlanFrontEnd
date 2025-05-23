@@ -10,7 +10,7 @@ import 'package:flutter/material.dart';
 import 'package:http/http.dart' as http;
 import 'package:latlong2/latlong.dart';
 import 'package:airplan/transit_service.dart';
-import 'package:intl/intl.dart';
+import 'package:easy_localization/easy_localization.dart';
 
 import 'activity_details_page.dart';
 import 'activity_service.dart';
@@ -54,7 +54,8 @@ class RecommendedActivitiesPage extends StatefulWidget {
   });
 
   @override
-  RecommendedActivitiesPageState createState() => RecommendedActivitiesPageState();
+  RecommendedActivitiesPageState createState() =>
+      RecommendedActivitiesPageState();
 }
 
 class RecommendedActivitiesPageState extends State<RecommendedActivitiesPage> {
@@ -77,10 +78,14 @@ class RecommendedActivitiesPageState extends State<RecommendedActivitiesPage> {
 
   Future<void> _fetchRecommendedActivities() async {
     final url = Uri.parse(ApiConfig().buildUrl("api/activitats/recomanades"));
-    final response = await http.get(url.replace(queryParameters: {
-      'latitud': widget.userLocation.latitude.toString(),
-      'longitud': widget.userLocation.longitude.toString(),
-    }));
+    final response = await http.get(
+      url.replace(
+        queryParameters: {
+          'latitud': widget.userLocation.latitude.toString(),
+          'longitud': widget.userLocation.longitude.toString(),
+        },
+      ),
+    );
     if (response.statusCode == 200) {
       final activitats = jsonDecode(response.body);
       setState(() {
@@ -88,24 +93,42 @@ class RecommendedActivitiesPageState extends State<RecommendedActivitiesPage> {
         _loadedActivities = 0;
       });
       for (var activitat in activitats) {
-        LatLng localitzacioActivitat = LatLng(activitat['ubicacio']['latitud'], activitat['ubicacio']['longitud']);
-        List<AirQualityData> aqd = AirQualityService.findClosestAirQualityData(localitzacioActivitat, widget.contaminantsPerLocation);
+        LatLng localitzacioActivitat = LatLng(
+          activitat['ubicacio']['latitud'],
+          activitat['ubicacio']['longitud'],
+        );
+        List<AirQualityData> aqd = AirQualityService.findClosestAirQualityData(
+          localitzacioActivitat,
+          widget.contaminantsPerLocation,
+        );
         if (AirQualityService.isAcceptable(aqd)) {
-          TransitRoute dist = await calculateRoute(false,false,DateTime.now(),DateTime.now(),3,widget.userLocation,localitzacioActivitat);
+          TransitRoute dist = await calculateRoute(
+            false,
+            false,
+            DateTime.now(),
+            DateTime.now(),
+            3,
+            widget.userLocation,
+            localitzacioActivitat,
+          );
           Activity temp = Activity(
-              id: activitat['id'],
-              creador: activitat['creador'],
-              name: activitat['nom'],
-              description: activitat['descripcio'],
-              dataInici: DateTime.parse(activitat['dataInici']),
-              dataFi: DateTime.parse(activitat['dataFi']),
-              location: localitzacioActivitat,
-              distance: dist.distance.toDouble(),
-              isFavorite: await activityService.isActivityFavorite(activitat['id'], authService.getCurrentUsername()!),
-              airQuality: aqd
+            id: activitat['id'],
+            creador: activitat['creador'],
+            name: activitat['nom'],
+            description: activitat['descripcio'],
+            dataInici: DateTime.parse(activitat['dataInici']),
+            dataFi: DateTime.parse(activitat['dataFi']),
+            location: localitzacioActivitat,
+            distance: dist.distance.toDouble(),
+            isFavorite: await activityService.isActivityFavorite(
+              activitat['id'],
+              authService.getCurrentUsername()!,
+            ),
+            airQuality: aqd,
           );
           try {
-            widget.savedLocations[localitzacioActivitat] = await MapService().fetchPlaceDetails(localitzacioActivitat);
+            widget.savedLocations[localitzacioActivitat] = await MapService()
+                .fetchPlaceDetails(localitzacioActivitat);
           } catch (e) {
             widget.savedLocations[localitzacioActivitat] = "";
           }
@@ -119,7 +142,9 @@ class RecommendedActivitiesPageState extends State<RecommendedActivitiesPage> {
         _activities = _activities;
       });
     } else {
-      throw Exception("${response.statusCode}: ${response.reasonPhrase}");
+      throw Exception(
+        '${'recommended_activities_fetch_error'.tr()}${response.statusCode}: ${response.reasonPhrase}',
+      );
     }
   }
 
@@ -132,10 +157,12 @@ class RecommendedActivitiesPageState extends State<RecommendedActivitiesPage> {
     final startDateController = TextEditingController(
       text: activity.dataInici.toString(),
     );
-    final endDateController = TextEditingController(text: activity.dataFi.toString());
+    final endDateController = TextEditingController(
+      text: activity.dataFi.toString(),
+    );
     final creatorController = TextEditingController(text: activity.creador);
     final locationController = TextEditingController(
-      text: '${activity.location.latitude},${activity.location.longitude}'
+      text: '${activity.location.latitude},${activity.location.longitude}',
     );
 
     LatLng selectedLocation = activity.location;
@@ -144,7 +171,7 @@ class RecommendedActivitiesPageState extends State<RecommendedActivitiesPage> {
       context: context,
       builder: (context) {
         return AlertDialog(
-          title: Text('Editar actividad'),
+          title: Text('edit_activity_button'.tr()),
           content: Form(
             key: formKey,
             child: SingleChildScrollView(
@@ -153,40 +180,52 @@ class RecommendedActivitiesPageState extends State<RecommendedActivitiesPage> {
                 children: [
                   TextFormField(
                     controller: titleController,
-                    decoration: InputDecoration(labelText: 'Título'),
+                    decoration: InputDecoration(
+                      labelText: 'recommended_activities_title_label'.tr(),
+                    ),
                     validator: (value) {
                       if (value == null || value.isEmpty) {
-                        return 'Por favor, ingresa un título';
+                        return 'recommended_activities_error_empty_title'.tr();
                       }
                       return null;
                     },
                   ),
                   TextFormField(
                     controller: descriptionController,
-                    decoration: InputDecoration(labelText: 'Descripción'),
+                    decoration: InputDecoration(
+                      labelText:
+                          'recommended_activities_description_label'.tr(),
+                    ),
                     validator: (value) {
                       if (value == null || value.isEmpty) {
-                        return 'Por favor, ingresa una descripción';
+                        return 'recommended_activities_error_empty_description'
+                            .tr();
                       }
                       return null;
                     },
                   ),
                   TextFormField(
                     controller: startDateController,
-                    decoration: InputDecoration(labelText: 'Fecha de inicio'),
+                    decoration: InputDecoration(
+                      labelText: 'recommended_activities_start_date_label'.tr(),
+                    ),
                     validator: (value) {
                       if (value == null || value.isEmpty) {
-                        return 'Por favor, ingresa una fecha de inicio';
+                        return 'recommended_activities_error_empty_start_date'
+                            .tr();
                       }
                       return null;
                     },
                   ),
                   TextFormField(
                     controller: endDateController,
-                    decoration: InputDecoration(labelText: 'Fecha de fin'),
+                    decoration: InputDecoration(
+                      labelText: 'recommended_activities_end_date_label'.tr(),
+                    ),
                     validator: (value) {
                       if (value == null || value.isEmpty) {
-                        return 'Por favor, ingresa una fecha de fin';
+                        return 'recommended_activities_error_empty_end_date'
+                            .tr();
                       }
                       return null;
                     },
@@ -194,28 +233,31 @@ class RecommendedActivitiesPageState extends State<RecommendedActivitiesPage> {
                   DropdownButtonFormField<LatLng>(
                     value: selectedLocation,
                     items:
-                    widget.savedLocations.entries.map((entry) {
-                      String displayText =
-                      entry.value.isNotEmpty
-                          ? entry.value
-                          : '${entry.key.latitude}, ${entry.key.longitude}';
-                      return DropdownMenuItem<LatLng>(
-                        value: entry.key,
-                        child: Text(
-                          displayText,
-                          overflow: TextOverflow.ellipsis,
-                        ),
-                      );
-                    }).toList(),
+                        widget.savedLocations.entries.map((entry) {
+                          String displayText =
+                              entry.value.isNotEmpty
+                                  ? entry.value
+                                  : '${entry.key.latitude}, ${entry.key.longitude}';
+                          return DropdownMenuItem<LatLng>(
+                            value: entry.key,
+                            child: Text(
+                              displayText,
+                              overflow: TextOverflow.ellipsis,
+                            ),
+                          );
+                        }).toList(),
                     onChanged: (value) {
                       setState(() {
                         selectedLocation = value!;
                       });
                     },
-                    decoration: InputDecoration(labelText: 'Selected Location'),
+                    decoration: InputDecoration(
+                      labelText: 'recommended_activities_location_label'.tr(),
+                    ),
                     validator: (value) {
                       if (value == null) {
-                        return 'Please select a location';
+                        return 'recommended_activities_error_empty_location'
+                            .tr();
                       }
                       return null;
                     },
@@ -229,7 +271,7 @@ class RecommendedActivitiesPageState extends State<RecommendedActivitiesPage> {
               onPressed: () {
                 Navigator.pop(context); // Cierra el diálogo
               },
-              child: Text('Cancelar'),
+              child: Text('cancel'.tr()),
             ),
             TextButton(
               onPressed: () async {
@@ -244,8 +286,8 @@ class RecommendedActivitiesPageState extends State<RecommendedActivitiesPage> {
                     'startDate': startDateController.text,
                     'endDate': endDateController.text,
                     'location':
-                    locationController
-                        .text, // Ubicación ingresada por el usuario
+                        locationController
+                            .text, // Ubicación ingresada por el usuario
                     'user': creatorController.text,
                   };
 
@@ -256,12 +298,14 @@ class RecommendedActivitiesPageState extends State<RecommendedActivitiesPage> {
                       activity.id.toString(),
                       updatedActivityData,
                     );
+                    // TODO: Consider adding a success message, e.g., 'activity_updated_success'.tr()
                   } catch (e) {
                     if (context.mounted) {
                       ScaffoldMessenger.of(context).showSnackBar(
                         SnackBar(
                           content: Text(
-                            'Error al actualizar la actividad: ${e.toString()}',
+                            'recommended_activities_update_error'.tr() +
+                                e.toString(),
                           ),
                         ),
                       );
@@ -269,7 +313,7 @@ class RecommendedActivitiesPageState extends State<RecommendedActivitiesPage> {
                   }
                 }
               },
-              child: Text('Guardar'),
+              child: Text('common_save_button'.tr()),
             ),
           ],
         );
@@ -282,16 +326,14 @@ class RecommendedActivitiesPageState extends State<RecommendedActivitiesPage> {
       context: context,
       builder: (context) {
         return AlertDialog(
-          title: Text('Eliminar actividad'),
-          content: Text(
-            '¿Estás seguro de que quieres eliminar esta actividad?',
-          ),
+          title: Text('delete_activity_button'.tr()),
+          content: Text('recommended_activities_confirm_delete_message'.tr()),
           actions: [
             TextButton(
               onPressed: () {
                 Navigator.pop(context); // Cierra el diálogo
               },
-              child: Text('Cancelar'),
+              child: Text('cancel'.tr()),
             ),
             TextButton(
               onPressed: () async {
@@ -305,9 +347,7 @@ class RecommendedActivitiesPageState extends State<RecommendedActivitiesPage> {
                   );
                   if (context.mounted) {
                     ScaffoldMessenger.of(context).showSnackBar(
-                      SnackBar(
-                        content: Text("Actividad eliminada correctament."),
-                      ),
+                      SnackBar(content: Text("activity_deleted_success".tr())),
                     );
                   }
                 } catch (e) {
@@ -315,14 +355,17 @@ class RecommendedActivitiesPageState extends State<RecommendedActivitiesPage> {
                     ScaffoldMessenger.of(context).showSnackBar(
                       SnackBar(
                         content: Text(
-                          "Error al eliminar l'activitat: ${e.toString()}",
+                          'activity_delete_error'.tr() + e.toString(),
                         ),
                       ),
                     );
                   }
                 }
               },
-              child: Text('Eliminar', style: TextStyle(color: Colors.red)),
+              child: Text(
+                'delete_button_label'.tr(),
+                style: TextStyle(color: Colors.red),
+              ),
             ),
           ],
         );
@@ -334,262 +377,389 @@ class RecommendedActivitiesPageState extends State<RecommendedActivitiesPage> {
   Widget build(BuildContext context) {
     return Scaffold(
       appBar: AppBar(
-        title: const Text('Activitats Recomanades'),
+        title: Text('recommended_activities_page_title'.tr()),
         backgroundColor: Colors.teal,
       ),
-      body: _isLoading
-          ? Column(
-              mainAxisAlignment: MainAxisAlignment.center,
-              children: [
-                const Center(child: CircularProgressIndicator()),
-                if (_totalActivities > 0)
+      body:
+          _isLoading
+              ? Column(
+                mainAxisAlignment: MainAxisAlignment.center,
+                children: [
+                  const Center(child: CircularProgressIndicator()),
+                  if (_totalActivities > 0)
+                    Padding(
+                      padding: const EdgeInsets.symmetric(
+                        horizontal: 24.0,
+                        vertical: 16.0,
+                      ),
+                      child: Column(
+                        children: [
+                          LinearProgressIndicator(
+                            value:
+                                _totalActivities > 0
+                                    ? _loadedActivities / _totalActivities
+                                    : null,
+                          ),
+                          const SizedBox(height: 8),
+                          Text(
+                            '${'recommended_activities_loading_text'.tr()}$_loadedActivities / $_totalActivities',
+                          ),
+                        ],
+                      ),
+                    ),
+                ],
+              )
+              : Column(
+                children: [
                   Padding(
-                    padding: const EdgeInsets.symmetric(horizontal: 24.0, vertical: 16.0),
-                    child: Column(
-                      children: [
-                        LinearProgressIndicator(
-                          value: _totalActivities > 0 ? _loadedActivities / _totalActivities : null,
-                        ),
-                        const SizedBox(height: 8),
-                        Text('Carregant activitats: $_loadedActivities / $_totalActivities'),
-                      ],
+                    padding: const EdgeInsets.all(16.0),
+                    child: Text(
+                      'recommended_activities_section_title'.tr(),
+                      style:
+                          Theme.of(context).textTheme.titleMedium?.copyWith(
+                            fontWeight: FontWeight.bold,
+                            color: Colors.teal[900],
+                            fontSize: 18,
+                          ) ??
+                          TextStyle(
+                            fontWeight: FontWeight.bold,
+                            color: Colors.teal[900],
+                            fontSize: 18,
+                          ),
+                      textAlign: TextAlign.center,
                     ),
                   ),
-              ],
-            )
-          : Column(
-        children: [
-          Padding(
-            padding: const EdgeInsets.all(16.0),
-            child: Text(
-              'Activitats recomanades a prop teu',
-              style: Theme.of(context).textTheme.titleMedium?.copyWith(
-                    fontWeight: FontWeight.bold,
-                    color: Colors.teal[900],
-                    fontSize: 18,
-                  ) ?? TextStyle(
-                    fontWeight: FontWeight.bold,
-                    color: Colors.teal[900],
-                    fontSize: 18,
-                  ),
-              textAlign: TextAlign.center,
-            ),
-          ),
-          const Divider(
-            thickness: 1.2,
-            indent: 24,
-            endIndent: 24,
-          ),
-          Expanded(
-            child: ListView.builder(
-              itemCount: _activities.length,
-              itemBuilder: (context, index) {
-                final activity = _activities[index];
-                return InkWell(
-                  onTap: () {
-                    Navigator.push(
-                      context,
-                      MaterialPageRoute(
-                        builder: (context) => ActivityDetailsPage(
-                          id: activity.id.toString(),
-                          title: activity.name,
-                          creator: activity.creador,
-                          description: activity.description,
-                          startDate: activity.dataInici.toString(),
-                          endDate: activity.dataFi.toString(),
-                          airQualityData: activity.airQuality,
-                          isEditable: true,
-                          onEdit:
-                              () => _showEditActivityForm(activity), // Pasamos la función de editar
-                          onDelete:
-                              () => _showDeleteConfirmation(activity), // Pasamos la función de eliminar
-                        ),
-                      ),
-                    );
-                  },
-                  child: Card(
-                    margin: const EdgeInsets.symmetric(horizontal: 16.0, vertical: 8.0),
-                    elevation: 4,
-                    child: Column(
-                      crossAxisAlignment: CrossAxisAlignment.start,
-                      children: [
-                        Padding(
-                          padding: const EdgeInsets.all(16.0),
-                          child: Column(
-                            crossAxisAlignment: CrossAxisAlignment.start,
-                            children: [
-                              Row(
-                                mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                                children: [
-                                  Expanded(
-                                    child: GestureDetector(
-                                      onTap: () {
-                                        Navigator.push(
-                                          context,
-                                          MaterialPageRoute(
-                                            builder: (context) => ActivityDetailsPage(
-                                              id: activity.id.toString(),
-                                              title: activity.name,
-                                              creator: activity.creador,
-                                              description: activity.description,
-                                              startDate: activity.dataInici.toString(),
-                                              endDate: activity.dataFi.toString(),
-                                              airQualityData: activity.airQuality,
-                                              isEditable: true,
-                                              onEdit:
-                                                  () => _showEditActivityForm(activity), // Pasamos la función de editar
-                                              onDelete:
-                                                  () => _showDeleteConfirmation(activity), // Pasamos la función de eliminar
+                  const Divider(thickness: 1.2, indent: 24, endIndent: 24),
+                  Expanded(
+                    child: ListView.builder(
+                      itemCount: _activities.length,
+                      itemBuilder: (context, index) {
+                        final activity = _activities[index];
+                        return InkWell(
+                          onTap: () {
+                            Navigator.push(
+                              context,
+                              MaterialPageRoute(
+                                builder:
+                                    (context) => ActivityDetailsPage(
+                                      id: activity.id.toString(),
+                                      title: activity.name,
+                                      creator: activity.creador,
+                                      description: activity.description,
+                                      startDate: activity.dataInici.toString(),
+                                      endDate: activity.dataFi.toString(),
+                                      airQualityData: activity.airQuality,
+                                      isEditable: true,
+                                      onEdit:
+                                          () => _showEditActivityForm(
+                                            activity,
+                                          ), // Pasamos la función de editar
+                                      onDelete:
+                                          () => _showDeleteConfirmation(
+                                            activity,
+                                          ), // Pasamos la función de eliminar
+                                    ),
+                              ),
+                            );
+                          },
+                          child: Card(
+                            margin: const EdgeInsets.symmetric(
+                              horizontal: 16.0,
+                              vertical: 8.0,
+                            ),
+                            elevation: 4,
+                            child: Column(
+                              crossAxisAlignment: CrossAxisAlignment.start,
+                              children: [
+                                Padding(
+                                  padding: const EdgeInsets.all(16.0),
+                                  child: Column(
+                                    crossAxisAlignment:
+                                        CrossAxisAlignment.start,
+                                    children: [
+                                      Row(
+                                        mainAxisAlignment:
+                                            MainAxisAlignment.spaceBetween,
+                                        children: [
+                                          Expanded(
+                                            child: GestureDetector(
+                                              onTap: () {
+                                                Navigator.push(
+                                                  context,
+                                                  MaterialPageRoute(
+                                                    builder:
+                                                        (
+                                                          context,
+                                                        ) => ActivityDetailsPage(
+                                                          id:
+                                                              activity.id
+                                                                  .toString(),
+                                                          title: activity.name,
+                                                          creator:
+                                                              activity.creador,
+                                                          description:
+                                                              activity
+                                                                  .description,
+                                                          startDate:
+                                                              activity.dataInici
+                                                                  .toString(),
+                                                          endDate:
+                                                              activity.dataFi
+                                                                  .toString(),
+                                                          airQualityData:
+                                                              activity
+                                                                  .airQuality,
+                                                          isEditable: true,
+                                                          onEdit:
+                                                              () => _showEditActivityForm(
+                                                                activity,
+                                                              ), // Pasamos la función de editar
+                                                          onDelete:
+                                                              () => _showDeleteConfirmation(
+                                                                activity,
+                                                              ), // Pasamos la función de eliminar
+                                                        ),
+                                                  ),
+                                                );
+                                              },
+                                              child: Text(
+                                                activity.name,
+                                                style: const TextStyle(
+                                                  fontSize: 18,
+                                                  fontWeight: FontWeight.bold,
+                                                ),
+                                              ),
                                             ),
                                           ),
-                                        );
-                                      },
-                                      child: Text(
-                                        activity.name,
-                                        style: const TextStyle(
-                                          fontSize: 18,
-                                          fontWeight: FontWeight.bold,
-                                        ),
-                                      ),
-                                    ),
-                                  ),
-                                  Chip(
-                                    backgroundColor: Colors.teal[100],
-                                    label: Text(
-                                      activity.distance < 1000
-                                          ? '${activity.distance.toStringAsFixed(0)} m'
-                                          : '${NumberFormat("#,##0.0", "es_ES").format(activity.distance / 1000)} km',
-                                      style: TextStyle(color: Colors.teal[800]),
-                                    ),
-                                    avatar: Icon(Icons.directions_walk, color: Colors.teal[800], size: 18),
-                                  ),
-                                ],
-                              ),
-                              const SizedBox(height: 8),
-                              Text(
-                                activity.description,
-                                style: TextStyle(color: Colors.grey[700]),
-                              ),
-                              const SizedBox(height: 8),
-                              Row(
-                                children: [
-                                  Icon(Icons.calendar_today, size: 16, color: Colors.teal[700]),
-                                  const SizedBox(width: 4),
-                                  Text(
-                                    'Inici: ${DateFormat('dd/MM/yyyy HH:mm').format(activity.dataInici)}',
-                                    style: TextStyle(fontSize: 13, color: Colors.teal[900]),
-                                  ),
-                                  const SizedBox(width: 12),
-                                  Icon(Icons.event, size: 16, color: Colors.teal[700]),
-                                  const SizedBox(width: 4),
-                                  Text(
-                                    'Fi: ${DateFormat('dd/MM/yyyy HH:mm').format(activity.dataFi)}',
-                                    style: TextStyle(fontSize: 13, color: Colors.teal[900]),
-                                  ),
-                                ],
-                              ),
-                            ],
-                          ),
-                        ),
-                        Padding(
-                          padding: const EdgeInsets.all(16.0),
-                          child: Row(
-                            crossAxisAlignment: CrossAxisAlignment.end,
-                            children: [
-                              Expanded(
-                                child: Column(
-                                  crossAxisAlignment: CrossAxisAlignment.start,
-                                  children: [
-                                    Text(
-                                      "Qualitat de l'aire:",
-                                      style: TextStyle(
-                                        fontWeight: FontWeight.bold,
-                                        fontSize: 16,
-                                        color: Colors.teal[800],
-                                      ),
-                                      textAlign: TextAlign.left,
-                                    ),
-                                    const SizedBox(width: 8),
-                                    ...activity.airQuality.map((aq) => Padding(
-                                      padding: const EdgeInsets.only(right: 8.0),
-                                      child: Row(
-                                        children: [
-                                          Icon(
-                                            Icons.circle,
-                                            color: getColorForAirQuality(aq.aqi),
-                                            size: 16,
-                                          ),
-                                          const SizedBox(width: 2),
-                                          Text(
-                                            '${aq.contaminant.name}: ${aq.value.toStringAsFixed(1)} ${aq.units}',
-                                            style: TextStyle(
-                                              fontSize: 14,
-                                              color: Colors.grey[700],
+                                          Chip(
+                                            backgroundColor: Colors.teal[100],
+                                            label: Text(
+                                              activity.distance < 1000
+                                                  ? '${activity.distance.toStringAsFixed(0)} m'
+                                                  : '${NumberFormat("#,##0.0", "es_ES").format(activity.distance / 1000)} km',
+                                              style: TextStyle(
+                                                color: Colors.teal[800],
+                                              ),
+                                            ),
+                                            avatar: Icon(
+                                              Icons.directions_walk,
+                                              color: Colors.teal[800],
+                                              size: 18,
                                             ),
                                           ),
                                         ],
                                       ),
-                                    )),
-                                  ],
+                                      const SizedBox(height: 8),
+                                      Text(
+                                        activity.description,
+                                        style: TextStyle(
+                                          color: Colors.grey[700],
+                                        ),
+                                      ),
+                                      const SizedBox(height: 8),
+                                      Row(
+                                        children: [
+                                          Icon(
+                                            Icons.calendar_today,
+                                            size: 16,
+                                            color: Colors.teal[700],
+                                          ),
+                                          const SizedBox(width: 4),
+                                          Text(
+                                            '${'start'.tr()}: ${DateFormat('dd/MM/yyyy HH:mm').format(activity.dataInici)}',
+                                            style: TextStyle(
+                                              fontSize: 13,
+                                              color: Colors.teal[900],
+                                            ),
+                                          ),
+                                          const SizedBox(width: 12),
+                                          Icon(
+                                            Icons.event,
+                                            size: 16,
+                                            color: Colors.teal[700],
+                                          ),
+                                          const SizedBox(width: 4),
+                                          Text(
+                                            '${'end'.tr()}: ${DateFormat('dd/MM/yyyy HH:mm').format(activity.dataFi)}',
+                                            style: TextStyle(
+                                              fontSize: 13,
+                                              color: Colors.teal[900],
+                                            ),
+                                          ),
+                                        ],
+                                      ),
+                                    ],
+                                  ),
                                 ),
-                              ),
-                              const SizedBox(width: 16),
-                              Column(
-                                mainAxisAlignment: MainAxisAlignment.end,
-                                crossAxisAlignment: CrossAxisAlignment.end,
-                                children: [
-                                  ElevatedButton.icon(
-                                    icon: activity.isFavorite ?
-                                          Icon(Icons.favorite, color: Colors.red)
-                                        : Icon(Icons.favorite_border, color: Colors.red),
-                                    label: activity.isFavorite ? Text('Desada') : Text('Desar'),
-                                    onPressed: () async {
-                                      if (!activity.isFavorite) {
-                                        try {
-                                          await activityService.addActivityToFavorites(activity.id, authService.getCurrentUsername()!);
-                                          setState(() {
-                                            activity.isFavorite = true;
-                                          });
-                                          if (context.mounted) NotificationService().showInfo(context, 'Has afegit ${activity.name} a la teva llista de favorits.');
-                                        } catch (e) {
-                                          if (context.mounted) NotificationService().showError(context, 'Error afegint ${activity.name} a la teva llista de favorits.');
-                                        }
-                                      } else {
-                                        try {
-                                          await activityService.removeActivityFromFavorites(activity.id, authService.getCurrentUsername()!);
-                                          setState(() {
-                                            activity.isFavorite = false;
-                                          });
-                                          if (context.mounted) NotificationService().showInfo(context, 'Has eliminat ${activity.name} de la teva llista de favorits.');
-                                        } catch (e) {
-                                          if (context.mounted) NotificationService().showError(context,'Error eliminant ${activity.name} de la teva llista de favorits.');
-                                        }
-                                      }
-                                    },
+                                Padding(
+                                  padding: const EdgeInsets.all(16.0),
+                                  child: Row(
+                                    crossAxisAlignment: CrossAxisAlignment.end,
+                                    children: [
+                                      Expanded(
+                                        child: Column(
+                                          crossAxisAlignment:
+                                              CrossAxisAlignment.start,
+                                          children: [
+                                            Text(
+                                              "air_quality_label".tr(),
+                                              style: TextStyle(
+                                                fontWeight: FontWeight.bold,
+                                                fontSize: 16,
+                                                color: Colors.teal[800],
+                                              ),
+                                              textAlign: TextAlign.left,
+                                            ),
+                                            const SizedBox(width: 8),
+                                            ...activity.airQuality.map(
+                                              (aq) => Padding(
+                                                padding: const EdgeInsets.only(
+                                                  right: 8.0,
+                                                ),
+                                                child: Row(
+                                                  children: [
+                                                    Icon(
+                                                      Icons.circle,
+                                                      color:
+                                                          getColorForAirQuality(
+                                                            aq.aqi,
+                                                          ),
+                                                      size: 16,
+                                                    ),
+                                                    const SizedBox(width: 2),
+                                                    Text(
+                                                      '${aq.contaminant.name}: ${aq.value.toStringAsFixed(1)} ${aq.units}',
+                                                      style: TextStyle(
+                                                        fontSize: 14,
+                                                        color: Colors.grey[700],
+                                                      ),
+                                                    ),
+                                                  ],
+                                                ),
+                                              ),
+                                            ),
+                                          ],
+                                        ),
+                                      ),
+                                      const SizedBox(width: 16),
+                                      Column(
+                                        mainAxisAlignment:
+                                            MainAxisAlignment.end,
+                                        crossAxisAlignment:
+                                            CrossAxisAlignment.end,
+                                        children: [
+                                          ElevatedButton.icon(
+                                            icon:
+                                                activity.isFavorite
+                                                    ? Icon(
+                                                      Icons.favorite,
+                                                      color: Colors.red,
+                                                    )
+                                                    : Icon(
+                                                      Icons.favorite_border,
+                                                      color: Colors.red,
+                                                    ),
+                                            label:
+                                                activity.isFavorite
+                                                    ? Text('saved'.tr())
+                                                    : Text('save'.tr()),
+                                            onPressed: () async {
+                                              if (!activity.isFavorite) {
+                                                try {
+                                                  await activityService
+                                                      .addActivityToFavorites(
+                                                        activity.id,
+                                                        authService
+                                                            .getCurrentUsername()!,
+                                                      );
+                                                  setState(() {
+                                                    activity.isFavorite = true;
+                                                  });
+                                                  if (context.mounted)
+                                                    NotificationService().showInfo(
+                                                      context,
+                                                      'added_to_favorites_message'
+                                                          .tr(
+                                                            args: [
+                                                              activity.name,
+                                                            ],
+                                                          ),
+                                                    );
+                                                } catch (e) {
+                                                  if (context.mounted)
+                                                    NotificationService().showError(
+                                                      context,
+                                                      'error_adding_to_favorites_message'
+                                                          .tr(
+                                                            args: [
+                                                              activity.name,
+                                                            ],
+                                                          ),
+                                                    );
+                                                }
+                                              } else {
+                                                try {
+                                                  await activityService
+                                                      .removeActivityFromFavorites(
+                                                        activity.id,
+                                                        authService
+                                                            .getCurrentUsername()!,
+                                                      );
+                                                  setState(() {
+                                                    activity.isFavorite = false;
+                                                  });
+                                                  if (context.mounted)
+                                                    NotificationService().showInfo(
+                                                      context,
+                                                      'removed_from_favorites_message'
+                                                          .tr(
+                                                            args: [
+                                                              activity.name,
+                                                            ],
+                                                          ),
+                                                    );
+                                                } catch (e) {
+                                                  if (context.mounted)
+                                                    NotificationService().showError(
+                                                      context,
+                                                      'error_removing_from_favorites_message'
+                                                          .tr(
+                                                            args: [
+                                                              activity.name,
+                                                            ],
+                                                          ),
+                                                    );
+                                                }
+                                              }
+                                            },
+                                          ),
+                                          const SizedBox(height: 8),
+                                          ElevatedButton.icon(
+                                            icon: const Icon(Icons.directions),
+                                            label: Text(
+                                              'how_to_get_there_label'.tr(),
+                                            ),
+                                            onPressed: () {
+                                              Navigator.pop(
+                                                context,
+                                                activity.location,
+                                              );
+                                            },
+                                          ),
+                                        ],
+                                      ),
+                                    ],
                                   ),
-                                  const SizedBox(height: 8),
-                                  ElevatedButton.icon(
-                                    icon: const Icon(Icons.directions),
-                                    label: const Text('Com Arribar'),
-                                    onPressed: () {
-                                      Navigator.pop(context, activity.location);
-                                    },
-                                  ),
-                                ],
-                              ),
-                            ],
+                                ),
+                              ],
+                            ),
                           ),
-                        ),
-                      ],
+                        );
+                      },
                     ),
                   ),
-                );
-              },
-            ),
-          ),
-        ],
-      ),
+                ],
+              ),
     );
   }
 }
-
