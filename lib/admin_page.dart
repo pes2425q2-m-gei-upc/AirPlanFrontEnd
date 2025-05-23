@@ -106,10 +106,10 @@ class AdminReportsPanel extends StatefulWidget {
   const AdminReportsPanel({super.key});
 
   @override
-  _AdminReportsPanelState createState() => _AdminReportsPanelState();
+  AdminReportsPanelState createState() => AdminReportsPanelState();
 }
 
-class _AdminReportsPanelState extends State<AdminReportsPanel> {
+class AdminReportsPanelState extends State<AdminReportsPanel> {
   late Future<List<Report>> _reportsFuture;
   final ReportService _reportService = ReportService();
 
