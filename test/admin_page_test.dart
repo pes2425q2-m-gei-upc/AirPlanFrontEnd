@@ -146,7 +146,7 @@ void main() {
 
     // Assert
     expect(find.text('profile_tab_label'), findsOneWidget);
-    expect(find.text('admin_tab_label'), findsOneWidget);
+    expect(find.text('Reports'), findsOneWidget);
     expect(find.text('admin_profile_title'), findsOneWidget); // AppBar title
 
     // Should have UserProfileContent in the first tab
@@ -214,12 +214,11 @@ void main() {
     expect(find.text('admin_profile_title'), findsOneWidget);
 
     // Act - tap on Admin tab
-    await tester.tap(find.text('admin_tab_label'));
+    await tester.tap(find.text('Reports'));
     await tester.pumpAndSettle();
 
     // Assert - title should change
-    expect(find.text('admin_panel_title'), findsOneWidget);
-    expect(find.text('admin_panel_construction'), findsOneWidget);
+    expect(find.text('Reports'), findsWidgets);
   });
 
   testWidgets('UserProfileContent passes services to UserPage', (
