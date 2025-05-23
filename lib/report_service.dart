@@ -25,9 +25,6 @@ class ReportService {
       'reason': report.reason,
     });
 
-    print('🔍 Sending DELETE request to: $url');
-    print('🔍 Request body: $body');
-
     final response = await http.delete(
       url,
       headers: {
@@ -35,9 +32,6 @@ class ReportService {
       },
       body: body,
     );
-
-    print('🔍 Response status: ${response.statusCode}');
-    print('🔍 Response body: ${response.body}');
 
     if (response.statusCode != 200) {
       throw Exception('error_deleting_report'.tr());
@@ -51,10 +45,6 @@ class ReportService {
       'blockedUsername': blockedUsername,
     });
 
-    print('🔍 Blocking user: $blockerUsername -> $blockedUsername');
-    print('🔍 Sending POST request to: $url');
-    print('🔍 Request body: $body');
-
     final response = await http.post(
       url,
       headers: {
@@ -62,9 +52,6 @@ class ReportService {
       },
       body: body,
     );
-
-    print('🔍 Block response status: ${response.statusCode}');
-    print('🔍 Block response body: ${response.body}');
 
     if (response.statusCode != 200 && response.statusCode != 201) {
       throw Exception('error_blocking_user'.tr());

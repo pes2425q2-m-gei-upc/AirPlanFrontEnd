@@ -586,7 +586,7 @@ class ActivityDetailsPageState extends State<ActivityDetailsPage> {
                 ElevatedButton(
                   onPressed: () async {
                     final solicitudes = await fetchSolicitudes(widget.id);
-                    if (!mounted) return;
+                    if (!context.mounted) return;
 
                     showDialog(
                       context: context,
@@ -606,7 +606,7 @@ class ActivityDetailsPageState extends State<ActivityDetailsPage> {
                                     icon: Icon(Icons.check, color: Colors.green),
                                     onPressed: () async {
                                       await aceptarSolicitud(widget.id, solicitud);
-                                      if (!mounted) return;
+                                      if (!context.mounted) return;
                                       Navigator.of(context).pop();
                                       setState(() {});
                                     },
@@ -615,7 +615,7 @@ class ActivityDetailsPageState extends State<ActivityDetailsPage> {
                                     icon: Icon(Icons.close, color: Colors.red),
                                     onPressed: () async {
                                       await rechazarSolicitud(widget.id, solicitud);
-                                      if (!mounted) return;
+                                      if (!context.mounted) return;
                                       Navigator.of(context).pop();
                                       setState(() {});
                                     },
@@ -862,7 +862,6 @@ class ActivityDetailsPageState extends State<ActivityDetailsPage> {
   Future<List<String>> fetchSolicitudes(String activityId) async {
     final int activityIdInt = int.parse(activityId);
     final url = Uri.parse(ApiConfig().buildUrl('api/solicituds/$activityIdInt/solicituds'));
-    print('Fetching solicitudes from: $url'); // Debug print
     try {
       final response = await http.get(url);
       if (response.statusCode == 200) {

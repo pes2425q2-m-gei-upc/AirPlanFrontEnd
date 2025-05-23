@@ -5,7 +5,6 @@ import 'package:airplan/user_page.dart';
 import 'services/websocket_service.dart';
 import 'services/auth_service.dart';
 import 'package:airplan/filtros_admin_content.dart';
-import 'package:intl/intl.dart';
 
 class AdminPage extends StatefulWidget {
   final WebSocketService? webSocketService;
@@ -127,6 +126,7 @@ class _AdminReportsPanelState extends State<AdminReportsPanel> {
         _reportsFuture = _reportService.fetchReports();
       });
     } catch (e) {
+      if (!mounted) return;
       ScaffoldMessenger.of(context).showSnackBar(
         SnackBar(content: Text(tr('error_deleting_report'))),
       );
@@ -136,6 +136,7 @@ class _AdminReportsPanelState extends State<AdminReportsPanel> {
   void _handleBlockUser(Report report) async {
     try {
       await _reportService.blockUser(report.reportingUser, report.reportedUser);
+      if (!mounted) return;
       _handleDeleteReport(report); // Eliminar el reporte después de bloquear al usuario
       ScaffoldMessenger.of(context).showSnackBar(
         SnackBar(content: Text(tr('user_blocked_successfully'))),
