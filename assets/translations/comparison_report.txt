@@ -1,0 +1,26 @@
+### Translation Comparison Report
+
+#### Missing Keys in `es.json`:
+- `delete_account_invalid_user`: "No hay un usuario autenticado válido."
+- `rating_invite`: "Califica nuestra aplicación"
+- `chat_message_placeholder`: "Escribe un mensaje..."
+- `chat_send`: "Enviar"
+- `chat_edit_message`: "Editar mensaje"
+
+#### Missing Keys in `ca.json`:
+- `reset_error`: "Error: {0}"
+- `delete_account_success`: "Compte eliminat correctament"
+- `delete_account_error`: "Error eliminant el compte: {error}"
+- `delete_account_invalid_user`: "No hi ha un usuari autenticat vàlid."
+- `rating_invite`: "Valora la nostra aplicació"
+- `chat_message_placeholder`: "Escriu un missatge..."
+- `chat_send`: "Enviar"
+- `chat_edit_message`: "Edita el missatge"
+
+#### Missing Keys in `en.json`:
+- None, `en.json` contains all keys.
+
+### Action Plan
+1. Add the missing keys to `es.json` and `ca.json`.
+2. Ensure consistency across all three files.
+3. Validate translations for accuracy.

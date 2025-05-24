@@ -3,6 +3,7 @@ import 'package:flutter/services.dart';
 import 'dart:convert'; // For jsonDecode and jsonEncode
 import 'package:http/http.dart' as http; // HTTP package
 import 'package:airplan/services/api_config.dart'; // Import ApiConfig
+import 'package:easy_localization/easy_localization.dart';
 
 // Model for individual attribute settings in the UI
 class AttributeSettingUIModel {
@@ -230,7 +231,7 @@ class FiltrosAdminContentState extends State<FiltrosAdminContent> {
                   crossAxisAlignment: CrossAxisAlignment.start,
                   children: <Widget>[
                     Text(
-                      'Configuración de Filtro de Contenido (Perspective API)',
+                      tr('content_filter_title'),
                       style: Theme.of(context).textTheme.headlineSmall
                           ?.copyWith(fontWeight: FontWeight.bold),
                     ),
@@ -238,9 +239,7 @@ class FiltrosAdminContentState extends State<FiltrosAdminContent> {
 
                     // General Perspective Service Switch
                     SwitchListTile(
-                      title: const Text(
-                        'Habilitar servicio de Perspective API',
-                      ),
+                      title: Text(tr('content_filter_enable_perspective')),
                       value: _isPerspectiveServiceEnabledOverall,
                       onChanged: (bool value) {
                         setState(() {
@@ -256,8 +255,8 @@ class FiltrosAdminContentState extends State<FiltrosAdminContent> {
                     ),
                     Text(
                       _isPerspectiveServiceEnabledOverall
-                          ? 'El servicio de Perspective API está activo globalmente.'
-                          : 'El servicio de Perspective API está inactivo globalmente.',
+                          ? tr('content_filter_service_active')
+                          : tr('content_filter_service_inactive'),
                       style: Theme.of(context).textTheme.bodySmall,
                     ),
                     const SizedBox(height: 20),
@@ -265,7 +264,7 @@ class FiltrosAdminContentState extends State<FiltrosAdminContent> {
                     const SizedBox(height: 10),
 
                     Text(
-                      'Configuración General de la API',
+                      tr('content_filter_general_config'),
                       style: Theme.of(context).textTheme.titleLarge?.copyWith(
                         fontWeight: FontWeight.bold,
                       ),
@@ -273,9 +272,7 @@ class FiltrosAdminContentState extends State<FiltrosAdminContent> {
                     const SizedBox(height: 16),
 
                     SwitchListTile(
-                      title: const Text(
-                        'No almacenar texto de solicitud (doNotStore)',
-                      ),
+                      title: Text(tr('content_filter_do_not_store')),
                       value: _doNotStore,
                       onChanged: (bool value) {
                         setState(() {
@@ -287,16 +284,14 @@ class FiltrosAdminContentState extends State<FiltrosAdminContent> {
                     ),
                     Text(
                       _doNotStore
-                          ? 'La API NO almacenará el texto de las solicitudes.'
-                          : 'La API podría almacenar el texto de las solicitudes (predeterminado).',
+                          ? tr('content_filter_do_not_store_active')
+                          : tr('content_filter_do_not_store_inactive'),
                       style: Theme.of(context).textTheme.bodySmall,
                     ),
                     const SizedBox(height: 16),
 
                     SwitchListTile(
-                      title: const Text(
-                        'Solicitar anotaciones de tramo (spanAnnotations)',
-                      ),
+                      title: Text(tr('content_filter_span_annotations')),
                       value: _spanAnnotations,
                       onChanged: (bool value) {
                         setState(() {
@@ -308,8 +303,8 @@ class FiltrosAdminContentState extends State<FiltrosAdminContent> {
                     ),
                     Text(
                       _spanAnnotations
-                          ? 'Se solicitarán anotaciones de tramo a la API.'
-                          : 'No se solicitarán anotaciones de tramo (predeterminado).',
+                          ? tr('content_filter_span_annotations_active')
+                          : tr('content_filter_span_annotations_inactive'),
                       style: Theme.of(context).textTheme.bodySmall,
                     ),
                     const SizedBox(height: 20),
@@ -317,14 +312,14 @@ class FiltrosAdminContentState extends State<FiltrosAdminContent> {
                     const SizedBox(height: 10),
 
                     Text(
-                      'Configuración Detallada de Atributos',
+                      tr('content_filter_detailed_config'),
                       style: Theme.of(context).textTheme.titleLarge?.copyWith(
                         fontWeight: FontWeight.bold,
                       ),
                     ),
                     const SizedBox(height: 8),
                     Text(
-                      'Habilita y ajusta el umbral (0.0 - 1.0) para cada atributo de toxicidad. Un umbral más alto es más permisivo.',
+                      tr('content_filter_threshold_description'),
                       style: Theme.of(context).textTheme.bodySmall,
                     ),
                     const SizedBox(height: 16),
@@ -352,7 +347,9 @@ class FiltrosAdminContentState extends State<FiltrosAdminContent> {
                                 ),
                                 const SizedBox(height: 8),
                                 SwitchListTile(
-                                  title: const Text('Habilitar atributo'),
+                                  title: Text(
+                                    tr('content_filter_enable_attribute'),
+                                  ),
                                   value: model.isEnabled,
                                   onChanged: (bool value) {
                                     setState(() {
@@ -365,8 +362,13 @@ class FiltrosAdminContentState extends State<FiltrosAdminContent> {
                                 TextFormField(
                                   controller: model.thresholdController,
                                   decoration: InputDecoration(
-                                    labelText: 'Umbral (0.0 - 1.0)',
-                                    hintText: 'Ej: ${model.threshold}',
+                                    labelText: tr(
+                                      'content_filter_threshold_label',
+                                    ),
+                                    hintText: tr(
+                                      'content_filter_threshold_hint',
+                                      args: [model.threshold.toString()],
+                                    ),
                                     border: const OutlineInputBorder(),
                                     isDense: true,
                                   ),
@@ -413,7 +415,7 @@ class FiltrosAdminContentState extends State<FiltrosAdminContent> {
                     Center(
                       child: ElevatedButton.icon(
                         icon: const Icon(Icons.save),
-                        label: const Text('Guardar Configuración'),
+                        label: Text(tr('content_filter_save_button')),
                         onPressed: _saveSettings,
                         style: ElevatedButton.styleFrom(
                           padding: const EdgeInsets.symmetric(
@@ -428,16 +430,14 @@ class FiltrosAdminContentState extends State<FiltrosAdminContent> {
                     const Divider(),
                     const SizedBox(height: 16),
                     Text(
-                      'Nota Importante:',
+                      tr('content_filter_important_note'),
                       style: Theme.of(context).textTheme.titleSmall?.copyWith(
                         fontWeight: FontWeight.bold,
                       ),
                     ),
                     const SizedBox(height: 8),
                     Text(
-                      'La API Key de Perspective se gestiona directamente en la configuración del backend. '
-                      'Asegúrate de que los umbrales estén entre 0.0 y 1.0. '
-                      'Los cambios se aplicarán después de guardar.',
+                      tr('content_filter_important_note_content'),
                       style: Theme.of(context).textTheme.bodySmall,
                     ),
                   ],

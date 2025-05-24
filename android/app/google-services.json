@@ -7,14 +7,59 @@
   "client": [
     {
       "client_info": {
-        "mobilesdk_app_id": "1:952401482773:android:e4c4cd6bf9d9347470ea1c",
+        "mobilesdk_app_id": "1:952401482773:android:f6cd64f306f2d22770ea1c",
         "android_client_info": {
           "package_name": "com.example.AirPlan"
         }
       },
       "oauth_client": [
         {
-          "client_id": "952401482773-7hevpa2fa1ru3jnggq3cbvucqnka06oh.apps.googleusercontent.com",
+          "client_id": "952401482773-58abdjoitiiq5898vgflvvq3069hkk5m.apps.googleusercontent.com",
+          "client_type": 1,
+          "android_info": {
+            "package_name": "com.example.AirPlan",
+            "certificate_hash": "803e13516a41a12eaf65f4fdb575a9fa2f53e2a5"
+          }
+        },
+        {
+          "client_id": "952401482773-d298rk631gcngq9ukk0fa6qfp4tk7auf.apps.googleusercontent.com",
+          "client_type": 1,
+          "android_info": {
+            "package_name": "com.example.AirPlan",
+            "certificate_hash": "13bd09a446736cbc12cca28d0a0ce62aafea9dbe"
+          }
+        },
+        {
+          "client_id": "952401482773-eks4ralfhdvtea50s61g6no30sjl0nbv.apps.googleusercontent.com",
+          "client_type": 3
+        }
+      ],
+      "api_key": [
+        {
+          "current_key": "AIzaSyBPOC0iGtCzf5cw_x0hP8kyW4ZpxrTH2Ow"
+        }
+      ],
+      "services": {
+        "appinvite_service": {
+          "other_platform_oauth_client": [
+            {
+              "client_id": "952401482773-7hevpa2fa1ru3jnggq3cbvucqnka06oh.apps.googleusercontent.com",
+              "client_type": 3
+            }
+          ]
+        }
+      }
+    },
+    {
+      "client_info": {
+        "mobilesdk_app_id": "1:952401482773:android:e4c4cd6bf9d9347470ea1c",
+        "android_client_info": {
+          "package_name": "com.example.prueba_flutter"
+        }
+      },
+      "oauth_client": [
+        {
+          "client_id": "952401482773-eks4ralfhdvtea50s61g6no30sjl0nbv.apps.googleusercontent.com",
           "client_type": 3
         }
       ],

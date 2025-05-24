@@ -1,3 +1,4 @@
+import 'package:easy_localization/easy_localization.dart';
 import 'package:flutter/material.dart';
 import 'invitations_service.dart';
 
@@ -24,19 +25,21 @@ class _InvitationsPageState extends State<InvitationsPage> {
     try {
       await InvitationsService.acceptInvitation(activityId, widget.username);
       setState(() {
-        _invitationsFuture = InvitationsService.fetchInvitations(widget.username);
+        _invitationsFuture = InvitationsService.fetchInvitations(
+          widget.username,
+        );
       });
       final actualContext = context;
       if (actualContext.mounted) {
-        ScaffoldMessenger.of(actualContext).showSnackBar(
-          const SnackBar(content: Text('Invitación aceptada')),
-        );
+        ScaffoldMessenger.of(
+          actualContext,
+        ).showSnackBar(SnackBar(content: Text('invitation_accepted'.tr())));
       }
     } catch (e) {
       final actualContext = context;
       if (actualContext.mounted) {
         ScaffoldMessenger.of(actualContext).showSnackBar(
-          const SnackBar(content: Text('Error al aceptar la invitación')),
+          SnackBar(content: Text('error_accepting_invitation'.tr())),
         );
       }
     }
@@ -47,19 +50,21 @@ class _InvitationsPageState extends State<InvitationsPage> {
     try {
       await InvitationsService.rejectInvitation(activityId, widget.username);
       setState(() {
-        _invitationsFuture = InvitationsService.fetchInvitations(widget.username);
+        _invitationsFuture = InvitationsService.fetchInvitations(
+          widget.username,
+        );
       });
       final actualContext = context;
       if (actualContext.mounted) {
-        ScaffoldMessenger.of(actualContext).showSnackBar(
-          const SnackBar(content: Text('Invitación rechazada')),
-        );
+        ScaffoldMessenger.of(
+          actualContext,
+        ).showSnackBar(SnackBar(content: Text('invitation_rejected'.tr())));
       }
     } catch (e) {
       final actualContext = context;
       if (actualContext.mounted) {
         ScaffoldMessenger.of(actualContext).showSnackBar(
-          const SnackBar(content: Text('Error al rechazar la invitación')),
+          SnackBar(content: Text('error_rejecting_invitation'.tr())),
         );
       }
     }
@@ -68,40 +73,40 @@ class _InvitationsPageState extends State<InvitationsPage> {
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      appBar: AppBar(
-        title: const Text('Invitaciones a Actividades'),
-      ),
+      appBar: AppBar(title: Text('activity_invitations_title'.tr())),
       body: FutureBuilder<List<Map<String, dynamic>>>(
         future: _invitationsFuture,
         builder: (context, snapshot) {
           if (snapshot.connectionState == ConnectionState.waiting) {
             return const Center(child: CircularProgressIndicator());
           } else if (snapshot.hasError) {
-            return const Center(child: Text('Error al cargar las invitaciones'));
+            return Center(child: Text('error_loading_invitations'.tr()));
           } else if (!snapshot.hasData || snapshot.data!.isEmpty) {
-            return const Center(
-              child: Text('No tienes invitaciones para unirte a actividades'),
-            );
+            return Center(child: Text('no_activity_invitations'.tr()));
           }
 
-          if (snapshot.hasData && snapshot.data != null && snapshot.data!.isNotEmpty) {
+          if (snapshot.hasData &&
+              snapshot.data != null &&
+              snapshot.data!.isNotEmpty) {
             final invitations = snapshot.data!;
             return ListView.builder(
               itemCount: invitations.length,
               itemBuilder: (context, index) {
                 final invitation = invitations[index];
                 return ListTile(
-                  title: Text(invitation['nom'] ?? 'Sin nombre'),
+                  title: Text(invitation['nom'] ?? 'unnamed_activity'.tr()),
                   trailing: Row(
                     mainAxisSize: MainAxisSize.min,
                     children: [
                       IconButton(
                         icon: const Icon(Icons.check, color: Colors.green),
                         onPressed: () => _acceptInvitation(invitation['id']),
+                        tooltip: 'accept_invitation_tooltip'.tr(),
                       ),
                       IconButton(
                         icon: const Icon(Icons.close, color: Colors.red),
                         onPressed: () => _rejectInvitation(invitation['id']),
+                        tooltip: 'reject_invitation_tooltip'.tr(),
                       ),
                     ],
                   ),
@@ -109,9 +114,7 @@ class _InvitationsPageState extends State<InvitationsPage> {
               },
             );
           } else {
-            return const Center(
-              child: Text('No tienes invitaciones para unirte a actividades'),
-            );
+            return Center(child: Text('no_activity_invitations'.tr()));
           }
         },
       ),

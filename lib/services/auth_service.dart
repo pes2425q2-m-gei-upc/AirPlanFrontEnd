@@ -6,7 +6,7 @@ class AuthService {
   // Constructor que permite inyectar una instancia personalizada de FirebaseAuth
   // lo que facilita la creación de mocks para testing
   AuthService({FirebaseAuth? firebaseAuth})
-    : _auth = firebaseAuth ?? FirebaseAuth.instance;
+      : _auth = firebaseAuth ?? FirebaseAuth.instance;
 
   // Obtiene el usuario actual
   User? getCurrentUser() {
@@ -38,22 +38,24 @@ class AuthService {
 
   // Método para iniciar sesión con correo y contraseña
   Future<UserCredential> signInWithEmailAndPassword(
-    String email,
-    String password,
-  ) {
+      String email,
+      String password,
+      ) {
     return _auth.signInWithEmailAndPassword(email: email, password: password);
   }
 
   // Método para registrarse con correo y contraseña
   Future<UserCredential> createUserWithEmailAndPassword(
-    String email,
-    String password,
-  ) {
+      String email,
+      String password,
+      ) {
     return _auth.createUserWithEmailAndPassword(
       email: email,
       password: password,
     );
   }
+
+
 
   // Método para iniciar sesión con un token personalizado
   Future<UserCredential> signInWithCustomToken(String token) {
@@ -87,8 +89,8 @@ class AuthService {
 
   // Método para reautenticar al usuario
   Future<UserCredential> reauthenticateWithCredential(
-    AuthCredential credential,
-  ) async {
+      AuthCredential credential,
+      ) async {
     if (_auth.currentUser == null) {
       throw FirebaseAuthException(
         code: 'no-user',
@@ -108,5 +110,13 @@ class AuthService {
   // Método para eliminar la cuenta del usuario actual
   Future<void> deleteCurrentUser() async {
     await _auth.currentUser?.delete();
+  }
+
+  Future<UserCredential> signInWithPopup(GithubAuthProvider githubProvider) async {
+    return await _auth.signInWithPopup(githubProvider);
+  }
+
+  Future<UserCredential> signInWithProvider(GithubAuthProvider githubProvider) async {
+    return await _auth.signInWithProvider(githubProvider);
   }
 }

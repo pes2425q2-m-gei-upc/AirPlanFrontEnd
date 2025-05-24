@@ -16,6 +16,7 @@ import 'chat_list_page.dart'; // Import the new ChatListPage
 import 'services/websocket_service.dart'; // Import WebSocket service
 import 'services/api_config.dart'; // Importar la configuración de API
 import 'dart:async'; // Para StreamSubscription
+import 'package:easy_localization/easy_localization.dart';
 
 // Stream controller para comunicar actualizaciones de perfil a toda la aplicación
 final StreamController<Map<String, dynamic>> profileUpdateStreamController =
@@ -180,6 +181,7 @@ class GlobalNotificationService {
 
 void main() async {
   WidgetsFlutterBinding.ensureInitialized();
+  await EasyLocalization.ensureInitialized();
 
   // Inicializar datos de formateo para español y otros idiomas que puedas necesitar
   await initializeDateFormatting('es', null);
@@ -199,7 +201,14 @@ void main() async {
   // Inicializar la configuración de API
   ApiConfig().initialize();
 
-  runApp(const MiApp());
+  runApp(
+    EasyLocalization(
+      supportedLocales: const [Locale('es'), Locale('ca'), Locale('en')],
+      path: 'assets/translations',
+      fallbackLocale: const Locale('en'),
+      child: MiApp(),
+    ),
+  );
 }
 
 class MiApp extends StatefulWidget {
@@ -343,7 +352,7 @@ class _MiAppState extends State<MiApp> with WidgetsBindingObserver {
             // Usar el servicio global de notificaciones
             GlobalNotificationService().addNotification(
               mensaje,
-              'profile_update',
+              'profile_update'.tr(),
             );
 
             // Actualizar Firebase Auth si es necesario
@@ -365,7 +374,7 @@ class _MiAppState extends State<MiApp> with WidgetsBindingObserver {
   // Crea un mensaje descriptivo basado en los campos actualizados
   String _createProfileUpdateMessage(List<dynamic> updatedFields) {
     if (updatedFields.isEmpty) {
-      return 'Tu perfil ha sido actualizado en otro dispositivo';
+      return 'your_profile_updated'.tr();
     }
 
     // Mapeo de campos a nombres amigables en español
@@ -388,13 +397,13 @@ class _MiAppState extends State<MiApp> with WidgetsBindingObserver {
             .toList();
 
     if (updatedFieldNames.length == 1) {
-      return 'Tu ${updatedFieldNames[0]} ha sido actualizado en otro dispositivo';
+      return '${'profile_field_updated'.tr()} ${updatedFieldNames[0]}';
     } else if (updatedFieldNames.length == 2) {
-      return 'Tu ${updatedFieldNames[0]} y ${updatedFieldNames[1]} han sido actualizados en otro dispositivo';
+      return '${'profile_fields_updated_two'.tr()} ${updatedFieldNames[0]} y ${updatedFieldNames[1]}';
     } else {
       // Para 3 o más campos
       final lastField = updatedFieldNames.removeLast();
-      return 'Tu ${updatedFieldNames.join(", ")} y $lastField han sido actualizados en otro dispositivo';
+      return '${'profile_fields_updated_many'.tr()} ${updatedFieldNames.join(", ")} y $lastField';
     }
   }
 
@@ -420,7 +429,7 @@ class _MiAppState extends State<MiApp> with WidgetsBindingObserver {
             if (user != null) {
               // Usar el servicio global de notificaciones
               GlobalNotificationService().addNotification(
-                'Tu correo electrónico ha sido modificado en otro dispositivo. Necesitas volver a iniciar sesión.',
+                'email_change_verify_again'.tr(),
                 'email_change',
                 isUrgent: true,
               );
@@ -558,7 +567,9 @@ class _MiAppState extends State<MiApp> with WidgetsBindingObserver {
             final actualContext = context;
             if (actualContext.mounted) {
               ScaffoldMessenger.of(actualContext).showSnackBar(
-                SnackBar(content: Text("Error al conectar con el backend: $e")),
+                SnackBar(
+                  content: Text("${"error_connecting_backend".tr()} $e"),
+                ),
               );
             }
           }
@@ -570,13 +581,16 @@ class _MiAppState extends State<MiApp> with WidgetsBindingObserver {
   @override
   Widget build(BuildContext context) {
     return MaterialApp(
-      navigatorKey: navigatorKey, // Usar la clave global para el navigator
-      title: 'AirPlan',
+      navigatorKey: navigatorKey,
+      title: tr('app_title'),
       debugShowCheckedModeBanner: false,
       theme: ThemeData(
         primarySwatch: Colors.blue,
         visualDensity: VisualDensity.adaptivePlatformDensity,
       ),
+      locale: EasyLocalization.of(context)!.locale,
+      supportedLocales: EasyLocalization.of(context)!.supportedLocales,
+      localizationsDelegates: EasyLocalization.of(context)!.delegates,
       home: const AuthWrapper(),
     );
   }
@@ -590,6 +604,7 @@ class AuthWrapper extends StatefulWidget {
 }
 
 class AuthWrapperState extends State<AuthWrapper> {
+  bool _langLoaded = false;
   // Flag para indicar si el usuario estaba previamente autenticado
   bool _wasAuthenticated = false;
   // Flag para indicar si el logout fue manual
@@ -624,7 +639,7 @@ class AuthWrapperState extends State<AuthWrapper> {
       final actualContext = context;
       if (actualContext.mounted) {
         ScaffoldMessenger.of(actualContext).showSnackBar(
-          SnackBar(content: Text("Error al conectar con el backend: $e")),
+          SnackBar(content: Text("${"error_connecting_backend".tr()} $e")),
         );
       }
     }
@@ -639,13 +654,18 @@ class AuthWrapperState extends State<AuthWrapper> {
         if (snapshot.connectionState == ConnectionState.active) {
           final user = snapshot.data;
 
+          // Cargar idioma del usuario según configuración del backend
+          if (user != null && !_langLoaded) {
+            _langLoaded = true;
+            _fetchUserLanguage(user);
+          }
           // Comprobar si la sesión ha caducado (estaba autenticado pero ahora no)
           if (_wasAuthenticated && user == null && !_isManualLogout) {
             // La sesión ha caducado, mostrar notificación solo si NO es logout manual
             // Usar el servicio global de notificaciones
             Future.delayed(Duration.zero, () {
               GlobalNotificationService().addNotification(
-                'Tu sesión ha caducado. Por favor, inicia sesión nuevamente.',
+                'session_expired'.tr(),
                 'session_expired',
                 isUrgent: true,
               );
@@ -689,6 +709,36 @@ class AuthWrapperState extends State<AuthWrapper> {
         return const Scaffold(body: Center(child: CircularProgressIndicator()));
       },
     );
+  }
+
+  // Obtener y aplicar el idioma del usuario desde el backend
+  Future<void> _fetchUserLanguage(User user) async {
+    try {
+      // Obtener idioma de usuario usando el endpoint correcto por username
+      final username = user.displayName ?? user.email ?? '';
+      final url = ApiConfig().buildUrl(
+        'api/usuaris/usuario-por-username/$username',
+      );
+      final response = await http.get(Uri.parse(url));
+      if (response.statusCode == 200) {
+        final data = jsonDecode(response.body);
+        final rawLang = (data['idioma'] as String? ?? 'en').toLowerCase();
+        // Mapear nombres de idioma desde backend a códigos de locale
+        final localeCode =
+            rawLang.contains('eng')
+                ? 'en'
+                : rawLang.contains('castellano')
+                ? 'es'
+                : rawLang.contains('ca')
+                ? 'ca'
+                : 'en';
+        // Aplicar locale con la extensión de easy_localization
+        if (!mounted) return;
+        await context.setLocale(Locale(localeCode));
+      }
+    } catch (e) {
+      debugPrint('Error fetching user language: $e');
+    }
   }
 }
 

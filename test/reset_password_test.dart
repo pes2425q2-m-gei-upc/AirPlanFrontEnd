@@ -25,24 +25,16 @@ void main() {
     await tester.pumpWidget(createWidgetUnderTest());
 
     // Verify that the title is displayed
-    expect(find.text('Restablir Contrasenya'), findsOneWidget);
+    expect(find.text('reset_password_title'), findsOneWidget);
 
     // Verify that the instruction text is displayed
-    expect(
-      find.text(
-        'Introdueix el teu correu electrònic per rebre un enllaç de restabliment de contrasenya.',
-      ),
-      findsOneWidget,
-    );
+    expect(find.text('reset_instruction'), findsOneWidget);
 
     // Verify that the email field is displayed
-    expect(find.widgetWithText(TextField, 'Correu electrònic'), findsOneWidget);
+    expect(find.widgetWithText(TextField, 'email_label'), findsOneWidget);
 
     // Verify that the submit button is displayed
-    expect(
-      find.widgetWithText(ElevatedButton, 'Enviar correu de restabliment'),
-      findsOneWidget,
-    );
+    expect(find.widgetWithText(ElevatedButton, 'reset_button'), findsOneWidget);
   });
 
   testWidgets('ResetPasswordPage calls resetPassword when button is pressed', (
@@ -57,9 +49,7 @@ void main() {
     await tester.enterText(find.byType(TextField), 'test@example.com');
 
     // Tap the button
-    await tester.tap(
-      find.widgetWithText(ElevatedButton, 'Enviar correu de restabliment'),
-    );
+    await tester.tap(find.widgetWithText(ElevatedButton, 'reset_button'));
     await tester.pump();
 
     // Verify the service was called with the correct email
@@ -78,9 +68,7 @@ void main() {
       await tester.enterText(find.byType(TextField), 'test@example.com');
 
       // Tap the button
-      await tester.tap(
-        find.widgetWithText(ElevatedButton, 'Enviar correu de restabliment'),
-      );
+      await tester.tap(find.widgetWithText(ElevatedButton, 'reset_button'));
       await tester.pump();
 
       // Verify the success message is shown
@@ -107,9 +95,7 @@ void main() {
       await tester.enterText(find.byType(TextField), 'invalid@example');
 
       // Tap the button
-      await tester.tap(
-        find.widgetWithText(ElevatedButton, 'Enviar correu de restabliment'),
-      );
+      await tester.tap(find.widgetWithText(ElevatedButton, 'reset_button'));
       await tester.pump();
 
       // Verify error message contains the expected text
