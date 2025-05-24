@@ -289,7 +289,7 @@
   "location_permissions_permanently_denied": "Location permissions permanently denied.",
   "failed_fetch_location": "Error fetching location",
   "route_calculated_success": "Route calculated successfully.",
-  "route_calculation_error": "Error calculating route}",
+  "route_calculation_error": "Error calculating route",
   "enter_details": "Enter details",
   "activity_created_success": "Activity created successfully.",
   "error_creating_activity": "Error creating activity",
