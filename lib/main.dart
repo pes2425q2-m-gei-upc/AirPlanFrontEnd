@@ -153,6 +153,8 @@ class GlobalNotificationService {
         return Colors.yellow;
       case 'invitacions':
         return Colors.purple;
+      case 'note_reminder':
+        return Colors.teal;
       default:
         return Colors.grey;
     }
@@ -173,6 +175,8 @@ class GlobalNotificationService {
         return Icons.message;
       case 'invitacions':
         return Icons.group_add;
+      case 'note_reminder':
+        return Icons.note;
       default:
         return Icons.notifications;
     }

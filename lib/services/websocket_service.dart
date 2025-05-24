@@ -223,6 +223,11 @@ class WebSocketService {
           notificationType = 'message';
           isUrgent = false;
           break;
+        case 'NOTE_REMINDER':
+          notificationType = 'note_reminder';
+          isUrgent = false; // Notas pueden ser urgentes
+          break;
+
       // Añadir más mappings según los tipos de eventos que envíe tu backend
         default:
           notificationType = 'general';
@@ -268,7 +273,8 @@ class WebSocketService {
       }
       if (data['type'] == 'ACTIVITY_REMINDER' ||
           data['type'] == 'INVITACIONS' ||
-          data['type'] == 'MESSAGE') {
+          data['type'] == 'MESSAGE' ||
+          data['type'] == 'NOTE_REMINDER') {
         // Este parece ser un mensaje de notificación en tiempo real
         _handleRealTimeEventNotification(data);
         return;
