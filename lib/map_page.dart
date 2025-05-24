@@ -48,7 +48,6 @@ class MapPageState extends State<MapPage> {
   Map<LatLng, Map<Contaminant, AirQualityData>> contaminantsPerLocation = {};
   LatLng currentPosition = LatLng(41.3851, 2.1734); // Default to Barcelona
   List<Map<String, dynamic>> activities = [];
-  List<Map<String, dynamic>> esdevenimentsReadUs = [];
   List<Marker> markers = [];
   bool showAirQualityCircles = true;
   bool loadingRoutes = false;
@@ -886,7 +885,7 @@ class MapPageState extends State<MapPage> {
                       ],
                     )
                   else if (currentUser !=
-                      null) // Botón "+" o tick azul para otros usuarios
+                      null && !activity['esExterna']) // Botón "+" o tick azul para otros usuarios
                     IconButton(
                       icon: Icon(
                         solicitudExistente ? Icons.check_circle : Icons.add,
@@ -1205,7 +1204,6 @@ class MapPageState extends State<MapPage> {
               description: activity['descripcio'] ?? '',
               startDate: activity['dataInici'] ?? '',
               endDate: activity['dataFi'] ?? '',
-              imatge: activity['imatge'] ?? '',
               airQualityData: airQualityData,
               isEditable: true,
               onEdit:

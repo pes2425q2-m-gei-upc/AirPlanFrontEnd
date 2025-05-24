@@ -156,7 +156,6 @@ class _RatingsPageState extends State<RatingsPage> {
       final String startDate =
           activity['dataInici'] ?? DateTime.now().toString();
       final String endDate = activity['dataFi'] ?? DateTime.now().toString();
-      final String imageUrl = activity['imatge'] ?? '';
       final ubicacio = activity['ubicacio'] as Map<String, dynamic>;
       final lat = ubicacio['latitud'] as double;
       final lon = ubicacio['longitud'] as double;
@@ -180,7 +179,6 @@ class _RatingsPageState extends State<RatingsPage> {
                   airQualityData: airQualityData,
                   startDate: startDate,
                   endDate: endDate,
-                  imatge: imageUrl,
                   isEditable:
                       false, // Assuming the user can't edit from ratings page
                   onEdit: () {}, // Empty function since not editable

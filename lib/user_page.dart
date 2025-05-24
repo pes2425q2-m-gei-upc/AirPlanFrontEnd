@@ -104,7 +104,6 @@ class UserRequestsPageState extends State<UserRequestsPage> {
                             description: request['descripcio'] ?? '',
                             startDate: request['dataInici'] ?? '',
                             endDate: request['dataFi'] ?? '',
-                            imatge: request['imatge'] ?? '',
                             airQualityData: [],
                             isEditable: false,
                             onEdit: () {},

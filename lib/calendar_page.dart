@@ -754,7 +754,6 @@ class CalendarPageState extends State<CalendarPage> {
               description: activity['descripcio'] ?? '',
               startDate: activity['dataInici'] ?? '',
               endDate: activity['dataFi'] ?? '',
-              imatge: activity['imatge'] ?? '',
               airQualityData: airQualityData,
               isEditable: activity['creador'] ==
                   widget.authService.getCurrentUsername(),
