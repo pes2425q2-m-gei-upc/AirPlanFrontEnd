@@ -1,4 +1,5 @@
 import 'dart:convert';
+import 'dart:ui' show PlatformDispatcher;
 import 'package:airplan/services/api_config.dart';
 import 'package:flexible_polyline_dart/flutter_flexible_polyline.dart';
 import 'package:flexible_polyline_dart/latlngz.dart';
@@ -7,6 +8,7 @@ import 'package:flutter_polyline_points/flutter_polyline_points.dart';
 import 'package:http/http.dart' as http;
 import 'package:latlong2/latlong.dart';
 import 'package:easy_localization/easy_localization.dart';
+import 'package:airplan/main.dart';
 
 enum TipusVehicle { cotxe, moto, metro, tren, autobus, bicicleta, cap }
 
@@ -86,6 +88,10 @@ Future<TransitRoute> calculatePublicTransportRoute(
   LatLng source,
   LatLng destination,
 ) async {
+  // get current locale from easy_localization via navigatorKey context
+  final langCode =
+      navigatorKey.currentContext?.locale.languageCode ??
+      PlatformDispatcher.instance.locale.languageCode;
   final url = Uri.parse(
     ApiConfig().buildUrl('api/rutas/calculate/publictransport'),
   );
@@ -105,7 +111,7 @@ Future<TransitRoute> calculatePublicTransportRoute(
               'yyyy-MM-ddTHH:mm:ss',
             ).format(arrivalTime),
           'return': 'polyline,actions,travelSummary',
-          'lang': 'ca',
+          'lang': langCode,
         },
       ),
     );
@@ -365,17 +371,20 @@ Future<TransitRoute> calculateRoute(
   final url = Uri.parse(ApiConfig().buildUrl('api/rutas/calculate/simple'));
 
   try {
+    // get current locale for simple route
+    final simpleLang =
+        navigatorKey.currentContext?.locale.languageCode ??
+        PlatformDispatcher.instance.locale.languageCode;
     final response = await http.get(
       url.replace(
         queryParameters: {
           'profile': profile,
           'origin': '${source.latitude},${source.longitude}',
           'destination': '${destination.latitude},${destination.longitude}',
-          'language': "es-es",
+          'language': simpleLang,
         },
       ),
     );
-
     if (response.statusCode == 200) {
       final data = jsonDecode(response.body);
       final route = data['routes'][0];

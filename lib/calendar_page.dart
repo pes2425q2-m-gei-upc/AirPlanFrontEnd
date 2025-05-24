@@ -1,7 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:latlong2/latlong.dart';
 import 'package:table_calendar/table_calendar.dart';
-import 'package:intl/intl.dart';
 import 'package:airplan/services/auth_service.dart';
 import 'package:airplan/activity_service.dart';
 import 'package:airplan/air_quality.dart';
@@ -221,8 +220,9 @@ class CalendarPageState extends State<CalendarPage> {
         }
       } finally {
         if (mounted) setState(() => _isLoading = false);
-        if (mounted)
+        if (mounted) {
           _showActivitiesDialog(day); // Refresh the dialog to show changes
+        }
       }
     }
   }
@@ -518,8 +518,9 @@ class CalendarPageState extends State<CalendarPage> {
                   return Stack(
                     children: [
                       ...List.generate(maxBars, (index) {
-                        if (index >= events.length)
+                        if (index >= events.length) {
                           return const SizedBox.shrink();
+                        }
                         return Positioned(
                           top: index * totalBarHeight,
                           left: 4,

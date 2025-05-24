@@ -486,7 +486,7 @@ class LoginPageState extends State<LoginPage> {
                         child: SignInButton(
                           buttonType: ButtonType.github,
                           buttonSize: ButtonSize.small,
-                          btnText: 'login_button_github'.tr(),
+                          btnText: "Github",
                           onPressed: _isLoading ? null : _signInWithGitHub,
                         ),
                       ),
@@ -501,7 +501,7 @@ class LoginPageState extends State<LoginPage> {
                         child: SignInButton(
                           buttonType: ButtonType.google,
                           buttonSize: ButtonSize.small,
-                          btnText: 'login_button_google'.tr(),
+                          btnText: "Google",
                           onPressed: _isLoading ? null : _signInWithGoogle,
                         ),
                       ),
