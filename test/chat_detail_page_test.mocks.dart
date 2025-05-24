@@ -138,6 +138,22 @@ class MockChatService extends _i1.Mock implements _i5.ChatService {
           as _i6.Future<bool>);
 
   @override
+  _i6.Future<dynamic> reportUser({
+    required String? reportedUsername,
+    required String? reporterUsername,
+    required String? reason,
+  }) =>
+      (super.noSuchMethod(
+            Invocation.method(#reportUser, [], {
+              #reportedUsername: reportedUsername,
+              #reporterUsername: reporterUsername,
+              #reason: reason,
+            }),
+            returnValue: _i6.Future<dynamic>.value(),
+          )
+          as _i6.Future<dynamic>);
+
+  @override
   void disconnectFromChat() => super.noSuchMethod(
     Invocation.method(#disconnectFromChat, []),
     returnValueForMissingStub: null,
@@ -1236,4 +1252,34 @@ class MockAuthService extends _i1.Mock implements _i10.AuthService {
             returnValueForMissingStub: _i6.Future<void>.value(),
           )
           as _i6.Future<void>);
+
+  @override
+  _i6.Future<_i4.UserCredential> signInWithPopup(
+    _i3.GithubAuthProvider? githubProvider,
+  ) =>
+      (super.noSuchMethod(
+            Invocation.method(#signInWithPopup, [githubProvider]),
+            returnValue: _i6.Future<_i4.UserCredential>.value(
+              _FakeUserCredential_2(
+                this,
+                Invocation.method(#signInWithPopup, [githubProvider]),
+              ),
+            ),
+          )
+          as _i6.Future<_i4.UserCredential>);
+
+  @override
+  _i6.Future<_i4.UserCredential> signInWithProvider(
+    _i3.GithubAuthProvider? githubProvider,
+  ) =>
+      (super.noSuchMethod(
+            Invocation.method(#signInWithProvider, [githubProvider]),
+            returnValue: _i6.Future<_i4.UserCredential>.value(
+              _FakeUserCredential_2(
+                this,
+                Invocation.method(#signInWithProvider, [githubProvider]),
+              ),
+            ),
+          )
+          as _i6.Future<_i4.UserCredential>);
 }

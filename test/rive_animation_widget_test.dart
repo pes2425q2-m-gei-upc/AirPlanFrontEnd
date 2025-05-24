@@ -6,7 +6,7 @@ import 'package:rive/rive.dart';
 import 'package:airplan/rive_animation_widget.dart';
 import 'package:airplan/rive_controller.dart';
 
-// Generate mocks for the RiveAnimationControllerHelper and Artboard
+// Solo mockea RiveAnimationControllerHelper y Artboard
 @GenerateMocks([RiveAnimationControllerHelper, Artboard])
 import 'rive_animation_widget_test.mocks.dart';
 
@@ -40,6 +40,10 @@ void main() {
   setUp(() {
     mockRiveHelper = MockRiveAnimationControllerHelper();
     mockArtboard = MockArtboard();
+
+    // Setup default stubs for common methods
+    when(mockArtboard.addController(any)).thenReturn(true);
+    when(mockArtboard.removeController(any)).thenReturn(true);
   });
 
   group('RiveAnimationWidget Tests', () {
@@ -68,7 +72,7 @@ void main() {
 
     test(
       'RiveAnimationControllerHelper.initialize sets up controllers correctly',
-      () {
+          () {
         // Directly test the controller's initialization
         mockRiveHelper.initialize(mockArtboard);
         verify(mockRiveHelper.initialize(mockArtboard)).called(1);
@@ -76,8 +80,8 @@ void main() {
     );
 
     testWidgets('RiveAnimationWidget passes riveHelper correctly', (
-      WidgetTester tester,
-    ) async {
+        WidgetTester tester,
+        ) async {
       // Arrange
       when(mockRiveHelper.riveArtboard).thenReturn(null);
 
@@ -100,7 +104,10 @@ void main() {
     });
 
     // Additional test for actual RiveAnimationWidget class structure
-    test('RiveAnimationWidget creates a StatefulWidget', () {
+    testWidgets('RiveAnimationWidget creates a StatefulWidget', (WidgetTester tester) async {
+      // Setup mock behavior
+      when(mockRiveHelper.riveArtboard).thenReturn(null);
+
       final widget = RiveAnimationWidget(riveHelper: mockRiveHelper);
       expect(widget, isA<StatefulWidget>());
 

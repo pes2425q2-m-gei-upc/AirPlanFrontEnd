@@ -73,7 +73,7 @@ void main() {
       await tester.pumpWidget(createCalendarPageWidget());
       await tester.pumpAndSettle();
 
-      expect(find.byIcon(Icons.sync), findsOneWidget);
+      expect(find.byIcon(Icons.refresh), findsOneWidget);
     });
 
     testWidgets('Displays calendar after data loads', (WidgetTester tester) async {
