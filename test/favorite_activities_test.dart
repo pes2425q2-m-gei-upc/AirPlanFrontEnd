@@ -100,6 +100,7 @@ void main() {
             'dataInici': '',
             'dataFi': '',
             'descripcio': '',
+            'esExterna': false,
           },
         ],
       );
@@ -143,6 +144,7 @@ void main() {
             'dataInici': '',
             'dataFi': '',
             'descripcio': '',
+            'esExterna': false,
           },
         ],
       );
