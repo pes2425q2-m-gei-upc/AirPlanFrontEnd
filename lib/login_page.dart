@@ -11,6 +11,7 @@ import 'services/auth_service.dart'; // Importamos AuthService
 import 'package:sign_button/sign_button.dart';
 import 'package:flutter/foundation.dart' show kIsWeb;
 import 'package:google_sign_in/google_sign_in.dart';
+import 'package:easy_localization/easy_localization.dart';
 
 class LoginPage extends StatefulWidget {
   // Añadimos la posibilidad de inyectar el AuthService
@@ -112,7 +113,7 @@ class LoginPageState extends State<LoginPage> {
           "email": firebaseEmail,
           "username": username,
           "clientId":
-          clientId, // Incluir el clientId para filtrar notificaciones WebSocket
+            clientId, // Incluir el clientId para filtrar notificaciones WebSocket
         }),
       );
 
@@ -415,7 +416,7 @@ class LoginPageState extends State<LoginPage> {
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      appBar: AppBar(title: const Text("Iniciar Sessió")),
+      appBar: AppBar(title: Text('login_title'.tr())),
       body: Padding(
         padding: const EdgeInsets.all(16.0),
         child: Column(
@@ -423,8 +424,8 @@ class LoginPageState extends State<LoginPage> {
           children: [
             TextField(
               controller: _emailController,
-              decoration: const InputDecoration(
-                labelText: "Correu electrònic",
+              decoration: InputDecoration(
+                labelText: 'email_label'.tr(),
                 border: OutlineInputBorder(),
               ),
               onSubmitted: (_) => _signIn(),
@@ -433,8 +434,8 @@ class LoginPageState extends State<LoginPage> {
             TextField(
               controller: _passwordController,
               obscureText: true,
-              decoration: const InputDecoration(
-                labelText: "Contrasenya",
+              decoration: InputDecoration(
+                labelText: 'password_label'.tr(),
                 border: OutlineInputBorder(),
               ),
               onSubmitted: (_) => _signIn(),
@@ -445,7 +446,7 @@ class LoginPageState extends State<LoginPage> {
               onPressed: _isLoading ? null : _signIn,
               child: _isLoading
                   ? const CircularProgressIndicator()
-                  : const Text("Iniciar Sessió"),
+                  : Text('login_button'.tr()),
             ),
             const SizedBox(height: 12),
             Padding(
@@ -498,7 +499,7 @@ class LoginPageState extends State<LoginPage> {
                   ),
                 );
               },
-              child: const Text("No tens compte? Registra't aquí"),
+              child: Text('signup_prompt'.tr()),
             ),
             TextButton(
               onPressed: () {
@@ -511,7 +512,7 @@ class LoginPageState extends State<LoginPage> {
                   ),
                 );
               },
-              child: const Text("Has oblidat la contrasenya?"),
+              child: Text('reset_password'.tr()),
             ),
             if (_errorMessage.isNotEmpty) ...[
               const SizedBox(height: 12),

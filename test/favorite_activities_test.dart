@@ -78,7 +78,7 @@ void main() {
       await tester.pumpAndSettle();
 
       // Verify message is displayed
-      expect(find.text('No tienes actividades favoritas'), findsOneWidget);
+      expect(find.text('no_favorites_found'), findsOneWidget);
     });
 
     testWidgets('Should add activity to favorites', (

@@ -9,6 +9,7 @@ import 'package:flutter_rating_bar/flutter_rating_bar.dart';
 import 'package:http/http.dart' as http;
 import 'package:airplan/chat_detail_page.dart';
 import 'invite_users_dialog.dart';
+import 'package:easy_localization/easy_localization.dart';
 
 class Valoracio {
   final String username;
@@ -93,9 +94,9 @@ class ActivityDetailsPageState extends State<ActivityDetailsPage> {
     } catch (e) {
       final actualContext = context;
       if (actualContext.mounted) {
-        ScaffoldMessenger.of(actualContext).showSnackBar(
-          SnackBar(content: Text('Error al cargar los participantes')),
-        );
+        ScaffoldMessenger.of(
+          actualContext,
+        ).showSnackBar(SnackBar(content: Text('participants_load_error'.tr())));
       }
     }
   }
@@ -127,9 +128,9 @@ class ActivityDetailsPageState extends State<ActivityDetailsPage> {
         currentUser,
       );
       if (!mounted) return;
-      ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(content: Text('Solicitud cancelada correctamente.')),
-      );
+      ScaffoldMessenger.of(
+        context,
+      ).showSnackBar(SnackBar(content: Text('request_cancel_success'.tr())));
     } else {
       // Enviar solicitud
       await SolicitudsService().sendSolicitud(
@@ -138,9 +139,9 @@ class ActivityDetailsPageState extends State<ActivityDetailsPage> {
         widget.creator,
       );
       if (!mounted) return;
-      ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(content: Text('Solicitud enviada correctamente.')),
-      );
+      ScaffoldMessenger.of(
+        context,
+      ).showSnackBar(SnackBar(content: Text('request_send_success'.tr())));
     }
 
     // Refresh the button state
@@ -166,10 +167,12 @@ class ActivityDetailsPageState extends State<ActivityDetailsPage> {
         valoracions.sort((a, b) => b.fecha.compareTo(a.fecha));
         return valoracions;
       } else {
-        throw Exception('Failed to load ratings');
+        throw Exception('failed_to_load_ratings'.tr());
       }
     } catch (e) {
-      throw Exception('Error connecting to backend: $e');
+      throw Exception(
+        'error_connecting_backend_detail'.tr(args: [e.toString()]),
+      );
     }
   }
 
@@ -208,19 +211,22 @@ class ActivityDetailsPageState extends State<ActivityDetailsPage> {
       );
 
       if (response.statusCode >= 200 && response.statusCode < 300) {
-        final String message = 'Valoración guardada con éxito';
+        final String message = 'rating_saved_success'.tr();
         if (!context.mounted) return;
         _notificationService.showSuccess(context, message);
       } else {
-        final String message =
+        String message =
             response.body.isNotEmpty
                 ? response.body
-                : 'Error al guardar la valoración';
+                : 'rating_saved_error'.tr();
+        if (response.body.contains("inapropiat")) {
+          message = 'inappropiat_message'.tr();
+        }
         if (!context.mounted) return;
         _notificationService.showError(context, message);
       }
     } catch (e) {
-      final String message = 'Error al conectar con el backend';
+      final String message = 'error_connecting_backend'.tr();
       if (!context.mounted) return;
       _notificationService.showError(context, message);
     }
@@ -228,7 +234,7 @@ class ActivityDetailsPageState extends State<ActivityDetailsPage> {
 
   Widget buildRatingAverage(List<Valoracio> valoracions) {
     if (valoracions.isEmpty) {
-      return Text('No hay valoraciones aún', style: TextStyle(fontSize: 16));
+      return Text('no_ratings_yet'.tr(), style: TextStyle(fontSize: 16));
     }
 
     final double average =
@@ -239,7 +245,7 @@ class ActivityDetailsPageState extends State<ActivityDetailsPage> {
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
         Text(
-          'Valoración media:',
+          'average_rating_label'.tr(),
           style: TextStyle(fontWeight: FontWeight.bold, fontSize: 18),
         ),
         SizedBox(height: 8),
@@ -252,7 +258,7 @@ class ActivityDetailsPageState extends State<ActivityDetailsPage> {
           direction: Axis.horizontal,
         ),
         Text(
-          '${average.toStringAsFixed(1)} de 5 (${valoracions.length} valoraciones)',
+          'average_rating_from_total'.tr() + average.toStringAsFixed(1),
           style: TextStyle(fontSize: 16),
         ),
       ],
@@ -311,7 +317,7 @@ class ActivityDetailsPageState extends State<ActivityDetailsPage> {
     );
 
     return Scaffold(
-      appBar: AppBar(title: Text('Activity Details')),
+      appBar: AppBar(title: Text('activity_details_title'.tr())),
       body: SingleChildScrollView(
         child: Padding(
           padding: const EdgeInsets.all(16.0),
@@ -319,7 +325,7 @@ class ActivityDetailsPageState extends State<ActivityDetailsPage> {
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
               Text(
-                'ID: ${widget.id}',
+                '${'id_label'.tr()} ${widget.id}',
                 style: TextStyle(fontWeight: FontWeight.bold, fontSize: 18),
               ),
               SizedBox(height: 16),
@@ -357,7 +363,7 @@ class ActivityDetailsPageState extends State<ActivityDetailsPage> {
                   Icon(Icons.calendar_today),
                   SizedBox(width: 8),
                   Text(
-                    'Start: ${widget.startDate}',
+                    '${'start_label'.tr()} ${widget.startDate}',
                     style: TextStyle(fontSize: 16),
                   ),
                 ],
@@ -368,7 +374,7 @@ class ActivityDetailsPageState extends State<ActivityDetailsPage> {
                   Icon(Icons.calendar_today),
                   SizedBox(width: 8),
                   Text(
-                    'End: ${widget.endDate}',
+                    '${'end_label'.tr()} ${widget.endDate}',
                     style: TextStyle(fontSize: 16),
                   ),
                 ],
@@ -400,7 +406,7 @@ class ActivityDetailsPageState extends State<ActivityDetailsPage> {
                         );
                       },
                       icon: Icon(Icons.message),
-                      label: Text('Enviar mensaje'),
+                      label: Text('send_message_button'.tr()),
                       style: ElevatedButton.styleFrom(
                         backgroundColor: Colors.green,
                         foregroundColor: Colors.white,
@@ -422,7 +428,9 @@ class ActivityDetailsPageState extends State<ActivityDetailsPage> {
                   }
                 },
                 child: Text(
-                  showParticipants ? 'Hide Participants' : 'Show Participants',
+                  showParticipants
+                      ? 'hide_participants'.tr()
+                      : 'show_participants'.tr(),
                 ),
               ),
               if (showParticipants)
@@ -442,31 +450,28 @@ class ActivityDetailsPageState extends State<ActivityDetailsPage> {
                                   context: context,
                                   builder:
                                       (context) => AlertDialog(
-                                        title: Text('Eliminar participante'),
+                                        title: Text(
+                                          'remove_participant_title'.tr(),
+                                        ),
                                         content: Text(
-                                          '¿Estás seguro de que quieres eliminar a $p de la actividad?',
+                                          'remove_participant_message'.tr(
+                                            args: [p],
+                                          ),
                                         ),
                                         actions: [
                                           TextButton(
                                             onPressed:
-                                                () => Navigator.pop(
-                                                  context,
-                                                  false,
-                                                ),
-                                            child: Text('No'),
+                                                () => Navigator.pop(context),
+                                            child: Text('cancel'.tr()),
                                           ),
                                           TextButton(
                                             onPressed:
-                                                () => Navigator.pop(
-                                                  context,
-                                                  true,
-                                                ),
-                                            child: Text('Sí'),
+                                                () => Navigator.pop(context),
+                                            child: Text('delete'.tr()),
                                           ),
                                         ],
                                       ),
                                 );
-
                                 if (confirm == true) {
                                   final url = Uri.parse(
                                     ApiConfig().buildUrl(
@@ -487,7 +492,9 @@ class ActivityDetailsPageState extends State<ActivityDetailsPage> {
                                         ).showSnackBar(
                                           SnackBar(
                                             content: Text(
-                                              '$p eliminado correctamente',
+                                              'participant_removed_success'.tr(
+                                                args: [p],
+                                              ),
                                             ),
                                           ),
                                         );
@@ -500,7 +507,8 @@ class ActivityDetailsPageState extends State<ActivityDetailsPage> {
                                         ).showSnackBar(
                                           SnackBar(
                                             content: Text(
-                                              'Error al eliminar $p',
+                                              'error_removing_participant_detail'
+                                                  .tr(args: [p]),
                                             ),
                                           ),
                                         );
@@ -514,7 +522,8 @@ class ActivityDetailsPageState extends State<ActivityDetailsPage> {
                                       ).showSnackBar(
                                         SnackBar(
                                           content: Text(
-                                            'Error de red al eliminar $p',
+                                            'network_error_removing_participant_detail'
+                                                .tr(args: [p]),
                                           ),
                                         ),
                                       );
@@ -532,7 +541,10 @@ class ActivityDetailsPageState extends State<ActivityDetailsPage> {
                 children: [
                   Icon(Icons.share),
                   SizedBox(width: 8),
-                  Text('Share', style: TextStyle(fontSize: 16)),
+                  Text(
+                    'share_button_label'.tr(),
+                    style: TextStyle(fontSize: 16),
+                  ),
                 ],
               ),
               SizedBox(height: 16),
@@ -543,9 +555,7 @@ class ActivityDetailsPageState extends State<ActivityDetailsPage> {
                     if (snapshot.connectionState == ConnectionState.waiting) {
                       return const CircularProgressIndicator();
                     } else if (snapshot.hasError) {
-                      return const Text(
-                        'Error al cargar el estado de la solicitud.',
-                      );
+                      return Text('error_loading_request_status'.tr());
                     }
 
                     final solicitudExistente = snapshot.data ?? false;
@@ -554,8 +564,8 @@ class ActivityDetailsPageState extends State<ActivityDetailsPage> {
                           () => _handleSolicitudAction(solicitudExistente),
                       child: Text(
                         solicitudExistente
-                            ? 'Cancelar solicitud'
-                            : 'Solicitar unirse',
+                            ? 'cancel_request_button'.tr()
+                            : 'request_to_join_button'.tr(),
                       ),
                     );
                   },
@@ -573,15 +583,64 @@ class ActivityDetailsPageState extends State<ActivityDetailsPage> {
                           ),
                     );
                   },
-                  child: const Text('Invitar Usuarios'),
+                  child: Text('invite_users_button'.tr()),
                 ),
+                ElevatedButton(
+                  onPressed: () async {
+                    final solicitudes = await fetchSolicitudes(widget.id);
+                    if (!context.mounted) return;
+
+                    showDialog(
+                      context: context,
+                      builder: (context) => AlertDialog(
+                        title: Text('Solicitudes para unirse'),
+                        content: solicitudes.isEmpty
+                            ? Text('No hay solicitudes pendientes.')
+                            : Column(
+                          mainAxisSize: MainAxisSize.min,
+                          children: solicitudes.map((solicitud) {
+                            return ListTile(
+                              title: Text(solicitud),
+                              trailing: Row(
+                                mainAxisSize: MainAxisSize.min,
+                                children: [
+                                  IconButton(
+                                    icon: Icon(Icons.check, color: Colors.green),
+                                    onPressed: () async {
+                                      await aceptarSolicitud(widget.id, solicitud);
+                                      if (!context.mounted) return;
+                                      Navigator.of(context).pop();
+                                      setState(() {});
+                                    },
+                                  ),
+                                  IconButton(
+                                    icon: Icon(Icons.close, color: Colors.red),
+                                    onPressed: () async {
+                                      await rechazarSolicitud(widget.id, solicitud);
+                                      if (!context.mounted) return;
+                                      Navigator.of(context).pop();
+                                      setState(() {});
+                                    },
+                                  ),
+                                ],
+                              ),
+                            );
+                          }).toList(),
+                        ),
+                      ),
+                    );
+                  },
+                  child: Text('Ver Solicitudes'),
+                ),
+
+
                 SizedBox(height: 16),
                 Row(
                   mainAxisAlignment: MainAxisAlignment.spaceEvenly,
                   children: [
                     ElevatedButton(
                       onPressed: widget.onEdit,
-                      child: Text('Edit Activity'),
+                      child: Text('edit_activity_button'.tr()),
                     ),
                     ElevatedButton(
                       onPressed: widget.onDelete,
@@ -589,7 +648,7 @@ class ActivityDetailsPageState extends State<ActivityDetailsPage> {
                         backgroundColor: Colors.red,
                         foregroundColor: Colors.white,
                       ),
-                      child: Text('Delete Activity'),
+                      child: Text('delete_activity_button'.tr()),
                     ),
                   ],
                 ),
@@ -614,7 +673,7 @@ class ActivityDetailsPageState extends State<ActivityDetailsPage> {
                       return Padding(
                         padding: const EdgeInsets.symmetric(vertical: 8.0),
                         child: Text(
-                          'Ya has valorado esta actividad',
+                          'already_rated_activity'.tr(),
                           style: TextStyle(
                             fontStyle: FontStyle.italic,
                             color: Colors.grey[600],
@@ -627,7 +686,9 @@ class ActivityDetailsPageState extends State<ActivityDetailsPage> {
                       onPressed: () async {
                         if (currentUser == null) {
                           ScaffoldMessenger.of(context).showSnackBar(
-                            SnackBar(content: Text('Usuario no autenticado')),
+                            SnackBar(
+                              content: Text('user_not_authenticated'.tr()),
+                            ),
                           );
                           return;
                         }
@@ -642,7 +703,7 @@ class ActivityDetailsPageState extends State<ActivityDetailsPage> {
                                 TextEditingController();
 
                             return AlertDialog(
-                              title: Text('Rate Activity'),
+                              title: Text('rate_activity_title'.tr()),
                               content: Column(
                                 mainAxisSize: MainAxisSize.min,
                                 children: [
@@ -665,7 +726,7 @@ class ActivityDetailsPageState extends State<ActivityDetailsPage> {
                                   TextField(
                                     controller: commentController,
                                     decoration: InputDecoration(
-                                      labelText: 'Optional Comment',
+                                      labelText: 'optional_comment_label'.tr(),
                                       border: OutlineInputBorder(),
                                     ),
                                     maxLines: 3,
@@ -676,7 +737,7 @@ class ActivityDetailsPageState extends State<ActivityDetailsPage> {
                                 TextButton(
                                   onPressed:
                                       () => Navigator.of(dialogContext).pop(),
-                                  child: Text('Cancel'),
+                                  child: Text('cancel_button'.tr()),
                                 ),
                                 ElevatedButton(
                                   onPressed: () {
@@ -691,14 +752,14 @@ class ActivityDetailsPageState extends State<ActivityDetailsPage> {
                                     // Refresh the page
                                     setState(() {});
                                   },
-                                  child: Text('Submit'),
+                                  child: Text('submit_button'.tr()),
                                 ),
                               ],
                             );
                           },
                         );
                       },
-                      child: Text('Rate Activity'),
+                      child: Text('rate_activity_button'.tr()),
                     );
                   },
                 ),
@@ -707,7 +768,7 @@ class ActivityDetailsPageState extends State<ActivityDetailsPage> {
               // Rating display section
               SizedBox(height: 24),
               Text(
-                'Valoraciones',
+                'ratings_section_title'.tr(),
                 style: TextStyle(fontWeight: FontWeight.bold, fontSize: 20),
               ),
               Divider(),
@@ -718,12 +779,14 @@ class ActivityDetailsPageState extends State<ActivityDetailsPage> {
                     return Center(child: CircularProgressIndicator());
                   } else if (snapshot.hasError) {
                     return Text(
-                      'Error al cargar valoraciones: ${snapshot.error}',
+                      'error_loading_ratings_detail'.tr(
+                        args: [snapshot.error.toString()],
+                      ),
                     );
                   } else if (!snapshot.hasData || snapshot.data!.isEmpty) {
                     return Column(
                       children: [
-                        Text('No hay valoraciones aún'),
+                        Text('no_ratings_yet_detail'.tr()),
                         SizedBox(height: 16),
                       ],
                     );
@@ -735,7 +798,7 @@ class ActivityDetailsPageState extends State<ActivityDetailsPage> {
                         buildRatingAverage(valoracions),
                         SizedBox(height: 16),
                         Text(
-                          'Todas las valoraciones:',
+                          'all_ratings_label'.tr(),
                           style: TextStyle(
                             fontWeight: FontWeight.bold,
                             fontSize: 16,
@@ -763,38 +826,77 @@ class ActivityDetailsPageState extends State<ActivityDetailsPage> {
   String traduirContaminant(Contaminant contaminant) {
     switch (contaminant) {
       case Contaminant.so2:
-        return 'SO2';
+        return 'SO2'; // Technical term, no direct translation needed for UI usually
       case Contaminant.pm10:
-        return 'PM10';
+        return 'PM10'; // Technical term
       case Contaminant.pm2_5:
-        return 'PM2.5';
+        return 'PM2.5'; // Technical term
       case Contaminant.no2:
-        return 'NO2';
+        return 'NO2'; // Technical term
       case Contaminant.o3:
-        return 'O3';
+        return 'O3'; // Technical term
       case Contaminant.h2s:
-        return 'H2S';
+        return 'H2S'; // Technical term
       case Contaminant.co:
-        return 'CO';
+        return 'CO'; // Technical term
       case Contaminant.c6h6:
-        return 'C6H6';
+        return 'C6H6'; // Technical term
     }
   }
 
   String traduirAQI(AirQuality aqi) {
     switch (aqi) {
       case AirQuality.excelent:
-        return 'Excelent';
+        return 'aqi_excellent'.tr();
       case AirQuality.bona:
-        return 'Bona';
+        return 'aqi_good'.tr();
       case AirQuality.dolenta:
-        return 'Dolenta';
+        return 'aqi_poor'.tr(); // Assuming 'dolenta' means poor/bad
       case AirQuality.pocSaludable:
-        return 'Poc Saludable';
+        return 'aqi_unhealthy_sensitive'.tr(); // Or just 'aqi_unhealthy'
       case AirQuality.moltPocSaludable:
-        return 'Molt Poc Saludable';
+        return 'aqi_very_unhealthy'.tr();
       case AirQuality.perillosa:
-        return 'Perillosa';
+        return 'aqi_hazardous'.tr();
+    }
+  }
+
+  Future<List<String>> fetchSolicitudes(String activityId) async {
+    final int activityIdInt = int.parse(activityId);
+    final url = Uri.parse(ApiConfig().buildUrl('api/solicituds/$activityIdInt/solicituds'));
+    try {
+      final response = await http.get(url);
+      if (response.statusCode == 200) {
+        final List<dynamic> solicitudesJson = json.decode(response.body);
+        return solicitudesJson
+            .map((json) => json['usernameSolicitant'] as String)
+            .toList();
+      } else {
+        throw Exception('Error al obtener solicitudes: ${response.statusCode}');
+      }
+    } catch (e) {
+      throw Exception('Error de red: $e');
+    }
+  }
+
+  Future<void> aceptarSolicitud(String activityId, String username) async {
+    final addParticipantUrl = Uri.parse(ApiConfig().buildUrl('api/activitats/$activityId/$username'));
+    final deleteRequestUrl = Uri.parse(ApiConfig().buildUrl('api/solicituds/$username/$activityId'));
+
+    try {
+      await http.post(addParticipantUrl);
+      await http.delete(deleteRequestUrl);
+    } catch (e) {
+      throw Exception('Error al aceptar la solicitud: $e');
+    }
+  }
+
+  Future<void> rechazarSolicitud(String activityId, String username) async {
+    final url = Uri.parse(ApiConfig().buildUrl('api/solicituds/$username/$activityId'));
+    try {
+      await http.delete(url);
+    } catch (e) {
+      throw Exception('Error al rechazar la solicitud: $e');
     }
   }
 }
