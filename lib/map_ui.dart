@@ -55,7 +55,7 @@ class MapUI extends StatelessWidget {
     // Create activity markers based on grouped activities
     final List<Marker> activityMarkers = [];
 
-    groupedActivities.forEach((locationKey, activitiesList) {
+    groupedActivities.forEach((locationKey, activitiesList) async {
       final coords = locationKey.split(',');
       final lat = double.parse(coords[0]);
       final lon = double.parse(coords[1]);
@@ -69,7 +69,8 @@ class MapUI extends StatelessWidget {
             point: LatLng(lat, lon),
             child: GestureDetector(
               onTap: () => onActivityTap(activitiesList.first),
-              child: Icon(Icons.event, color: Colors.blue, size: 40),
+              child: activitiesList.first['esExterna'] ? Icon(Icons.book_outlined, color: Colors.orange, size: 40)
+                    : Icon(Icons.event, color: Colors.blue, size: 40),
             ),
           ),
         );

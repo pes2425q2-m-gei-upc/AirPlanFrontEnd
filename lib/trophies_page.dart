@@ -1,3 +1,4 @@
+import 'package:airplan/services/api_config.dart';
 import 'package:flutter/material.dart';
 import 'dart:convert';
 import 'package:http/http.dart' as http;
@@ -24,7 +25,7 @@ class _TrophiesPageState extends State<TrophiesPage> {
   Future<List<Map<String, dynamic>>> _fetchTrophies() async {
     try {
       final response = await http.get(
-        Uri.parse('http://127.0.0.1:8080/api/trofeus/${widget.username}'),
+        Uri.parse(ApiConfig().buildUrl('api/trofeus/${widget.username}')),
       );
 
       if (response.statusCode == 200) {

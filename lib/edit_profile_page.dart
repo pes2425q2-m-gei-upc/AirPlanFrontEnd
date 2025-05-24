@@ -53,7 +53,7 @@ class EditProfilePageState extends State<EditProfilePage> {
   // Auth service instance
   late final AuthService _authService;
 
-  final List<String> _languages = ['Castellano', 'Catalan', 'English'];
+  final List<String> _languages = ['Castellano', 'Catala', 'English'];
 
   // Notification service instance
   final NotificationService _notificationService = NotificationService();

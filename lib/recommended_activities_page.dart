@@ -87,7 +87,8 @@ class RecommendedActivitiesPageState extends State<RecommendedActivitiesPage> {
       ),
     );
     if (response.statusCode == 200) {
-      final activitats = jsonDecode(response.body);
+      final body = utf8.decode(response.bodyBytes);
+      final activitats = jsonDecode(body);
       setState(() {
         _totalActivities = activitats.length;
         _loadedActivities = 0;

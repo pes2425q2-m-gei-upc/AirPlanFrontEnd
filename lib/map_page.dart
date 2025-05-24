@@ -80,9 +80,9 @@ class MapPageState extends State<MapPage> {
     super.initState();
     _startCompassListener();
     fetchAirQualityData();
-    fetchActivities();
     fetchUserLocation();
     fetchRoutes();
+    fetchActivities();
   }
 
   void _startCompassListener() {
@@ -914,7 +914,7 @@ class MapPageState extends State<MapPage> {
                       ],
                     )
                   else if (currentUser !=
-                      null) // Botón "+" o tick azul para otros usuarios
+                      null && !activity['esExterna']) // Botón "+" o tick azul para otros usuarios
                     IconButton(
                       icon: Icon(
                         solicitudExistente ? Icons.check_circle : Icons.add,

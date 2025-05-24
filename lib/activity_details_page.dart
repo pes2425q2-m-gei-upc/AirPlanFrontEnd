@@ -1,4 +1,5 @@
 import 'dart:convert';
+import 'package:airplan/user_services.dart';
 import 'package:firebase_auth/firebase_auth.dart';
 import 'package:flutter/material.dart';
 import 'package:airplan/air_quality.dart';
@@ -74,6 +75,7 @@ class ActivityDetailsPageState extends State<ActivityDetailsPage> {
   List<String> participants = []; // Aquí se cargan los participantes
 
   // Simulación de carga de participantes
+  bool esExtern = false; // Por defecto, asumimos que no es externo
   Future<void> loadParticipants() async {
     final url = Uri.parse(
       ApiConfig().buildUrl('api/activitats/${widget.id}/participants'),
@@ -99,10 +101,18 @@ class ActivityDetailsPageState extends State<ActivityDetailsPage> {
     }
   }
 
+  Future<void> _esExtern() async {
+    esExtern = (await UserService.getUserData(widget.creator))['esExtern'] ?? false;
+    setState(() {
+      esExtern = esExtern;
+    });
+  }
+
   @override
   void initState() {
     super.initState();
     _solicitudExistente = _checkSolicitudExistente();
+    _esExtern(); // Cargar si el creador es externo
   }
 
   Future<bool> _checkSolicitudExistente() async {
@@ -309,7 +319,7 @@ class ActivityDetailsPageState extends State<ActivityDetailsPage> {
     final String? currentUser = FirebaseAuth.instance.currentUser?.displayName;
     final bool isCurrentUserCreator =
         currentUser != null && widget.creator == currentUser;
-    final bool canSendMessage = !isCurrentUserCreator && currentUser != null;
+    final bool canSendMessage = !isCurrentUserCreator && currentUser != null && !esExtern;
     final bool isActivityFinished = DateTime.now().isAfter(
       DateTime.parse(widget.endDate),
     );
@@ -331,8 +341,6 @@ class ActivityDetailsPageState extends State<ActivityDetailsPage> {
                 widget.title,
                 style: TextStyle(fontWeight: FontWeight.bold, fontSize: 24),
               ),
-              SizedBox(height: 16),
-              Image.network('https://via.placeholder.com/150'),
               SizedBox(height: 16),
               Text(widget.description, style: TextStyle(fontSize: 16)),
               SizedBox(height: 16),
@@ -546,7 +554,7 @@ class ActivityDetailsPageState extends State<ActivityDetailsPage> {
                 ],
               ),
               SizedBox(height: 16),
-              if (!isCurrentUserCreator)
+              if (!isCurrentUserCreator && !esExtern)
                 FutureBuilder<bool>(
                   future: _solicitudExistente,
                   builder: (context, snapshot) {
