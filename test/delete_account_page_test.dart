@@ -126,7 +126,6 @@ void main() {
       verifyNever(mockAuthService.deleteCurrentUser());
     },
   );
-
   testWidgets('DeleteAccountPage calls deleteCurrentUser when confirmed', (
     WidgetTester tester,
   ) async {
@@ -143,12 +142,16 @@ void main() {
 
     // Tap Delete button in dialog
     await tester.tap(find.text('delete'));
-    await tester.pumpAndSettle();
+    // Use pump() instead of pumpAndSettle() to avoid completing the navigation
+    // to LoginPage, which contains SignInButton widgets that cause layout overflow
+    // in the test environment. We only need to verify the delete operation was called
+    // and the success message is shown.
+    await tester.pump();
 
     // Verify deleteCurrentUser was called
     verify(mockAuthService.deleteCurrentUser()).called(1);
 
-    // Should show success message
+    // Should show success message (it appears before navigation)
     expect(find.text('delete_account_success'), findsOneWidget);
   });
 

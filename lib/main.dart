@@ -570,7 +570,7 @@ class _MiAppState extends State<MiApp> with WidgetsBindingObserver {
   Widget build(BuildContext context) {
     return MaterialApp(
       navigatorKey: navigatorKey,
-      title: tr('app_title'),
+      title: "Airplan",
       debugShowCheckedModeBanner: false,
       theme: ThemeData(
         primarySwatch: Colors.blue,

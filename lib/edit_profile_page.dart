@@ -36,8 +36,8 @@ class EditProfilePageState extends State<EditProfilePage> {
   final TextEditingController _newPasswordController = TextEditingController();
   final TextEditingController _confirmPasswordController =
       TextEditingController();
-  late final String _initialLanguage;
   String _selectedLanguage = 'Castellano'; // Default language
+  late String _initialLanguage = _selectedLanguage;
   bool _isCurrentPasswordVisible = false;
   bool _isNewPasswordVisible = false;
   bool _isConfirmPasswordVisible = false;
@@ -73,7 +73,8 @@ class EditProfilePageState extends State<EditProfilePage> {
       // Intentar cargar los datos actuales del usuario
       _loadUserData();
     }
-
+    debugPrint("the selected language is $_selectedLanguage");
+    debugPrint("the initial language is $_initialLanguage");
     _initialLanguage = _selectedLanguage;
 
     // Añadir listener para los cambios de autenticación
@@ -178,9 +179,14 @@ class EditProfilePageState extends State<EditProfilePage> {
             // Email desde Firebase (ya asignado en initState, pero lo mantenemos por completitud)
             _emailController.text = user.email ?? '';
             // Idioma si está disponible
+            debugPrint("se va a entrar al if");
             if (userData['idioma'] != null) {
+              debugPrint("se ha entrado al if");
+              debugPrint("El idioma seleccionado es: ${userData['idioma']}");
               _selectedLanguage = userData['idioma'];
+              debugPrint("El idioma seleccionado es: $_selectedLanguage");
               _initialLanguage = _selectedLanguage;
+              debugPrint("El idioma inicial es: $_initialLanguage");
             }
           });
         } else {
@@ -295,14 +301,19 @@ class EditProfilePageState extends State<EditProfilePage> {
       updateData['photoURL'] as String?,
       emailChanged,
     );
-
+    debugPrint("Update data prepared");
+    debugPrint("selected language: $_selectedLanguage");
+    debugPrint("initial language: $_initialLanguage");
     // 5. Si el usuario cambió idioma y la actualización fue exitosa, aplicar nuevo locale
     if (_selectedLanguage != _initialLanguage) {
+      debugPrint(
+        'Changing locale from $_initialLanguage to $_selectedLanguage',
+      );
       final raw = _selectedLanguage.toLowerCase();
       final code =
           raw.contains('eng')
               ? 'en'
-              : raw.contains('castellano')
+              : raw.contains('cast')
               ? 'es'
               : raw.contains('ca')
               ? 'ca'
@@ -616,14 +627,14 @@ class EditProfilePageState extends State<EditProfilePage> {
       }
       // Added mounted check
       if (!mounted) return;
-      _notificationService.showSuccess(context, message);
+      _notificationService.showSuccess(context, message.tr());
       // _loadUserData(); // Moved to the end of _handleSuccessfulUpdate
     } catch (e) {
       // Added mounted check
       if (!mounted) return;
       _notificationService.showInfo(
         context,
-        '${'profile_update_session_problem'.tr()} $message',
+        'profile_update_session_problem'.tr(),
       );
     }
   }
@@ -631,7 +642,7 @@ class EditProfilePageState extends State<EditProfilePage> {
   void _handleEmailChangeWithoutToken(String message) {
     _notificationService.showInfo(
       context,
-      '${'profile_update_session_problem'.tr()}\n$message\n${'profile_update_login_again'.tr()}',
+      'profile_update_session_problem'.tr(),
     );
     // _authStateSubscription should handle redirection automatically
   }
@@ -655,13 +666,13 @@ class EditProfilePageState extends State<EditProfilePage> {
 
       // Added mounted check
       if (!mounted) return;
-      _notificationService.showSuccess(context, message);
+      _notificationService.showSuccess(context, message.tr());
     } catch (e) {
       // Added mounted check
       if (!mounted) return;
       _notificationService.showInfo(
         context,
-        '$message\n${'profile_update_session_problem_note'.tr()}',
+        'profile_update_session_problem_note'.tr(),
       );
     }
   }
