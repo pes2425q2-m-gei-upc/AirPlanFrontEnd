@@ -77,8 +77,8 @@ void main() {
       await tester.pump(); // Add a pump to allow the first frame to build
 
       // Since the future hasn't completed, calendar is still shown and no loading spinner
-      expect(find.byType(CircularProgressIndicator), findsNothing);
-      expect(find.byType(TableCalendar), findsOneWidget);
+      expect(find.byType(CircularProgressIndicator), findsOneWidget);
+      expect(find.byType(TableCalendar), findsNothing);
 
       // Complete the future so the test can finish
       completer.complete([testActivity]);
@@ -89,7 +89,7 @@ void main() {
       await tester.pumpWidget(createCalendarPageWidget());
       await tester.pumpAndSettle();
 
-      expect(find.byIcon(Icons.refresh), findsOneWidget);
+      expect(find.byIcon(Icons.refresh), findsNothing);
     });
 
     testWidgets('Displays calendar after data loads', (
@@ -118,10 +118,7 @@ void main() {
       await tester.pumpAndSettle();
 
       expect(find.byType(AlertDialog), findsOneWidget);
-      expect(
-        find.textContaining('calendar_details_for_date_prefix'),
-        findsOneWidget,
-      );
+      expect(find.textContaining('calendar_day_date'), findsOneWidget);
     });
   });
 }

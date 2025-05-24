@@ -77,7 +77,11 @@ class CalendarPageState extends State<CalendarPage> {
     } catch (e) {
       if (mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(content: Text('${'calendar_error_loading_notes'.tr()}: $e')),
+          SnackBar(
+            content: Text(
+              'calendar_error_loading_notes'.tr(args: [e.toString()]),
+            ),
+          ),
         );
       }
     }
@@ -119,8 +123,9 @@ class CalendarPageState extends State<CalendarPage> {
             builder:
                 (context, setState) => AlertDialog(
                   title: Text(
-                    'calendar_note_for_date_prefix'.tr() +
-                        DateFormat('dd/MM/yyyy').format(day),
+                    'calendar_note_for_date'.tr(
+                      args: [DateFormat('dd/MM/yyyy').format(day)],
+                    ),
                   ),
                   content: Column(
                     mainAxisSize: MainAxisSize.min,
@@ -128,49 +133,52 @@ class CalendarPageState extends State<CalendarPage> {
                       TextField(
                         controller: noteController,
                         decoration: InputDecoration(
-                          hintText: 'calendar_note_placeholder'.tr(),
+                          labelText: 'calendar_personal_note'.tr(),
+                          hintText: 'calendar_write_personal_note'.tr(),
+                          border: OutlineInputBorder(),
                         ),
-                        maxLines: 3,
+                        maxLines: 5,
                       ),
                       const SizedBox(height: 16),
-                      ListTile(
-                        title: Text(
-                          '${'calendar_time_label'.tr()}: ${selectedTime.format(context)}',
-                        ),
-                        trailing: const Icon(Icons.edit),
-                        onTap: () async {
-                          final TimeOfDay? picked = await showTimePicker(
-                            context: context,
-                            initialTime: selectedTime,
-                            helpText: 'calendar_time_picker_help_text'.tr(),
-                          );
-                          if (picked != null && picked != selectedTime) {
-                            setState(() {
-                              selectedTime = picked;
-                            });
-                          }
-                        },
+                      Row(
+                        children: [
+                          Text('calendar_reminder_time'.tr()),
+                          TextButton(
+                            onPressed: () async {
+                              final TimeOfDay? time = await showTimePicker(
+                                context: context,
+                                initialTime: selectedTime,
+                              );
+                              if (time != null) {
+                                setState(() {
+                                  selectedTime = time;
+                                });
+                              }
+                            },
+                            child: Text(
+                              '${selectedTime.hour.toString().padLeft(2, '0')}:${selectedTime.minute.toString().padLeft(2, '0')}',
+                              style: const TextStyle(fontSize: 16),
+                            ),
+                          ),
+                        ],
                       ),
                     ],
                   ),
                   actions: [
                     TextButton(
-                      onPressed: () => Navigator.of(context).pop(),
+                      onPressed: () => Navigator.pop(context),
                       child: Text('cancel'.tr()),
                     ),
-                    TextButton(
+                    ElevatedButton(
                       onPressed: () {
+                        // Return collected data to outer function
                         Navigator.of(context).pop({
-                          'content': noteController.text,
+                          'content': noteController.text.trim(),
                           'time': selectedTime,
                           'existingNote': existingNote,
                         });
                       },
-                      child: Text(
-                        existingNote == null
-                            ? 'calendar_save_note_button'.tr()
-                            : 'calendar_update_note_button'.tr(),
-                      ),
+                      child: Text('save'.tr()),
                     ),
                   ],
                 ),
@@ -196,16 +204,16 @@ class CalendarPageState extends State<CalendarPage> {
             id: existing.id,
             username: username,
             fechacreacion: normalizedDay,
-            comentario: content,
             horarecordatorio: timeString,
+            comentario: content,
           );
           await noteService.updateNote(existing.id!, updatedNota);
         } else if (content.isNotEmpty) {
           final newNota = Nota(
             username: username,
             fechacreacion: normalizedDay,
-            comentario: content,
             horarecordatorio: timeString,
+            comentario: content,
           );
           await noteService.createNote(newNota);
         }
@@ -214,15 +222,15 @@ class CalendarPageState extends State<CalendarPage> {
         if (mounted) {
           ScaffoldMessenger.of(context).showSnackBar(
             SnackBar(
-              content: Text('${'calendar_error_processing_note'.tr()}: $e'),
+              content: Text(
+                'calendar_error_processing_note'.tr(args: [e.toString()]),
+              ),
             ),
           );
         }
       } finally {
         if (mounted) setState(() => _isLoading = false);
-        if (mounted) {
-          _showActivitiesDialog(day); // Refresh the dialog to show changes
-        }
+        if (mounted) _showActivitiesDialog(day);
       }
     }
   }
@@ -235,9 +243,9 @@ class CalendarPageState extends State<CalendarPage> {
 
       final username = widget.authService.getCurrentUsername();
       if (username == null) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(content: Text('calendar_user_not_logged_in'.tr())),
-        );
+        ScaffoldMessenger.of(
+          context,
+        ).showSnackBar(SnackBar(content: Text('user_not_found_text'.tr())));
         return;
       }
       List<Map<String, dynamic>> activities = await widget.activityService
@@ -248,7 +256,9 @@ class CalendarPageState extends State<CalendarPage> {
       if (mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
           SnackBar(
-            content: Text('${'calendar_error_loading_activities'.tr()}: $e'),
+            content: Text(
+              'calendar_error_loading_activities'.tr(args: [e.toString()]),
+            ),
           ),
         );
       }
@@ -324,107 +334,90 @@ class CalendarPageState extends State<CalendarPage> {
 
     return Scaffold(
       appBar: AppBar(
-        title: Text('calendar_page_title'.tr()),
+        title: Text('calendar_activity_calendar'.tr()),
         actions: [
           IconButton(
-            icon: const Icon(Icons.refresh),
+            icon: const Icon(Icons.sync),
+            onPressed: _loadActivities,
             tooltip: 'refresh'.tr(),
-            onPressed: () {
-              _loadActivities();
-              _loadUserNotes();
-              fetchAirQualityData();
-            },
           ),
         ],
       ),
-      body: Column(
-        children: [
-          Expanded(
-            child: SingleChildScrollView(
-              // Add scrolling capability as safety
-              child: ConstrainedBox(
-                constraints: BoxConstraints(
-                  maxHeight: availableHeight - 10, // Extra safety margin
-                ),
-                child: TableCalendar(
-                  focusedDay: _focusedDay,
-                  firstDay: DateTime(2020, 1, 1),
-                  lastDay: DateTime(2030, 12, 31),
-                  selectedDayPredicate: (day) => isSameDay(_selectedDay, day),
-                  onDaySelected: (selectedDay, focusedDay) {
-                    setState(() {
-                      _selectedDay = selectedDay;
-                      _focusedDay = focusedDay;
-                    });
-                    _showActivitiesDialog(selectedDay);
-                  },
-                  calendarFormat: _calendarFormat,
-                  onFormatChanged: (format) {
-                    setState(() {
-                      _calendarFormat = format;
-                    });
-                  },
-                  eventLoader: _getEventsForDay,
-                  rowHeight: dynamicRowHeight,
-                  daysOfWeekHeight: 20, // Explicit height for days of week
-                  daysOfWeekStyle: DaysOfWeekStyle(
-                    // Use a custom builder for each day of the week
-                    weekdayStyle: const TextStyle(
-                      color: Color(0xFF4F4F4F),
-                    ), // Default style for weekdays
-                    weekendStyle: const TextStyle(
-                      color: Color(0xFF6A6A6A),
-                    ), // Default style for weekends
-                    dowTextFormatter: (date, locale) {
-                      // Use EasyLocalization's context.locale to get current app locale
-                      return DateFormat.E(
-                        context.locale.toString(),
-                      ).format(date);
-                    },
+      body:
+          _isLoading
+              ? const Center(child: CircularProgressIndicator())
+              : Column(
+                children: [
+                  Expanded(
+                    child: SingleChildScrollView(
+                      // Add scrolling capability as safety
+                      child: ConstrainedBox(
+                        constraints: BoxConstraints(
+                          maxHeight:
+                              availableHeight - 10, // Extra safety margin
+                        ),
+                        child: TableCalendar(
+                          locale:
+                              Localizations.localeOf(
+                                context,
+                              ).toString(), // Use user's language format
+                          focusedDay: _focusedDay,
+                          firstDay: DateTime(2020, 1, 1),
+                          lastDay: DateTime(2030, 12, 31),
+                          selectedDayPredicate:
+                              (day) => isSameDay(_selectedDay, day),
+                          onDaySelected: (selectedDay, focusedDay) {
+                            setState(() {
+                              _selectedDay = selectedDay;
+                              _focusedDay = focusedDay;
+                            });
+                            _showActivitiesDialog(selectedDay);
+                          },
+                          calendarFormat: _calendarFormat,
+                          onFormatChanged: (format) {
+                            setState(() {
+                              _calendarFormat = format;
+                            });
+                          },
+                          eventLoader: _getEventsForDay,
+                          rowHeight: dynamicRowHeight,
+                          daysOfWeekHeight:
+                              20, // Explicit height for days of week
+                          headerStyle: const HeaderStyle(
+                            formatButtonVisible: true,
+                            titleCentered: true,
+                            formatButtonShowsNext: false,
+                          ),
+                          calendarStyle: const CalendarStyle(
+                            isTodayHighlighted: true,
+                            markersMaxCount: 0,
+                            markerSize: 0,
+                            markerMargin: EdgeInsets.zero,
+                            markerDecoration: BoxDecoration(
+                              color: Colors.transparent,
+                            ),
+                            cellMargin: EdgeInsets.all(2), // Reduce cell margin
+                          ),
+                          calendarBuilders: CalendarBuilders(
+                            defaultBuilder: (context, day, focusedDay) {
+                              final events = _getEventsForDay(day);
+                              return _buildDayCell(day, events, false, false);
+                            },
+                            selectedBuilder: (context, day, focusedDay) {
+                              final events = _getEventsForDay(day);
+                              return _buildDayCell(day, events, true, false);
+                            },
+                            todayBuilder: (context, day, focusedDay) {
+                              final events = _getEventsForDay(day);
+                              return _buildDayCell(day, events, false, true);
+                            },
+                          ),
+                        ),
+                      ),
+                    ),
                   ),
-                  headerStyle: HeaderStyle(
-                    formatButtonVisible: true,
-                    titleCentered: true,
-                    formatButtonShowsNext: false,
-                    titleTextStyle: const TextStyle(
-                      fontSize: 17.0,
-                    ), // Default style
-                    titleTextFormatter: (date, locale) {
-                      // Use EasyLocalization's context.locale to get current app locale
-                      // The 'locale' parameter from titleTextFormatter is the device locale, not necessarily app's one.
-                      return DateFormat.yMMMM(
-                        context.locale.toString(),
-                      ).format(date);
-                    },
-                  ),
-                  calendarStyle: const CalendarStyle(
-                    isTodayHighlighted: true,
-                    markersMaxCount: 0,
-                    markerSize: 0,
-                    markerMargin: EdgeInsets.zero,
-                    markerDecoration: BoxDecoration(color: Colors.transparent),
-                    cellMargin: EdgeInsets.all(2), // Reduce cell margin
-                  ),
-                  calendarBuilders: CalendarBuilders(
-                    defaultBuilder: (context, day, focusedDay) {
-                      final events = _getEventsForDay(day);
-                      return _buildDayCell(day, events, false, false);
-                    },
-                    selectedBuilder: (context, day, focusedDay) {
-                      final events = _getEventsForDay(day);
-                      return _buildDayCell(day, events, true, false);
-                    },
-                    todayBuilder: (context, day, focusedDay) {
-                      final events = _getEventsForDay(day);
-                      return _buildDayCell(day, events, false, true);
-                    },
-                  ),
-                ),
+                ],
               ),
-            ),
-          ),
-        ],
-      ),
     );
   }
 
@@ -572,13 +565,18 @@ class CalendarPageState extends State<CalendarPage> {
 
     // Add notes with type indicator
     for (var note in notes) {
-      final noteTimeParts = note.horarecordatorio.split(':');
-      final noteDateTime = normalizedDay.add(
-        Duration(
-          hours: int.parse(noteTimeParts[0]),
-          minutes: int.parse(noteTimeParts[1]),
-        ),
+      final timeParts = note.horarecordatorio.split(':');
+      final hour = int.parse(timeParts[0]);
+      final minute = int.parse(timeParts[1]);
+
+      final noteDateTime = DateTime(
+        normalizedDay.year,
+        normalizedDay.month,
+        normalizedDay.day,
+        hour,
+        minute,
       );
+
       combinedItems.add({
         'type': 'note',
         'data': note,
@@ -589,150 +587,184 @@ class CalendarPageState extends State<CalendarPage> {
 
     // Add activities with type indicator
     for (var activity in activities) {
-      final activityDateTime = DateTime.parse(activity['dataInici']);
+      final startTime = DateTime.parse(activity['dataInici']);
+
       combinedItems.add({
         'type': 'activity',
         'data': activity,
-        'dateTime': activityDateTime,
-        'isStarted': activityDateTime.isBefore(now),
+        'dateTime': startTime,
+        'isStarted': startTime.isBefore(now),
       });
     }
 
     // Sort: first by whether item has started, then by time
     combinedItems.sort((a, b) {
-      // If one has started and the other hasn't, started ones come first
-      if (a['isStarted'] != b['isStarted']) {
-        return a['isStarted'] ? -1 : 1;
-      }
-      // Otherwise, sort by time
+      if (a['isStarted'] && !b['isStarted']) return 1;
+      if (!a['isStarted'] && b['isStarted']) return -1;
       return a['dateTime'].compareTo(b['dateTime']);
     });
 
     showDialog(
       context: context,
-      builder: (BuildContext context) {
-        return AlertDialog(
-          title: Text(
-            'calendar_details_for_date_prefix'.tr() +
-                DateFormat('dd/MM/yyyy').format(day),
-          ),
-          content: SizedBox(
-            width: double.maxFinite,
-            child:
-                _isLoading
-                    ? Center(child: CircularProgressIndicator())
-                    : combinedItems.isEmpty
-                    ? Center(child: Text('calendar_no_items_for_day'.tr()))
-                    : ListView.builder(
-                      shrinkWrap: true,
-                      itemCount: combinedItems.length,
-                      itemBuilder: (context, index) {
-                        final item = combinedItems[index];
-                        if (item['type'] == 'note') {
-                          return _buildNoteItem(
-                            item['data'] as Nota,
-                            day,
-                            item['isStarted'] as bool,
-                          );
-                        } else {
-                          return _buildActivityItem(
-                            item['data'] as Map<String, dynamic>,
-                            item['isStarted'] as bool,
-                          );
-                        }
-                      },
+      builder:
+          (context) => AlertDialog(
+            title: Row(
+              children: [
+                Expanded(
+                  child: Text(
+                    'calendar_day_date'.tr(
+                      args: [DateFormat('dd/MM/yyyy').format(day)],
                     ),
+                  ),
+                ),
+                IconButton(
+                  icon: const Icon(Icons.close),
+                  onPressed: () => Navigator.pop(context),
+                  padding: EdgeInsets.zero,
+                  constraints: const BoxConstraints(),
+                  iconSize: 20,
+                ),
+              ],
+            ),
+            titlePadding: const EdgeInsets.only(
+              left: 24,
+              top: 24,
+              right: 16,
+              bottom: 0,
+            ),
+            content: SizedBox(
+              width: double.maxFinite,
+              height:
+                  MediaQuery.of(context).size.height *
+                  0.6, // Use a fixed height proportion
+              child: Column(
+                mainAxisSize: MainAxisSize.min,
+                children: [
+                  if (combinedItems.isEmpty)
+                    Padding(
+                      padding: EdgeInsets.only(top: 20, bottom: 20),
+                      child: Text('calendar_no_notes_activities'.tr()),
+                    )
+                  else
+                    Expanded(
+                      child: ListView.builder(
+                        shrinkWrap: true,
+                        itemCount: combinedItems.length,
+                        itemBuilder: (context, index) {
+                          final item = combinedItems[index];
+                          if (item['type'] == 'note') {
+                            return _buildNoteItem(
+                              item['data'],
+                              day,
+                              item['isStarted'],
+                            );
+                          } else {
+                            return _buildActivityItem(
+                              item['data'],
+                              item['isStarted'],
+                            );
+                          }
+                        },
+                      ),
+                    ),
+                ],
+              ),
+            ),
+            actions: [
+              // Add note button now positioned in the actions section
+              Align(
+                alignment: Alignment.centerRight,
+                child: ElevatedButton.icon(
+                  onPressed: () {
+                    Navigator.pop(context);
+                    _showAddNoteDialog(day);
+                  },
+                  icon: const Icon(Icons.add),
+                  label: Text('calendar_add_note'.tr()),
+                  style: ElevatedButton.styleFrom(
+                    iconColor: Colors.black,
+                    backgroundColor: Colors.amber.shade300,
+                    foregroundColor: Colors.black,
+                  ),
+                ),
+              ),
+            ],
+            actionsPadding: const EdgeInsets.only(right: 16, bottom: 16),
           ),
-          actions: <Widget>[
-            TextButton(
-              child: Text('calendar_add_note_button'.tr()),
-              onPressed: () {
-                Navigator.of(context).pop();
-                _showAddNoteDialog(day);
-              },
-            ),
-            TextButton(
-              child: Text('calendar_close_button'.tr()),
-              onPressed: () {
-                Navigator.of(context).pop();
-              },
-            ),
-          ],
-        );
-      },
     );
   }
 
   Widget _buildNoteItem(Nota nota, DateTime day, bool isStarted) {
-    return Card(
-      margin: const EdgeInsets.symmetric(vertical: 4.0),
-      color: isStarted ? Colors.grey[300] : Colors.white,
-      child: ListTile(
-        leading: Tooltip(
-          message: 'calendar_note_tooltip'.tr(),
-          child: Icon(Icons.note, color: Colors.orange),
-        ),
-        title: Text(
-          nota.comentario,
-          maxLines: 2,
-          overflow: TextOverflow.ellipsis,
-        ),
-        subtitle: Text(nota.horarecordatorio),
-        onTap: () => _showAddNoteDialog(day, nota), // Allow editing
-        trailing: IconButton(
-          icon: const Icon(Icons.delete, color: Colors.red),
-          tooltip: 'calendar_delete_note_tooltip'.tr(),
-          onPressed: () async {
-            // Confirmation dialog before deleting
-            final confirmDelete = await showDialog<bool>(
-              context: context,
-              builder:
-                  (context) => AlertDialog(
-                    title: Text(
-                      'confirm_delete_title'.tr(),
-                    ), // Assuming 'confirm_delete_title' exists
-                    content: Text(
-                      'confirm_delete_message_note'.tr(),
-                    ), // Assuming 'confirm_delete_message_note' exists
-                    actions: [
-                      TextButton(
-                        onPressed: () => Navigator.of(context).pop(false),
-                        child: Text('cancel'.tr()),
-                      ),
-                      TextButton(
-                        onPressed: () => Navigator.of(context).pop(true),
-                        child: Text('delete'.tr()),
-                      ), // Assuming 'delete' key exists
-                    ],
-                  ),
-            );
-            if (confirmDelete == true && nota.id != null) {
-              setState(() => _isLoading = true);
-              try {
-                await noteService.deleteNote(nota.id!);
-                await _loadUserNotes(); // Refresh notes
-              } catch (e) {
-                if (mounted) {
-                  ScaffoldMessenger.of(context).showSnackBar(
-                    SnackBar(
-                      content: Text(
-                        '${'calendar_error_processing_note'.tr()}: $e',
-                      ),
-                    ),
-                  );
-                }
-              } finally {
-                if (mounted) {
-                  setState(() => _isLoading = false);
-                  Navigator.of(
-                    context,
-                  ).pop(); // Close the current dialog (activities/notes list)
-                  _showActivitiesDialog(day); // Reopen with updated data
-                }
-              }
-            }
-          },
-        ),
+    return Container(
+      margin: const EdgeInsets.only(bottom: 8),
+      padding: const EdgeInsets.all(8),
+      decoration: BoxDecoration(
+        color: isStarted ? Colors.amber.shade300 : Colors.amber.shade100,
+        borderRadius: BorderRadius.circular(4),
+        border: Border.all(color: Colors.amber.shade300),
+      ),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Row(
+            children: [
+              const Icon(Icons.access_time, size: 14),
+              const SizedBox(width: 4),
+              Text(
+                nota.horarecordatorio,
+                style: TextStyle(fontWeight: FontWeight.bold),
+              ),
+              const SizedBox(width: 8),
+              Expanded(child: Text(nota.comentario)),
+              IconButton(
+                icon: const Icon(Icons.edit, size: 18, color: Colors.blue),
+                padding: EdgeInsets.zero,
+                constraints: const BoxConstraints(),
+                onPressed: () {
+                  Navigator.pop(context);
+                  _showAddNoteDialog(day, nota);
+                },
+              ),
+              IconButton(
+                icon: const Icon(Icons.delete, size: 18, color: Colors.red),
+                padding: EdgeInsets.zero,
+                constraints: const BoxConstraints(),
+                onPressed: () async {
+                  if (nota.id != null) {
+                    try {
+                      await noteService.deleteNote(nota.id!);
+                      await _loadUserNotes();
+                      if (mounted) {
+                        Navigator.pop(context);
+                        _showActivitiesDialog(day);
+                      }
+                    } catch (e) {
+                      if (mounted) {
+                        ScaffoldMessenger.of(context).showSnackBar(
+                          SnackBar(
+                            content: Text(
+                              'calendar_error_deleting_note'.tr(
+                                args: [e.toString()],
+                              ),
+                            ),
+                          ),
+                        );
+                      }
+                    }
+                  }
+                },
+              ),
+            ],
+          ),
+          if (isStarted)
+            Text(
+              'calendar_time_passed'.tr(),
+              style: TextStyle(
+                fontStyle: FontStyle.italic,
+                color: Colors.orange.shade800,
+              ),
+            ),
+        ],
       ),
     );
   }
@@ -740,25 +772,63 @@ class CalendarPageState extends State<CalendarPage> {
   Widget _buildActivityItem(Map<String, dynamic> activity, bool isStarted) {
     final activityColor = _getActivityColor(activity);
     final startTime = DateTime.parse(activity['dataInici']);
-    final formattedTime = DateFormat('HH:mm').format(startTime);
 
-    return Card(
-      margin: const EdgeInsets.symmetric(vertical: 4.0),
-      color: isStarted ? Colors.grey[300] : Colors.white,
+    return Container(
+      margin: const EdgeInsets.only(bottom: 8),
+      decoration: BoxDecoration(
+        color: isStarted ? Colors.grey.shade200 : Colors.white,
+        border: Border.all(color: activityColor, width: 1),
+        borderRadius: BorderRadius.circular(4),
+      ),
       child: ListTile(
-        leading: Tooltip(
-          message: 'calendar_activity_tooltip'.tr(),
-          child: Icon(Icons.event, color: activityColor),
+        leading: Container(
+          width: 12,
+          height: double.infinity,
+          decoration: BoxDecoration(
+            color: activityColor,
+            borderRadius: BorderRadius.circular(2),
+          ),
         ),
-        title: Text(
-          activity['nom'] ?? 'No name',
-          maxLines: 1,
-          overflow: TextOverflow.ellipsis,
+        title: Row(
+          children: [
+            Text(
+              DateFormat('HH:mm').format(startTime),
+              style: TextStyle(fontWeight: FontWeight.bold),
+            ),
+            const SizedBox(width: 8),
+            Expanded(
+              child: Text(
+                activity['nom'] ?? 'calendar_no_name'.tr(),
+                style: TextStyle(fontWeight: FontWeight.bold),
+              ),
+            ),
+          ],
         ),
-        subtitle: Text(
-          '${activity['tipus']} - $formattedTime',
-        ), // Consider localizing 'No name' and 'tipus' if they are static strings
-        onTap: () => _navigateToActivityDetails(activity),
+        subtitle: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            Text('${'calendar_creator'.tr()}${activity['creador']}'),
+            Text('calendar_end'.tr() + _formatDateTime(activity['dataFi'])),
+            if (isStarted)
+              Text(
+                'calendar_already_started'.tr(),
+                style: TextStyle(
+                  color: Colors.red,
+                  fontStyle: FontStyle.italic,
+                ),
+              ),
+          ],
+        ),
+        contentPadding: const EdgeInsets.only(
+          left: 8,
+          top: 2,
+          bottom: 2,
+          right: 8,
+        ),
+        onTap: () {
+          Navigator.pop(context);
+          _navigateToActivityDetails(activity);
+        },
       ),
     );
   }
@@ -809,24 +879,26 @@ class CalendarPageState extends State<CalendarPage> {
   }
 
   String _formatDateTime(String? dateTimeStr) {
-    if (dateTimeStr == null) return 'calendar_date_not_available'.tr();
+    if (dateTimeStr == null) return 'N/A';
+
     try {
-      DateTime dateTime = DateTime.parse(dateTimeStr);
+      final dateTime = DateTime.parse(dateTimeStr);
       return DateFormat('dd/MM/yyyy HH:mm').format(dateTime);
     } catch (e) {
-      return 'calendar_date_not_available'.tr();
+      return dateTimeStr;
     }
   }
 
   Future<void> fetchAirQualityData() async {
     try {
       await mapService.fetchAirQualityData(contaminantsPerLocation);
-      if (mounted) setState(() {});
     } catch (e) {
       if (mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
           SnackBar(
-            content: Text('${'calendar_error_loading_air_quality'.tr()}: $e'),
+            content: Text(
+              'calendar_error_loading_air_quality'.tr(args: [e.toString()]),
+            ),
           ),
         );
       }
