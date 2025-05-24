@@ -258,7 +258,7 @@
   "content_filter_config_loaded": "Configuración cargada con éxito.",
   "content_filter_config_load_error": "Error al cargar configuración",
   "content_filter_connection_error": "Error de conexión al cargar configuración",
-  "content_filter_threshold_error": "El umbral para \"{0}\" debe ser un número entre 0.0 y 1.0.",
+  "content_filter_threshold_error": "El umbral para \"{}\" debe ser un número entre 0.0 y 1.0.",
   "content_filter_saving": "Guardando configuración...",
   "content_filter_saved": "Configuración guardada con éxito.",
   "content_filter_save_error": "Error al guardar configuración.",
@@ -482,5 +482,10 @@
   "error_checking_favorite": "Error al comprobar actividades favoritas",
   "error_deleting_from_favorites": "Error al eliminar de favoritos",
   "error_obtaining_favorites": "Error al obtener actividades favoritas",
-  "inappropiat_message": "Contenido inapropiado"
+  "inappropiat_message": "Contenido inapropiado",
+  "new_message_from": "Nuevo mensaje de: ",
+  "new_invitation_from": "Tienes una nueva invitación para la actividad con ID: \"{}\" de \"{}\".",
+  "activity_reminder": "La actividad \"{}\" empieza en \"{}\" minutos.",
+  "reminder_with_time": "Recordatorio en \"{}\" minutos: \"{}\"",
+  "reminder_without_time": "Recordatorio: \"{}\""
 }

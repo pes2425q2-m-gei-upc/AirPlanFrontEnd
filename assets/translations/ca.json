@@ -481,6 +481,11 @@
   "error_checking_favorite": "Error en comprovar activitats preferides",
   "error_deleting_from_favorites": "Error en eliminar de preferits",
   "error_obtaining_favorites": "Error en obtenir activitats preferides",
-  "inappropiat_message": "Contingut inapropiat"
+  "inappropiat_message": "Contingut inapropiat",
+  "new_message_from": "Nou missatge de: ",
+  "new_invitation_from": "Tens una nova invitació per a l'activitat amb ID: \"{}\" de \"{}\".",
+  "activity_reminder": "L'activitat \"{}\" comença en \"{}\" minuts.",
+  "reminder_with_time": "Recordatori en \"{}\" minuts: \"{}\"",
+  "reminder_without_time": "Recordatori: \"{}\""
   
 }

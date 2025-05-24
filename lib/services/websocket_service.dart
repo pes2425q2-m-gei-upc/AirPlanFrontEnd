@@ -203,10 +203,11 @@ class WebSocketService {
   void _handleRealTimeEventNotification(Map<String, dynamic> data) {
     try {
       final String type = data['type'] ?? '';
-      final String message = data['message'] ?? '';
+      String message = data['message'] ?? '';
       final String username = data['username'] ?? '';
-      final int timestamp = data['timestamp'] ?? DateTime.now().millisecondsSinceEpoch;
-
+      final int timestamp =
+          data['timestamp'] ?? DateTime.now().millisecondsSinceEpoch;
+      message = getRealMessage(message, type);
       // Determina el tipo de notificación según el tipo de evento recibido
       String notificationType = 'info';
       bool isUrgent = false;
@@ -228,7 +229,7 @@ class WebSocketService {
           isUrgent = false; // Notas pueden ser urgentes
           break;
 
-      // Añadir más mappings según los tipos de eventos que envíe tu backend
+        // Añadir más mappings según los tipos de eventos que envíe tu backend
         default:
           notificationType = 'general';
       }
@@ -252,6 +253,7 @@ class WebSocketService {
       debugPrint('Error al procesar notificación de evento en tiempo real: $e');
     }
   }
+
   // Manejar mensajes entrantes del WebSocket
   void _handleIncomingMessage(String message) {
     // Filter out ping/pong messages
@@ -397,6 +399,35 @@ class WebSocketService {
   void dispose() {
     disconnect();
     _profileUpdateController.close();
+  }
+
+  String getRealMessage(String message, String type) {
+    if (type == "MESSAGE") {
+      message = "${"new_message_from".tr()}$message";
+    } else if (type == "INVITACIONS") {
+      final parts = message.split(',');
+      final idAct = parts.isNotEmpty ? parts[0] : '';
+      final usAnfitrio = parts.length > 1 ? parts[1] : '';
+      message = "new_invitation_from".tr(args: [idAct, usAnfitrio]);
+    } else if (type == "ACTIVITY_REMINDER") {
+      final parts = message.split(',');
+      final activityName = parts.isNotEmpty ? parts[0] : '';
+      final minutesRemaining = parts.length > 1 ? parts[1] : '';
+      message = "activity_reminder".tr(args: [activityName, minutesRemaining]);
+    } else if (type == "NOTE_REMINDER") {
+      final parts = message.split(',');
+      if (parts.length > 1) {
+        final minutesRemaining = parts[0];
+        final noteComment = parts[1];
+        message = "reminder_with_time".tr(
+          args: [minutesRemaining, noteComment],
+        );
+      } else {
+        final noteComment = parts[0];
+        message = "reminder_without_time".tr(args: [noteComment]);
+      }
+    }
+    return message;
   }
 }
 
