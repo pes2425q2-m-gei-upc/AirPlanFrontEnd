@@ -21,7 +21,8 @@ class ActivityService {
     final response = await http.get(url);
 
     if (response.statusCode == 200) {
-      final List<dynamic> data = jsonDecode(response.body);
+      final body = utf8.decode(response.bodyBytes);
+      final List<dynamic> data = jsonDecode(body);
       return data.cast<Map<String, dynamic>>();
     } else {
       throw Exception('Error al cargar las actividades');

@@ -48,6 +48,7 @@ class MapPageState extends State<MapPage> {
   Map<LatLng, Map<Contaminant, AirQualityData>> contaminantsPerLocation = {};
   LatLng currentPosition = LatLng(41.3851, 2.1734); // Default to Barcelona
   List<Map<String, dynamic>> activities = [];
+  List<Map<String, dynamic>> esdevenimentsReadUs = [];
   List<Marker> markers = [];
   bool showAirQualityCircles = true;
   bool loadingRoutes = false;
@@ -80,9 +81,9 @@ class MapPageState extends State<MapPage> {
     super.initState();
     _startCompassListener();
     fetchAirQualityData();
-    fetchActivities();
     fetchUserLocation();
     fetchRoutes();
+    fetchActivities();
   }
 
   void _startCompassListener() {
@@ -1204,6 +1205,7 @@ class MapPageState extends State<MapPage> {
               description: activity['descripcio'] ?? '',
               startDate: activity['dataInici'] ?? '',
               endDate: activity['dataFi'] ?? '',
+              imatge: activity['imatge'] ?? '',
               airQualityData: airQualityData,
               isEditable: true,
               onEdit:

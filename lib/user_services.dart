@@ -218,4 +218,18 @@ class UserService {
       return false;
     }
   }
+
+  static Future<Map<String, dynamic>> getUserData(String username) async {
+    final response = await http.get(
+      Uri.parse(
+        ApiConfig().buildUrl('api/usuaris/usuario-por-username/$username'),
+      ),
+    );
+
+    if (response.statusCode == 200) {
+      return jsonDecode(response.body);
+    } else {
+      throw Exception('Error al obtener los datos del usuario');
+    }
+  }
 }

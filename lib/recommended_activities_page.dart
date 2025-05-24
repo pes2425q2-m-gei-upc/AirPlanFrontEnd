@@ -22,6 +22,7 @@ class Activity {
   String description;
   DateTime dataInici;
   DateTime dataFi;
+  String imatge; // Assuming this is a URL or path to an image
   LatLng location;
   double distance;
   bool isFavorite;
@@ -34,6 +35,7 @@ class Activity {
     required this.description,
     required this.dataInici,
     required this.dataFi,
+    required this.imatge,
     required this.location,
     required this.distance,
     required this.isFavorite,
@@ -82,7 +84,8 @@ class RecommendedActivitiesPageState extends State<RecommendedActivitiesPage> {
       'longitud': widget.userLocation.longitude.toString(),
     }));
     if (response.statusCode == 200) {
-      final activitats = jsonDecode(response.body);
+      final body = utf8.decode(response.bodyBytes);
+      final activitats = jsonDecode(body);
       setState(() {
         _totalActivities = activitats.length;
         _loadedActivities = 0;
@@ -99,6 +102,7 @@ class RecommendedActivitiesPageState extends State<RecommendedActivitiesPage> {
               description: activitat['descripcio'],
               dataInici: DateTime.parse(activitat['dataInici']),
               dataFi: DateTime.parse(activitat['dataFi']),
+              imatge: activitat['imatge'] ?? '',
               location: localitzacioActivitat,
               distance: dist.distance.toDouble(),
               isFavorite: await activityService.isActivityFavorite(activitat['id'], authService.getCurrentUsername()!),
@@ -397,6 +401,7 @@ class RecommendedActivitiesPageState extends State<RecommendedActivitiesPage> {
                           description: activity.description,
                           startDate: activity.dataInici.toString(),
                           endDate: activity.dataFi.toString(),
+                          imatge: activity.imatge,
                           airQualityData: activity.airQuality,
                           isEditable: true,
                           onEdit:
@@ -434,6 +439,7 @@ class RecommendedActivitiesPageState extends State<RecommendedActivitiesPage> {
                                               description: activity.description,
                                               startDate: activity.dataInici.toString(),
                                               endDate: activity.dataFi.toString(),
+                                              imatge: activity.imatge,
                                               airQualityData: activity.airQuality,
                                               isEditable: true,
                                               onEdit:

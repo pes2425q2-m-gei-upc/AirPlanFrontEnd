@@ -44,6 +44,7 @@ class ActivityDetailsPage extends StatefulWidget {
   final List<AirQualityData> airQualityData;
   final String startDate;
   final String endDate;
+  final String imatge;
   final bool isEditable;
   final VoidCallback onEdit;
   final VoidCallback onDelete;
@@ -57,6 +58,7 @@ class ActivityDetailsPage extends StatefulWidget {
     required this.airQualityData,
     required this.startDate,
     required this.endDate,
+    required this.imatge,
     required this.isEditable,
     required this.onEdit,
     required this.onDelete,
@@ -326,7 +328,7 @@ class ActivityDetailsPageState extends State<ActivityDetailsPage> {
                 style: TextStyle(fontWeight: FontWeight.bold, fontSize: 24),
               ),
               SizedBox(height: 16),
-              Image.network('https://via.placeholder.com/150'),
+              Image.network(widget.imatge),
               SizedBox(height: 16),
               Text(widget.description, style: TextStyle(fontSize: 16)),
               SizedBox(height: 16),
