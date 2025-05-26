@@ -1,4 +1,5 @@
 import 'dart:convert';
+import 'package:airplan/user_services.dart';
 import 'package:firebase_auth/firebase_auth.dart';
 import 'package:flutter/material.dart';
 import 'package:airplan/air_quality.dart';
@@ -74,6 +75,7 @@ class ActivityDetailsPageState extends State<ActivityDetailsPage> {
   List<String> participants = []; // Aquí se cargan los participantes
 
   // Simulación de carga de participantes
+  bool esExtern = false; // Por defecto, asumimos que no es externo
   Future<void> loadParticipants() async {
     final url = Uri.parse(
       ApiConfig().buildUrl('api/activitats/${widget.id}/participants'),
@@ -99,10 +101,18 @@ class ActivityDetailsPageState extends State<ActivityDetailsPage> {
     }
   }
 
+  Future<void> _esExtern() async {
+    esExtern = (await UserService.getUserData(widget.creator))['esExtern'] ?? false;
+    setState(() {
+      esExtern = esExtern;
+    });
+  }
+
   @override
   void initState() {
     super.initState();
     _solicitudExistente = _checkSolicitudExistente();
+    _esExtern(); // Cargar si el creador es externo
   }
 
   Future<bool> _checkSolicitudExistente() async {
@@ -309,7 +319,7 @@ class ActivityDetailsPageState extends State<ActivityDetailsPage> {
     final String? currentUser = FirebaseAuth.instance.currentUser?.displayName;
     final bool isCurrentUserCreator =
         currentUser != null && widget.creator == currentUser;
-    final bool canSendMessage = !isCurrentUserCreator && currentUser != null;
+    final bool canSendMessage = !isCurrentUserCreator && currentUser != null && !esExtern;
     final bool isActivityFinished = DateTime.now().isAfter(
       DateTime.parse(widget.endDate),
     );
@@ -331,8 +341,6 @@ class ActivityDetailsPageState extends State<ActivityDetailsPage> {
                 widget.title,
                 style: TextStyle(fontWeight: FontWeight.bold, fontSize: 24),
               ),
-              SizedBox(height: 16),
-              Image.network('https://via.placeholder.com/150'),
               SizedBox(height: 16),
               Text(widget.description, style: TextStyle(fontSize: 16)),
               SizedBox(height: 16),
@@ -546,7 +554,7 @@ class ActivityDetailsPageState extends State<ActivityDetailsPage> {
                 ],
               ),
               SizedBox(height: 16),
-              if (!isCurrentUserCreator)
+              if (!isCurrentUserCreator && !esExtern)
                 FutureBuilder<bool>(
                   future: _solicitudExistente,
                   builder: (context, snapshot) {
@@ -583,6 +591,55 @@ class ActivityDetailsPageState extends State<ActivityDetailsPage> {
                   },
                   child: Text('invite_users_button'.tr()),
                 ),
+                ElevatedButton(
+                  onPressed: () async {
+                    final solicitudes = await fetchSolicitudes(widget.id);
+                    if (!context.mounted) return;
+
+                    showDialog(
+                      context: context,
+                      builder: (context) => AlertDialog(
+                        title: Text('Solicitudes para unirse'),
+                        content: solicitudes.isEmpty
+                            ? Text('No hay solicitudes pendientes.')
+                            : Column(
+                          mainAxisSize: MainAxisSize.min,
+                          children: solicitudes.map((solicitud) {
+                            return ListTile(
+                              title: Text(solicitud),
+                              trailing: Row(
+                                mainAxisSize: MainAxisSize.min,
+                                children: [
+                                  IconButton(
+                                    icon: Icon(Icons.check, color: Colors.green),
+                                    onPressed: () async {
+                                      await aceptarSolicitud(widget.id, solicitud);
+                                      if (!context.mounted) return;
+                                      Navigator.of(context).pop();
+                                      setState(() {});
+                                    },
+                                  ),
+                                  IconButton(
+                                    icon: Icon(Icons.close, color: Colors.red),
+                                    onPressed: () async {
+                                      await rechazarSolicitud(widget.id, solicitud);
+                                      if (!context.mounted) return;
+                                      Navigator.of(context).pop();
+                                      setState(() {});
+                                    },
+                                  ),
+                                ],
+                              ),
+                            );
+                          }).toList(),
+                        ),
+                      ),
+                    );
+                  },
+                  child: Text('Ver Solicitudes'),
+                ),
+
+
                 SizedBox(height: 16),
                 Row(
                   mainAxisAlignment: MainAxisAlignment.spaceEvenly,
@@ -807,6 +864,45 @@ class ActivityDetailsPageState extends State<ActivityDetailsPage> {
         return 'aqi_very_unhealthy'.tr();
       case AirQuality.perillosa:
         return 'aqi_hazardous'.tr();
+    }
+  }
+
+  Future<List<String>> fetchSolicitudes(String activityId) async {
+    final int activityIdInt = int.parse(activityId);
+    final url = Uri.parse(ApiConfig().buildUrl('api/solicituds/$activityIdInt/solicituds'));
+    try {
+      final response = await http.get(url);
+      if (response.statusCode == 200) {
+        final List<dynamic> solicitudesJson = json.decode(response.body);
+        return solicitudesJson
+            .map((json) => json['usernameSolicitant'] as String)
+            .toList();
+      } else {
+        throw Exception('Error al obtener solicitudes: ${response.statusCode}');
+      }
+    } catch (e) {
+      throw Exception('Error de red: $e');
+    }
+  }
+
+  Future<void> aceptarSolicitud(String activityId, String username) async {
+    final addParticipantUrl = Uri.parse(ApiConfig().buildUrl('api/activitats/$activityId/$username'));
+    final deleteRequestUrl = Uri.parse(ApiConfig().buildUrl('api/solicituds/$username/$activityId'));
+
+    try {
+      await http.post(addParticipantUrl);
+      await http.delete(deleteRequestUrl);
+    } catch (e) {
+      throw Exception('Error al aceptar la solicitud: $e');
+    }
+  }
+
+  Future<void> rechazarSolicitud(String activityId, String username) async {
+    final url = Uri.parse(ApiConfig().buildUrl('api/solicituds/$username/$activityId'));
+    try {
+      await http.delete(url);
+    } catch (e) {
+      throw Exception('Error al rechazar la solicitud: $e');
     }
   }
 }

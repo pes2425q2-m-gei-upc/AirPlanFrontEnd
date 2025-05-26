@@ -9,6 +9,7 @@ import 'package:airplan/models/nota.dart';
 import 'package:airplan/services/note_service.dart';
 import 'package:airplan/map_service.dart';
 import 'package:table_calendar/table_calendar.dart';
+import 'package:easy_localization/easy_localization.dart';
 import 'dart:async';
 
 @GenerateMocks([AuthService, ActivityService, NoteService, MapService])
@@ -27,7 +28,7 @@ void main() {
     'descripcio': 'Test Description',
     'dataInici': '2023-05-15T14:00:00',
     'dataFi': '2023-05-15T16:00:00',
-    'ubicacio': {'latitud': 40.0, 'longitud': -3.0}
+    'ubicacio': {'latitud': 40.0, 'longitud': -3.0},
   };
 
   setUp(() {
@@ -38,31 +39,46 @@ void main() {
     // Setup default mock responses
     when(mockAuthService.getCurrentUsername()).thenReturn('testuser');
     when(mockNoteService.fetchUserNotes(any)).thenAnswer((_) async => <Nota>[]);
-    when(mockActivityService.fetchUserActivities(any)).thenAnswer((_) async => [testActivity]);
+    when(
+      mockActivityService.fetchUserActivities(any),
+    ).thenAnswer((_) async => [testActivity]);
   });
 
   Widget createCalendarPageWidget() {
-    return MaterialApp(
-      home: CalendarPage(
-        authService: mockAuthService,
-        activityService: mockActivityService,
+    // wrap MaterialApp with EasyLocalization
+    return EasyLocalization(
+      supportedLocales: [Locale('en', 'US')],
+      path: 'assets/translations',
+      fallbackLocale: Locale('en', 'US'),
+      startLocale: Locale('en', 'US'),
+      child: MaterialApp(
+        home: CalendarPage(
+          authService: mockAuthService,
+          activityService: mockActivityService,
+        ),
       ),
     );
   }
 
   group('CalendarPage Widget Tests', () {
-    testWidgets('Shows loading indicator initially', (WidgetTester tester) async {
+    testWidgets('Shows loading indicator initially', (
+      WidgetTester tester,
+    ) async {
       // We create a completer to control when the future completes
       final Completer<List<Map<String, dynamic>>> completer = Completer();
 
       // Override the default behavior for this specific test
       reset(mockActivityService);
-      when(mockActivityService.fetchUserActivities(any)).thenAnswer((_) => completer.future);
+      when(
+        mockActivityService.fetchUserActivities(any),
+      ).thenAnswer((_) => completer.future);
 
       await tester.pumpWidget(createCalendarPageWidget());
+      await tester.pump(); // Add a pump to allow the first frame to build
 
-      // Since the future hasn't completed, we should see a loading indicator
+      // Since the future hasn't completed, calendar is still shown and no loading spinner
       expect(find.byType(CircularProgressIndicator), findsOneWidget);
+      expect(find.byType(TableCalendar), findsNothing);
 
       // Complete the future so the test can finish
       completer.complete([testActivity]);
@@ -76,7 +92,9 @@ void main() {
       expect(find.byIcon(Icons.refresh), findsOneWidget);
     });
 
-    testWidgets('Displays calendar after data loads', (WidgetTester tester) async {
+    testWidgets('Displays calendar after data loads', (
+      WidgetTester tester,
+    ) async {
       await tester.pumpWidget(createCalendarPageWidget());
       await tester.pumpAndSettle();
 
@@ -84,24 +102,23 @@ void main() {
       expect(find.byType(CircularProgressIndicator), findsNothing);
     });
 
-    testWidgets('Shows activity when day is selected', (WidgetTester tester) async {
+    testWidgets('Shows activity when day is selected', (
+      WidgetTester tester,
+    ) async {
       await tester.pumpWidget(createCalendarPageWidget());
       await tester.pumpAndSettle();
 
-      // Find a Text widget with '15' (our test activity is on the 15th)
       final dayFinder = find.descendant(
         of: find.byType(TableCalendar),
         matching: find.text('15'),
       );
 
-      // Verify we found the day and tap it
       expect(dayFinder, findsAtLeastNWidgets(1));
       await tester.tap(dayFinder.first);
       await tester.pumpAndSettle();
 
-      // Verify the dialog appears with title containing "Día -"
       expect(find.byType(AlertDialog), findsOneWidget);
-      expect(find.textContaining('Día -'), findsOneWidget);
+      expect(find.textContaining('calendar_day_date'), findsOneWidget);
     });
   });
 }

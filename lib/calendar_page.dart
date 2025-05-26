@@ -3,13 +3,13 @@ import 'package:airplan/services/sync_preferences_service.dart';
 import 'package:flutter/material.dart';
 import 'package:latlong2/latlong.dart';
 import 'package:table_calendar/table_calendar.dart';
-import 'package:intl/intl.dart';
 import 'package:airplan/services/auth_service.dart';
 import 'package:airplan/activity_service.dart';
 import 'package:airplan/air_quality.dart';
 import 'package:airplan/map_service.dart';
 import 'package:airplan/services/note_service.dart';
 import 'package:airplan/models/nota.dart';
+import 'package:easy_localization/easy_localization.dart';
 
 import 'activity_details_page.dart';
 
@@ -17,9 +17,12 @@ class CalendarPage extends StatefulWidget {
   final AuthService authService;
   final ActivityService activityService;
 
-  CalendarPage({super.key, AuthService? authService, ActivityService? activityService})
-      : authService = authService ?? AuthService(),
-        activityService = activityService ?? ActivityService();
+  CalendarPage({
+    super.key,
+    AuthService? authService,
+    ActivityService? activityService,
+  }) : authService = authService ?? AuthService(),
+       activityService = activityService ?? ActivityService();
 
   @override
   CalendarPageState createState() => CalendarPageState();
@@ -132,7 +135,11 @@ class CalendarPageState extends State<CalendarPage> {
         // Group notes by day
         _userNotes = {};
         for (var note in notes) {
-          final day = DateTime(note.fechacreacion.year, note.fechacreacion.month, note.fechacreacion.day);
+          final day = DateTime(
+            note.fechacreacion.year,
+            note.fechacreacion.month,
+            note.fechacreacion.day,
+          );
           _userNotes[day] = _userNotes[day] ?? [];
           _userNotes[day]!.add(note);
         }
@@ -140,7 +147,11 @@ class CalendarPageState extends State<CalendarPage> {
     } catch (e) {
       if (mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(content: Text('Error cargando notas: $e')),
+          SnackBar(
+            content: Text(
+              'calendar_error_loading_notes'.tr(args: [e.toString()]),
+            ),
+          ),
         );
       }
     }
@@ -151,9 +162,9 @@ class CalendarPageState extends State<CalendarPage> {
     return _userNotes[normalizedDay] ?? [];
   }
 
-  void _showAddNoteDialog(DateTime day, [Nota? existingNote]) {
+  Future<void> _showAddNoteDialog(DateTime day, [Nota? existingNote]) async {
     final TextEditingController noteController = TextEditingController(
-        text: existingNote?.comentario
+      text: existingNote?.comentario,
     );
     final normalizedDay = DateTime(day.year, day.month, day.day);
     final username = widget.authService.getCurrentUsername();
@@ -169,128 +180,129 @@ class CalendarPageState extends State<CalendarPage> {
 
     if (username == null) {
       ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(content: Text('Usuario no identificado')),
+        SnackBar(content: Text('calendar_user_not_identified'.tr())),
       );
       return;
     }
 
-    showDialog(
+    // Show dialog to collect note content and time, return inputs as result
+    final result = await showDialog<Map<String, dynamic>>(
       context: context,
-      builder: (context) => StatefulBuilder(
-        builder: (context, setState) => AlertDialog(
-          title: Text('Nota para ${DateFormat('dd/MM/yyyy').format(day)}'),
-          content: Column(
-            mainAxisSize: MainAxisSize.min,
-            children: [
-              TextField(
-                controller: noteController,
-                decoration: const InputDecoration(
-                  labelText: 'Nota personal',
-                  hintText: 'Escribe tu nota personal...',
-                  border: OutlineInputBorder(),
-                ),
-                maxLines: 5,
-              ),
-              const SizedBox(height: 16),
-              Row(
-                children: [
-                  const Text('Hora recordatorio: '),
-                  TextButton(
-                    onPressed: () async {
-                      final TimeOfDay? time = await showTimePicker(
-                        context: context,
-                        initialTime: selectedTime,
-                      );
-                      if (time != null) {
-                        setState(() {
-                          selectedTime = time;
-                        });
-                      }
-                    },
-                    child: Text(
-                      '${selectedTime.hour.toString().padLeft(2, '0')}:${selectedTime.minute.toString().padLeft(2, '0')}',
-                      style: const TextStyle(fontSize: 16),
+      builder:
+          (context) => StatefulBuilder(
+            builder:
+                (context, setState) => AlertDialog(
+                  title: Text(
+                    'calendar_note_for_date'.tr(
+                      args: [DateFormat('dd/MM/yyyy').format(day)],
                     ),
                   ),
-                ],
-              ),
-            ],
+                  content: Column(
+                    mainAxisSize: MainAxisSize.min,
+                    children: [
+                      TextField(
+                        controller: noteController,
+                        decoration: InputDecoration(
+                          labelText: 'calendar_personal_note'.tr(),
+                          hintText: 'calendar_write_personal_note'.tr(),
+                          border: OutlineInputBorder(),
+                        ),
+                        maxLines: 5,
+                      ),
+                      const SizedBox(height: 16),
+                      Row(
+                        children: [
+                          Text('calendar_reminder_time'.tr()),
+                          TextButton(
+                            onPressed: () async {
+                              final TimeOfDay? time = await showTimePicker(
+                                context: context,
+                                initialTime: selectedTime,
+                              );
+                              if (time != null) {
+                                setState(() {
+                                  selectedTime = time;
+                                });
+                              }
+                            },
+                            child: Text(
+                              '${selectedTime.hour.toString().padLeft(2, '0')}:${selectedTime.minute.toString().padLeft(2, '0')}',
+                              style: const TextStyle(fontSize: 16),
+                            ),
+                          ),
+                        ],
+                      ),
+                    ],
+                  ),
+                  actions: [
+                    TextButton(
+                      onPressed: () => Navigator.pop(context),
+                      child: Text('cancel'.tr()),
+                    ),
+                    ElevatedButton(
+                      onPressed: () {
+                        // Return collected data to outer function
+                        Navigator.of(context).pop({
+                          'content': noteController.text.trim(),
+                          'time': selectedTime,
+                          'existingNote': existingNote,
+                        });
+                      },
+                      child: Text('save'.tr()),
+                    ),
+                  ],
+                ),
           ),
-          actions: [
-            TextButton(
-              onPressed: () => Navigator.pop(context),
-              child: const Text('Cancelar'),
-            ),
-            ElevatedButton(
-              onPressed: () {
-                // Capture values before any async operations
-                final content = noteController.text.trim();
-                final capturedDay = day;
-                final timeString = '${selectedTime.hour.toString().padLeft(2, '0')}:${selectedTime.minute.toString().padLeft(2, '0')}';
-
-                // Close the dialog FIRST before any async operations
-                Navigator.of(context).pop();
-
-                // Then do the async work
-                Future(() async {
-                  try {
-                    setState(() {
-                      _isLoading = true;
-                    });
-
-                    // Delete existing note
-                    if (content.isEmpty && existingNote != null && existingNote.id != null) {
-                      await noteService.deleteNote(existingNote.id!);
-                      _userNotes.remove(normalizedDay);
-                    }
-                    // Update existing note
-                    else if (content.isNotEmpty && existingNote != null && existingNote.id != null) {
-                      final updatedNota = Nota(
-                        id: existingNote.id,
-                        username: username,
-                        fechacreacion: normalizedDay,
-                        horarecordatorio: timeString,
-                        comentario: content,
-                      );
-                      await noteService.updateNote(existingNote.id!, updatedNota);
-                      final existingNotes = _userNotes[normalizedDay] ?? [];
-                      final updatedNotes = existingNotes.map((note) =>
-                      note.id == existingNote.id ? updatedNota : note
-                      ).toList();
-                      _userNotes[normalizedDay] = updatedNotes;
-                    }
-                    // Create new note
-                    else if (content.isNotEmpty) {
-                      final newNota = Nota(
-                        username: username,
-                        fechacreacion: normalizedDay,
-                        horarecordatorio: timeString,
-                        comentario: content,
-                      );
-                      await noteService.createNote(newNota);
-                      await _loadUserNotes(); // Reload to get the ID
-                    }
-                  }
-                  finally {
-                    if (mounted) {
-                      setState(() {
-                        _isLoading = false;
-                      });
-
-                      // Show activities dialog after everything is done
-                      if (mounted) {
-                        _showActivitiesDialog(capturedDay);
-                      }
-                    }
-                  }
-                });
-              },
-              child: const Text('Guardar'),
-            ),
-          ],
-        ),
-      ),
     );
+
+    // After dialog closes, perform CRUD operations and update state
+    if (result != null) {
+      final content = result['content'] as String;
+      final time = result['time'] as TimeOfDay;
+      final existing = result['existingNote'] as Nota?;
+      final timeString =
+          '${time.hour.toString().padLeft(2, '0')}:${time.minute.toString().padLeft(2, '0')}';
+      // Start loading
+      setState(() => _isLoading = true);
+      try {
+        if (content.isEmpty && existing != null && existing.id != null) {
+          await noteService.deleteNote(existing.id!);
+        } else if (content.isNotEmpty &&
+            existing != null &&
+            existing.id != null) {
+          final updatedNota = Nota(
+            id: existing.id,
+            username: username,
+            fechacreacion: normalizedDay,
+            horarecordatorio: timeString,
+            comentario: content,
+          );
+          await noteService.updateNote(existing.id!, updatedNota);
+        } else if (content.isNotEmpty) {
+          final newNota = Nota(
+            username: username,
+            fechacreacion: normalizedDay,
+            horarecordatorio: timeString,
+            comentario: content,
+          );
+          await noteService.createNote(newNota);
+        }
+        await _loadUserNotes();
+      } catch (e) {
+        if (mounted) {
+          ScaffoldMessenger.of(context).showSnackBar(
+            SnackBar(
+              content: Text(
+                'calendar_error_processing_note'.tr(args: [e.toString()]),
+              ),
+            ),
+          );
+        }
+      } finally {
+        if (mounted) setState(() => _isLoading = false);
+        if (mounted) _showActivitiesDialog(day);
+      }
+    }
   }
 
   Future<void> _loadActivities() async {
@@ -301,9 +313,9 @@ class CalendarPageState extends State<CalendarPage> {
 
       final username = widget.authService.getCurrentUsername();
       if (username == null) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          const SnackBar(content: Text('User not logged in')),
-        );
+        ScaffoldMessenger.of(
+          context,
+        ).showSnackBar(SnackBar(content: Text('user_not_found_text'.tr())));
         return;
       }
       List<Map<String, dynamic>> activities = await widget.activityService
@@ -313,7 +325,11 @@ class CalendarPageState extends State<CalendarPage> {
     } catch (e) {
       if (mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(content: Text('Error loading activities: $e')),
+          SnackBar(
+            content: Text(
+              'calendar_error_loading_activities'.tr(args: [e.toString()]),
+            ),
+          ),
         );
       }
     } finally {
@@ -324,7 +340,8 @@ class CalendarPageState extends State<CalendarPage> {
   }
 
   Map<DateTime, List<Map<String, dynamic>>> _groupActivitiesByDay(
-      List<Map<String, dynamic>> activities) {
+    List<Map<String, dynamic>> activities,
+  ) {
     Map<DateTime, List<Map<String, dynamic>>> eventsByDay = {};
 
     for (var activity in activities) {
@@ -333,7 +350,10 @@ class CalendarPageState extends State<CalendarPage> {
       DateTime endTime = DateTime.parse(activity['dataFi']);
 
       DateTime current = DateTime(
-          startTime.year, startTime.month, startTime.day);
+        startTime.year,
+        startTime.month,
+        startTime.day,
+      );
       final end = DateTime(endTime.year, endTime.month, endTime.day);
 
       while (current.isBefore(end) || current.isAtSameMomentAs(end)) {
@@ -357,12 +377,19 @@ class CalendarPageState extends State<CalendarPage> {
   Widget build(BuildContext context) {
     // Calculate more conservative row height based on calendar format
     final screenHeight = MediaQuery.of(context).size.height;
-    final availableHeight = screenHeight - kToolbarHeight -
-        MediaQuery.of(context).padding.top - MediaQuery.of(context).padding.bottom;
+    final availableHeight =
+        screenHeight -
+        kToolbarHeight -
+        MediaQuery.of(context).padding.top -
+        MediaQuery.of(context).padding.bottom;
 
     // Get number of weeks in the current month view
     final DateTime firstDay = DateTime(_focusedDay.year, _focusedDay.month, 1);
-    final DateTime lastDay = DateTime(_focusedDay.year, _focusedDay.month + 1, 0);
+    final DateTime lastDay = DateTime(
+      _focusedDay.year,
+      _focusedDay.month + 1,
+      0,
+    );
     final int firstWeekday = firstDay.weekday % 7;
     final int daysInMonth = lastDay.day;
     final int weeksInMonth = ((firstWeekday + daysInMonth) / 7).ceil();
@@ -372,11 +399,12 @@ class CalendarPageState extends State<CalendarPage> {
     final double safetyBuffer = 1.0; // Increased buffer
 
     // Limit maximum height more strictly
-    final dynamicRowHeight = (availableHeight / (rowsNeeded + safetyBuffer)).clamp(35.0, 70.0);
+    final dynamicRowHeight = (availableHeight / (rowsNeeded + safetyBuffer))
+        .clamp(35.0, 70.0);
 
     return Scaffold(
       appBar: AppBar(
-        title: const Text('Calendario de Actividades'),
+        title: Text('calendar_activity_calendar'.tr()),
         actions: [
           IconButton(
             icon: Icon(_isSyncEnabled ? Icons.sync : Icons.sync_disabled),
@@ -386,78 +414,94 @@ class CalendarPageState extends State<CalendarPage> {
           IconButton(
             icon: const Icon(Icons.refresh),
             onPressed: _loadActivities,
-            tooltip: 'Refresh Activities',
+            tooltip: 'refresh'.tr(),
           ),
         ],
       ),
-      body: _isLoading
-          ? const Center(child: CircularProgressIndicator())
-          : Column(
-            children: [
-              Expanded(
-                child: SingleChildScrollView( // Add scrolling capability as safety
-                  child: ConstrainedBox(
-                    constraints: BoxConstraints(
-                      maxHeight: availableHeight - 10, // Extra safety margin
-                    ),
-                    child: TableCalendar(
-                      focusedDay: _focusedDay,
-                      firstDay: DateTime(2020, 1, 1),
-                      lastDay: DateTime(2030, 12, 31),
-                      selectedDayPredicate: (day) => isSameDay(_selectedDay, day),
-                      onDaySelected: (selectedDay, focusedDay) {
-                        setState(() {
-                          _selectedDay = selectedDay;
-                          _focusedDay = focusedDay;
-                        });
-                        _showActivitiesDialog(selectedDay);
-                      },
-                      calendarFormat: _calendarFormat,
-                      onFormatChanged: (format) {
-                        setState(() {
-                          _calendarFormat = format;
-                        });
-                      },
-                      eventLoader: _getEventsForDay,
-                      rowHeight: dynamicRowHeight,
-                      daysOfWeekHeight: 20, // Explicit height for days of week
-                      headerStyle: const HeaderStyle(
-                        formatButtonVisible: true,
-                        titleCentered: true,
-                        formatButtonShowsNext: false,
-                      ),
-                      calendarStyle: const CalendarStyle(
-                        isTodayHighlighted: true,
-                        markersMaxCount: 0,
-                        markerSize: 0,
-                        markerMargin: EdgeInsets.zero,
-                        markerDecoration: BoxDecoration(color: Colors.transparent),
-                        cellMargin: EdgeInsets.all(2), // Reduce cell margin
-                      ),
-                      calendarBuilders: CalendarBuilders(
-                        defaultBuilder: (context, day, focusedDay) {
-                          final events = _getEventsForDay(day);
-                          return _buildDayCell(day, events, false, false);
-                        },
-                        selectedBuilder: (context, day, focusedDay) {
-                          final events = _getEventsForDay(day);
-                          return _buildDayCell(day, events, true, false);
-                        },
-                        todayBuilder: (context, day, focusedDay) {
-                          final events = _getEventsForDay(day);
-                          return _buildDayCell(day, events, false, true);
-                        },
+      body:
+          _isLoading
+              ? const Center(child: CircularProgressIndicator())
+              : Column(
+                children: [
+                  Expanded(
+                    child: SingleChildScrollView(
+                      // Add scrolling capability as safety
+                      child: ConstrainedBox(
+                        constraints: BoxConstraints(
+                          maxHeight:
+                              availableHeight - 10, // Extra safety margin
+                        ),
+                        child: TableCalendar(
+                          locale:
+                              Localizations.localeOf(
+                                context,
+                              ).toString(), // Use user's language format
+                          focusedDay: _focusedDay,
+                          firstDay: DateTime(2020, 1, 1),
+                          lastDay: DateTime(2030, 12, 31),
+                          selectedDayPredicate:
+                              (day) => isSameDay(_selectedDay, day),
+                          onDaySelected: (selectedDay, focusedDay) {
+                            setState(() {
+                              _selectedDay = selectedDay;
+                              _focusedDay = focusedDay;
+                            });
+                            _showActivitiesDialog(selectedDay);
+                          },
+                          calendarFormat: _calendarFormat,
+                          onFormatChanged: (format) {
+                            setState(() {
+                              _calendarFormat = format;
+                            });
+                          },
+                          eventLoader: _getEventsForDay,
+                          rowHeight: dynamicRowHeight,
+                          daysOfWeekHeight:
+                              20, // Explicit height for days of week
+                          headerStyle: const HeaderStyle(
+                            formatButtonVisible: true,
+                            titleCentered: true,
+                            formatButtonShowsNext: false,
+                          ),
+                          calendarStyle: const CalendarStyle(
+                            isTodayHighlighted: true,
+                            markersMaxCount: 0,
+                            markerSize: 0,
+                            markerMargin: EdgeInsets.zero,
+                            markerDecoration: BoxDecoration(
+                              color: Colors.transparent,
+                            ),
+                            cellMargin: EdgeInsets.all(2), // Reduce cell margin
+                          ),
+                          calendarBuilders: CalendarBuilders(
+                            defaultBuilder: (context, day, focusedDay) {
+                              final events = _getEventsForDay(day);
+                              return _buildDayCell(day, events, false, false);
+                            },
+                            selectedBuilder: (context, day, focusedDay) {
+                              final events = _getEventsForDay(day);
+                              return _buildDayCell(day, events, true, false);
+                            },
+                            todayBuilder: (context, day, focusedDay) {
+                              final events = _getEventsForDay(day);
+                              return _buildDayCell(day, events, false, true);
+                            },
+                          ),
+                        ),
                       ),
                     ),
                   ),
-                ),
+                ],
               ),
-            ],
-          ),
-      );
+    );
   }
 
-  Widget _buildDayCell(DateTime day, List<Map<String, dynamic>> events, bool isSelected, bool isToday) {
+  Widget _buildDayCell(
+    DateTime day,
+    List<Map<String, dynamic>> events,
+    bool isSelected,
+    bool isToday,
+  ) {
     final notes = _getUserNotesForDay(day);
     final hasNotes = notes.isNotEmpty;
 
@@ -465,12 +509,18 @@ class CalendarPageState extends State<CalendarPage> {
       margin: const EdgeInsets.all(4),
       decoration: BoxDecoration(
         border: Border.all(
-          color: isSelected
-              ? Colors.blue
-              : isToday
-              ? Colors.blue.shade700
-              : Colors.grey.shade300,
-          width: isSelected ? 2 : isToday ? 1.5 : 1,
+          color:
+              isSelected
+                  ? Colors.blue
+                  : isToday
+                  ? Colors.blue.shade700
+                  : Colors.grey.shade300,
+          width:
+              isSelected
+                  ? 2
+                  : isToday
+                  ? 1.5
+                  : 1,
         ),
         borderRadius: BorderRadius.circular(4),
       ),
@@ -490,7 +540,10 @@ class CalendarPageState extends State<CalendarPage> {
                       '${day.day}',
                       style: TextStyle(
                         fontSize: 14,
-                        fontWeight: isSelected || isToday ? FontWeight.bold : FontWeight.normal,
+                        fontWeight:
+                            isSelected || isToday
+                                ? FontWeight.bold
+                                : FontWeight.normal,
                         color: isSelected ? Colors.blue : Colors.black,
                       ),
                     ),
@@ -515,7 +568,8 @@ class CalendarPageState extends State<CalendarPage> {
 
                   final hasOverflow = events.length > 1;
                   final overflowHeight = hasOverflow ? 12.0 : 0.0;
-                  final availableHeight = constraints.maxHeight - overflowHeight;
+                  final availableHeight =
+                      constraints.maxHeight - overflowHeight;
 
                   int maxBars = (availableHeight / totalBarHeight).floor();
                   maxBars = maxBars.clamp(0, events.length);
@@ -532,7 +586,9 @@ class CalendarPageState extends State<CalendarPage> {
                   return Stack(
                     children: [
                       ...List.generate(maxBars, (index) {
-                        if (index >= events.length) return const SizedBox.shrink();
+                        if (index >= events.length) {
+                          return const SizedBox.shrink();
+                        }
                         return Positioned(
                           top: index * totalBarHeight,
                           left: 4,
@@ -554,7 +610,10 @@ class CalendarPageState extends State<CalendarPage> {
                           child: Center(
                             child: Text(
                               '+${events.length - maxBars}',
-                              style: TextStyle(fontSize: 10, color: Colors.grey[600]),
+                              style: TextStyle(
+                                fontSize: 10,
+                                color: Colors.grey[600],
+                              ),
                             ),
                           ),
                         ),
@@ -568,6 +627,7 @@ class CalendarPageState extends State<CalendarPage> {
       ),
     );
   }
+
   // Update _showActivitiesDialog to include notes
   void _showActivitiesDialog(DateTime day) {
     final activities = _getEventsForDay(day);
@@ -585,11 +645,11 @@ class CalendarPageState extends State<CalendarPage> {
       final minute = int.parse(timeParts[1]);
 
       final noteDateTime = DateTime(
-          normalizedDay.year,
-          normalizedDay.month,
-          normalizedDay.day,
-          hour,
-          minute
+        normalizedDay.year,
+        normalizedDay.month,
+        normalizedDay.day,
+        hour,
+        minute,
       );
 
       combinedItems.add({
@@ -621,74 +681,94 @@ class CalendarPageState extends State<CalendarPage> {
 
     showDialog(
       context: context,
-      builder: (context) => AlertDialog(
-        title: Row(
-          children: [
-            Expanded(
-              child: Text('Día - ${DateFormat('dd/MM/yyyy').format(day)}'),
-            ),
-            IconButton(
-              icon: const Icon(Icons.close),
-              onPressed: () => Navigator.pop(context),
-              padding: EdgeInsets.zero,
-              constraints: const BoxConstraints(),
-              iconSize: 20,
-            ),
-          ],
-        ),
-        titlePadding: const EdgeInsets.only(left: 24, top: 24, right: 16, bottom: 0),
-        content: SizedBox(
-          width: double.maxFinite,
-          height: MediaQuery.of(context).size.height * 0.6, // Use a fixed height proportion
-          child: Column(
-            mainAxisSize: MainAxisSize.min,
-            children: [
-              if (combinedItems.isEmpty)
-                const Padding(
-                  padding: EdgeInsets.only(top: 20, bottom: 20),
-                  child: Text('No hay notas ni actividades para este día'),
-                )
-              else
+      builder:
+          (context) => AlertDialog(
+            title: Row(
+              children: [
                 Expanded(
-                  child: ListView.builder(
-                    shrinkWrap: true,
-                    itemCount: combinedItems.length,
-                    itemBuilder: (context, index) {
-                      final item = combinedItems[index];
-                      if (item['type'] == 'note') {
-                        return _buildNoteItem(item['data'], day, item['isStarted']);
-                      } else {
-                        return _buildActivityItem(item['data'], item['isStarted']);
-                      }
-                    },
+                  child: Text(
+                    'calendar_day_date'.tr(
+                      args: [DateFormat('dd/MM/yyyy').format(day)],
+                    ),
                   ),
                 ),
-            ],
-          ),
-        ),
-        actions: [
-          // Add note button now positioned in the actions section
-          Align(
-            alignment: Alignment.centerRight,
-            child: ElevatedButton.icon(
-              onPressed: () {
-                Navigator.pop(context);
-                _showAddNoteDialog(day);
-              },
-              icon: const Icon(Icons.add),
-              label: const Text('Añadir Nota'),
-              style: ElevatedButton.styleFrom(
-                iconColor: Colors.black,
-                backgroundColor: Colors.amber.shade300,
-                foregroundColor: Colors.black,
+                IconButton(
+                  icon: const Icon(Icons.close),
+                  onPressed: () => Navigator.pop(context),
+                  padding: EdgeInsets.zero,
+                  constraints: const BoxConstraints(),
+                  iconSize: 20,
+                ),
+              ],
+            ),
+            titlePadding: const EdgeInsets.only(
+              left: 24,
+              top: 24,
+              right: 16,
+              bottom: 0,
+            ),
+            content: SizedBox(
+              width: double.maxFinite,
+              height:
+                  MediaQuery.of(context).size.height *
+                  0.6, // Use a fixed height proportion
+              child: Column(
+                mainAxisSize: MainAxisSize.min,
+                children: [
+                  if (combinedItems.isEmpty)
+                    Padding(
+                      padding: EdgeInsets.only(top: 20, bottom: 20),
+                      child: Text('calendar_no_notes_activities'.tr()),
+                    )
+                  else
+                    Expanded(
+                      child: ListView.builder(
+                        shrinkWrap: true,
+                        itemCount: combinedItems.length,
+                        itemBuilder: (context, index) {
+                          final item = combinedItems[index];
+                          if (item['type'] == 'note') {
+                            return _buildNoteItem(
+                              item['data'],
+                              day,
+                              item['isStarted'],
+                            );
+                          } else {
+                            return _buildActivityItem(
+                              item['data'],
+                              item['isStarted'],
+                            );
+                          }
+                        },
+                      ),
+                    ),
+                ],
               ),
             ),
+            actions: [
+              // Add note button now positioned in the actions section
+              Align(
+                alignment: Alignment.centerRight,
+                child: ElevatedButton.icon(
+                  onPressed: () {
+                    Navigator.pop(context);
+                    _showAddNoteDialog(day);
+                  },
+                  icon: const Icon(Icons.add),
+                  label: Text('calendar_add_note'.tr()),
+                  style: ElevatedButton.styleFrom(
+                    iconColor: Colors.black,
+                    backgroundColor: Colors.amber.shade300,
+                    foregroundColor: Colors.black,
+                  ),
+                ),
+              ),
+            ],
+            actionsPadding: const EdgeInsets.only(right: 16, bottom: 16),
           ),
-        ],
-        actionsPadding: const EdgeInsets.only(right: 16, bottom: 16),
-      ),
     );
   }
+
   Widget _buildNoteItem(Nota nota, DateTime day, bool isStarted) {
     return Container(
       margin: const EdgeInsets.only(bottom: 8),
@@ -736,7 +816,13 @@ class CalendarPageState extends State<CalendarPage> {
                     } catch (e) {
                       if (mounted) {
                         ScaffoldMessenger.of(context).showSnackBar(
-                          SnackBar(content: Text('Error eliminando nota: $e')),
+                          SnackBar(
+                            content: Text(
+                              'calendar_error_deleting_note'.tr(
+                                args: [e.toString()],
+                              ),
+                            ),
+                          ),
                         );
                       }
                     }
@@ -747,8 +833,11 @@ class CalendarPageState extends State<CalendarPage> {
           ),
           if (isStarted)
             Text(
-              'Hora pasada',
-              style: TextStyle(fontStyle: FontStyle.italic, color: Colors.orange.shade800),
+              'calendar_time_passed'.tr(),
+              style: TextStyle(
+                fontStyle: FontStyle.italic,
+                color: Colors.orange.shade800,
+              ),
             ),
         ],
       ),
@@ -784,7 +873,7 @@ class CalendarPageState extends State<CalendarPage> {
             const SizedBox(width: 8),
             Expanded(
               child: Text(
-                activity['nom'] ?? 'Sin nombre',
+                activity['nom'] ?? 'calendar_no_name'.tr(),
                 style: TextStyle(fontWeight: FontWeight.bold),
               ),
             ),
@@ -793,13 +882,24 @@ class CalendarPageState extends State<CalendarPage> {
         subtitle: Column(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
-            Text('Creador: ${activity['creador'] ?? 'Desconocido'}'),
-            Text('Fin: ${_formatDateTime(activity['dataFi'])}'),
+            Text('${'calendar_creator'.tr()}${activity['creador']}'),
+            Text('calendar_end'.tr() + _formatDateTime(activity['dataFi'])),
             if (isStarted)
-              Text('Ya comenzó', style: TextStyle(color: Colors.red, fontStyle: FontStyle.italic)),
+              Text(
+                'calendar_already_started'.tr(),
+                style: TextStyle(
+                  color: Colors.red,
+                  fontStyle: FontStyle.italic,
+                ),
+              ),
           ],
         ),
-        contentPadding: const EdgeInsets.only(left: 8, top: 2, bottom: 2, right: 8),
+        contentPadding: const EdgeInsets.only(
+          left: 8,
+          top: 2,
+          bottom: 2,
+          right: 8,
+        ),
         onTap: () {
           Navigator.pop(context);
           _navigateToActivityDetails(activity);
@@ -828,12 +928,14 @@ class CalendarPageState extends State<CalendarPage> {
     final ubicacio = activity['ubicacio'] as Map<String, dynamic>;
     final lat = ubicacio['latitud'] as double;
     final lon = ubicacio['longitud'] as double;
-    List<AirQualityData> airQualityData = findClosestAirQualityData(LatLng(lat, lon));//tengo lo mismo en valoracion por eso no se hace bien lo del air quality
+    List<AirQualityData> airQualityData = findClosestAirQualityData(
+      LatLng(lat, lon),
+    ); //tengo lo mismo en valoracion por eso no se hace bien lo del air quality
     Navigator.push(
       context,
       MaterialPageRoute(
-        builder: (context) =>
-            ActivityDetailsPage(
+        builder:
+            (context) => ActivityDetailsPage(
               id: activity['id'].toString(),
               title: activity['nom'] ?? '',
               creator: activity['creador'] ?? '',
@@ -841,7 +943,8 @@ class CalendarPageState extends State<CalendarPage> {
               startDate: activity['dataInici'] ?? '',
               endDate: activity['dataFi'] ?? '',
               airQualityData: airQualityData,
-              isEditable: activity['creador'] ==
+              isEditable:
+                  activity['creador'] ==
                   widget.authService.getCurrentUsername(),
               onEdit: () => {},
               onDelete: () => {},
@@ -849,7 +952,6 @@ class CalendarPageState extends State<CalendarPage> {
       ),
     );
   }
-
 
   String _formatDateTime(String? dateTimeStr) {
     if (dateTimeStr == null) return 'N/A';
@@ -863,15 +965,19 @@ class CalendarPageState extends State<CalendarPage> {
   }
 
   Future<void> fetchAirQualityData() async {
-      try{
-        await mapService.fetchAirQualityData(contaminantsPerLocation);
-      } catch (e) {
-        if (mounted) {
-          ScaffoldMessenger.of(context).showSnackBar(
-            SnackBar(content: Text('Error loading air quality data: $e')),
-          );
-        }
+    try {
+      await mapService.fetchAirQualityData(contaminantsPerLocation);
+    } catch (e) {
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: Text(
+              'calendar_error_loading_air_quality'.tr(args: [e.toString()]),
+            ),
+          ),
+        );
       }
+    }
   }
 
   List<AirQualityData> findClosestAirQualityData(LatLng activityLocation) {
@@ -892,13 +998,12 @@ class CalendarPageState extends State<CalendarPage> {
     });
 
     contaminantsPerLocation[closestLocation]?.forEach((
-        contaminant,
-        airQualityData,
-        ) {
+      contaminant,
+      airQualityData,
+    ) {
       listAQD.add(airQualityData);
     });
 
     return listAQD;
   }
-
 }

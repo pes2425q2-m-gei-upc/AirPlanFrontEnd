@@ -1,5 +1,6 @@
 // activity_service.dart
 import 'dart:convert';
+import 'package:airplan/user_services.dart';
 import 'package:easy_localization/easy_localization.dart';
 import 'package:flutter/foundation.dart';
 import 'package:http/http.dart' as http;
@@ -34,8 +35,14 @@ class ActivityService {
     final response = await http.get(url);
 
     if (response.statusCode == 200) {
-      final List<dynamic> data = jsonDecode(response.body);
-      return data.cast<Map<String, dynamic>>();
+      final body = utf8.decode(response.bodyBytes);
+      final List<dynamic> data = jsonDecode(body);
+      final activities = data.cast<Map<String, dynamic>>();
+      for (var activity in activities) {
+        // Añadir el campo 'esExterna' a cada actividad
+        activity['esExterna'] = (await UserService.getUserData(activity['creador']))['esExtern'];
+      }
+      return activities;
     } else {
       throw Exception('Error al cargar las actividades');
     }
@@ -322,7 +329,12 @@ class ActivityService {
 
     if (response.statusCode == 200) {
       final List<dynamic> data = jsonDecode(response.body);
-      return data.cast<Map<String, dynamic>>();
+      final activities = data.cast<Map<String, dynamic>>();
+      for (var activity in activities) {
+        // Añadir el campo 'esExterna' a cada actividad
+        activity['esExterna'] = (await UserService.getUserData(activity['creador']))['esExtern'];
+      }
+      return activities;
     } else {
       throw Exception('${'error_obtaining_favorites'.tr()} ${response.body}');
     }
@@ -330,10 +342,15 @@ class ActivityService {
 
   Future<List<Map<String, dynamic>>> fetchUserActivities(String username) {
     final url = Uri.parse(ApiConfig().buildUrl('api/activitats/participant/$username'));
-    return http.get(url).then((response) {
+    return http.get(url).then((response) async {
       if (response.statusCode == 200) {
         final List<dynamic> data = jsonDecode(response.body);
-        return data.cast<Map<String, dynamic>>();
+        final activities = data.cast<Map<String, dynamic>>();
+        for (var activity in activities) {
+          // Añadir el campo 'esExterna' a cada actividad
+          activity['esExterna'] = (await UserService.getUserData(activity['creador']))['esExtern'];
+        }
+        return activities;
       } else {
         throw Exception('Error al cargar las actividades del usuario');
       }

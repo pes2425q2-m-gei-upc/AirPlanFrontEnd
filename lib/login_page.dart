@@ -110,8 +110,7 @@ class LoginPageState extends State<LoginPage> {
       final user = userCredential.user;
       if (user == null) {
         setState(() {
-          _errorMessage =
-          "Error: No se pudo obtener la información del usuario";
+          _errorMessage = "login_error_user_info_null".tr();
         });
         return;
       }
@@ -121,7 +120,7 @@ class LoginPageState extends State<LoginPage> {
 
       if (username == null || firebaseEmail == null) {
         setState(() {
-          _errorMessage = "Error: Falta información del usuario";
+          _errorMessage = "login_error_user_info_missing".tr();
         });
         return;
       }
@@ -139,14 +138,16 @@ class LoginPageState extends State<LoginPage> {
           "email": firebaseEmail,
           "username": username,
           "clientId":
-            clientId, // Incluir el clientId para filtrar notificaciones WebSocket
+              clientId, // Incluir el clientId para filtrar notificaciones WebSocket
         }),
       );
 
       // Verificar la respuesta del backend
       if (response.statusCode != 200) {
         setState(() {
-          _errorMessage = "Error en el backend: ${response.body}";
+          _errorMessage = "login_error_backend_status".tr(
+            args: [response.body],
+          );
         });
         return;
       }
@@ -160,19 +161,19 @@ class LoginPageState extends State<LoginPage> {
         Navigator.pushAndRemoveUntil(
           context,
           MaterialPageRoute(builder: (context) => AuthWrapper()),
-              (route) => false, // Esto elimina todas las rutas anteriores
+          (route) => false, // Esto elimina todas las rutas anteriores
         );
       }
     } catch (e) {
       // Manejar otros errores
       setState(() {
-        _errorMessage = "Error: Credencials incorrectes";
+        _errorMessage = "login_error_incorrect_credentials".tr();
         if (e.toString().contains("invalid-credential") ||
             e.toString().contains("wrong-password") ||
             e.toString().contains("user-not-found")) {
-          _errorMessage = "Error: Credencials incorrectes";
+          _errorMessage = "login_error_incorrect_credentials".tr();
         } else {
-          _errorMessage = "Error: ${e.toString()}";
+          _errorMessage = "login_error_generic".tr(args: [e.toString()]);
         }
       });
     }
@@ -191,10 +192,13 @@ class LoginPageState extends State<LoginPage> {
         githubProvider.addScope('read:user');
         githubProvider.addScope('user:email');
 
-        final userCredential = await _authService.signInWithPopup(githubProvider);
+        final userCredential = await _authService.signInWithPopup(
+          githubProvider,
+        );
         final email = userCredential.user?.email;
 
-        final OAuthCredential githubAuthCredential = userCredential.credential as OAuthCredential;
+        final OAuthCredential githubAuthCredential =
+            userCredential.credential as OAuthCredential;
         final String? githubAccessToken = githubAuthCredential.accessToken;
 
         if (email != null && githubAccessToken != null) {
@@ -220,7 +224,8 @@ class LoginPageState extends State<LoginPage> {
             }
 
             //preguntar MARWAN, AYUDA
-            if ( (_authService.getCurrentUsername() == null || _authService.getCurrentUsername()!.isEmpty)) {
+            if ((_authService.getCurrentUsername() == null ||
+                _authService.getCurrentUsername()!.isEmpty)) {
               await _authService.updateDisplayName("${username}_$githubId");
               await _authService.reloadCurrentUser();
             }
@@ -234,17 +239,19 @@ class LoginPageState extends State<LoginPage> {
         final githubProvider = GithubAuthProvider();
         githubProvider.addScope('read:user,user:email');
 
-        final UserCredential userCredential = await _authService.signInWithProvider(githubProvider);
+        final UserCredential userCredential = await _authService
+            .signInWithProvider(githubProvider);
 
-// 1. Obtener el access_token de GitHub
-        final OAuthCredential? credential = userCredential.credential as OAuthCredential?;
+        // 1. Obtener el access_token de GitHub
+        final OAuthCredential? credential =
+            userCredential.credential as OAuthCredential?;
         final String? githubAccessToken = credential?.accessToken;
 
         if (githubAccessToken == null) {
-          throw Exception("No se pudo obtener el token de GitHub");
+          throw Exception("login_error_github_token_null".tr());
         }
 
-// 2. Obtener datos del usuario de GitHub
+        // 2. Obtener datos del usuario de GitHub
         final response = await http.get(
           Uri.parse('https://api.github.com/user'),
           headers: {
@@ -254,13 +261,15 @@ class LoginPageState extends State<LoginPage> {
         );
 
         if (response.statusCode != 200) {
-          throw Exception("Error al obtener datos de GitHub: ${response.body}");
+          throw Exception(
+            "login_error_github_data_fetch".tr(args: [response.body]),
+          );
         }
         final userData = jsonDecode(response.body);
         String username = userData['login'];
         final int githubId = userData['id'];
 
-// 3. Verificar/crear usuario en backend usando GITHUB_ID (no UID de Firebase)
+        // 3. Verificar/crear usuario en backend usando GITHUB_ID (no UID de Firebase)
         final email = userCredential.user?.email;
 
         if (email != null) {
@@ -274,7 +283,8 @@ class LoginPageState extends State<LoginPage> {
           }
 
           // 4. Actualizar displayName en Firebase si es necesario
-          if ((_authService.getCurrentUsername() == null || _authService.getCurrentUsername()!.isEmpty)) {
+          if ((_authService.getCurrentUsername() == null ||
+              _authService.getCurrentUsername()!.isEmpty)) {
             await _authService.updateDisplayName("${username}_$githubId");
             await _authService.reloadCurrentUser();
           }
@@ -284,7 +294,7 @@ class LoginPageState extends State<LoginPage> {
       }
     } catch (e) {
       setState(() {
-        _errorMessage = "Error de autenticación: ${e.toString()}";
+        _errorMessage = "login_error_auth_exception".tr(args: [e.toString()]);
       });
     } finally {
       setState(() {
@@ -322,20 +332,21 @@ class LoginPageState extends State<LoginPage> {
 
       if (googleUser == null) {
         setState(() {
-          _errorMessage = "Inicio de sesión cancelado";
+          _errorMessage = "login_error_google_cancelled".tr();
         });
         return;
       }
 
-      final GoogleSignInAuthentication googleAuth = await googleUser.authentication;
+      final GoogleSignInAuthentication googleAuth =
+          await googleUser.authentication;
 
       final credential = GoogleAuthProvider.credential(
         accessToken: googleAuth.accessToken,
         idToken: googleAuth.idToken,
       );
 
-      final UserCredential userCredential =
-      await FirebaseAuth.instance.signInWithCredential(credential);
+      final UserCredential userCredential = await FirebaseAuth.instance
+          .signInWithCredential(credential);
 
       final firebaseUser = userCredential.user;
 
@@ -370,7 +381,9 @@ class LoginPageState extends State<LoginPage> {
       }
     } catch (e) {
       setState(() {
-        _errorMessage = "Error de autenticación con Google: $e";
+        _errorMessage = "login_error_auth_google_exception".tr(
+          args: [e.toString()],
+        );
       });
     } finally {
       setState(() {
@@ -379,13 +392,13 @@ class LoginPageState extends State<LoginPage> {
     }
   }
 
-
-// Función para verificar si el usuario existe en el backend
+  // Función para verificar si el usuario existe en el backend
   Future<bool> _checkUserExists(String email) async {
     try {
       final response = await http.get(
         Uri.parse(
-            'https://nattech.fib.upc.edu:40350/api/usuaris/usuarios/$email'),
+          'https://nattech.fib.upc.edu:40350/api/usuaris/usuarios/$email',
+        ),
       );
 
       if (response.statusCode == 200) {
@@ -395,19 +408,26 @@ class LoginPageState extends State<LoginPage> {
         // Si el backend responde con 404, el usuario no existe
         return false;
       } else {
-        throw Exception('Error al verificar usuario: ${response.body}');
+        throw Exception(
+          'login_error_verifying_user_backend'.tr(args: [response.body]),
+        );
       }
     } catch (e) {
       setState(() {
-        _errorMessage = 'Error al contactar con el backend: ${e.toString()}';
+        _errorMessage = 'login_error_contacting_backend_exception'.tr(
+          args: [e.toString()],
+        );
       });
       return false;
     }
   }
 
-
-// Función para crear un nuevo usuario en el backend
-  Future<void> _createUserInBackend(String email, String displayName, String githubId) async {
+  // Función para crear un nuevo usuario en el backend
+  Future<void> _createUserInBackend(
+    String email,
+    String displayName,
+    String githubId,
+  ) async {
     try {
       final response = await http.post(
         Uri.parse('https://nattech.fib.upc.edu:40350/api/usuaris/crear'),
@@ -425,20 +445,20 @@ class LoginPageState extends State<LoginPage> {
       );
 
       if (response.statusCode != 201) {
-        throw Exception('Error al crear el usuario: ${response.body}');
+        throw Exception(
+          'login_error_creating_user_backend'.tr(args: [response.body]),
+        );
       }
     } catch (e) {
       setState(() {
-        _errorMessage = 'Error al crear el usuario: ${e.toString()}';
+        _errorMessage = 'login_error_creating_user_exception'.tr(
+          args: [e.toString()],
+        );
       });
     }
   }
 
-
-
-
-// Función para generar estado aleatorio
-
+  // Función para generar estado aleatorio
 
   Future<void> _sendLoginToBackend(String email) async {
     try {
@@ -451,7 +471,9 @@ class LoginPageState extends State<LoginPage> {
       );
 
       if (response.statusCode != 200) {
-        throw Exception('Error del backend: ${response.body}');
+        throw Exception(
+          'login_error_backend_detail_exception'.tr(args: [response.body]),
+        );
       }
     } catch (e) {
       setState(() {
@@ -493,9 +515,10 @@ class LoginPageState extends State<LoginPage> {
             const SizedBox(height: 12),
             ElevatedButton(
               onPressed: _isLoading ? null : _signIn,
-              child: _isLoading
-                  ? const CircularProgressIndicator()
-                  : Text('login_button'.tr()),
+              child:
+                  _isLoading
+                      ? const CircularProgressIndicator()
+                      : Text('login_button'.tr()),
             ),
             const SizedBox(height: 12),
             Padding(
@@ -511,7 +534,7 @@ class LoginPageState extends State<LoginPage> {
                         child: SignInButton(
                           buttonType: ButtonType.github,
                           buttonSize: ButtonSize.small,
-                          btnText: 'GitHub',
+                          btnText: "Github",
                           onPressed: _isLoading ? null : _signInWithGitHub,
                         ),
                       ),
@@ -526,7 +549,7 @@ class LoginPageState extends State<LoginPage> {
                         child: SignInButton(
                           buttonType: ButtonType.google,
                           buttonSize: ButtonSize.small,
-                          btnText: 'Google',
+                          btnText: "Google",
                           onPressed: _isLoading ? null : _signInWithGoogle,
                         ),
                       ),
@@ -543,8 +566,8 @@ class LoginPageState extends State<LoginPage> {
                   MaterialPageRoute(
                     builder:
                         (context) =>
-                    widget.signUpPage ??
-                        SignUpPage(authService: _authService),
+                            widget.signUpPage ??
+                            SignUpPage(authService: _authService),
                   ),
                 );
               },
@@ -557,7 +580,7 @@ class LoginPageState extends State<LoginPage> {
                   MaterialPageRoute(
                     builder:
                         (context) =>
-                        ResetPasswordPage(authService: _authService),
+                            ResetPasswordPage(authService: _authService),
                   ),
                 );
               },
