@@ -153,7 +153,7 @@ class LoginPageState extends State<LoginPage> {
     }
   }
 
-  Future<void> _signInWithGitHub() async {
+  /*Future<void> _signInWithGitHub() async {
     setState(() {
       _isLoading = true;
       _errorMessage = '';
@@ -275,7 +275,7 @@ class LoginPageState extends State<LoginPage> {
         _isLoading = false;
       });
     }
-  }
+  }*/
 
   Future<void> _signInWithGoogle() async {
     setState(() {
@@ -348,9 +348,7 @@ class LoginPageState extends State<LoginPage> {
   Future<bool> _checkUserExists(String email) async {
     try {
       final response = await http.get(
-        Uri.parse(
-          'https://nattech.fib.upc.edu:40350/api/usuaris/usuarios/$email',
-        ),
+        Uri.parse(ApiConfig().buildUrl('api/usuaris/usuarios/$email')),
       );
 
       if (response.statusCode == 200) {
@@ -382,7 +380,7 @@ class LoginPageState extends State<LoginPage> {
   ) async {
     try {
       final response = await http.post(
-        Uri.parse('https://nattech.fib.upc.edu:40350/api/usuaris/crear'),
+        Uri.parse(ApiConfig().buildUrl('api/usuaris/crear')),
         headers: <String, String>{
           'Content-Type': 'application/json; charset=UTF-8',
         },
@@ -393,6 +391,7 @@ class LoginPageState extends State<LoginPage> {
           "sesionIniciada": true,
           "idioma": 'Castellano', // Puedes modificar el idioma si lo necesitas
           "isAdmin": false,
+          "esExtern": false,
         }),
       );
 
@@ -415,7 +414,7 @@ class LoginPageState extends State<LoginPage> {
   Future<void> _sendLoginToBackend(String email) async {
     try {
       final response = await http.post(
-        Uri.parse('http://localhost:8080/api/usuaris/login'),
+        Uri.parse(ApiConfig().buildUrl('api/usuaris/login')),
         headers: <String, String>{
           'Content-Type': 'application/json; charset=UTF-8',
         },
@@ -478,21 +477,6 @@ class LoginPageState extends State<LoginPage> {
               child: Column(
                 mainAxisSize: MainAxisSize.min,
                 children: [
-                  SizedBox(
-                    width: double.infinity,
-                    child: Center(
-                      child: SizedBox(
-                        width: 200,
-                        child: SignInButton(
-                          buttonType: ButtonType.github,
-                          buttonSize: ButtonSize.small,
-                          btnText: "Github",
-                          onPressed: _isLoading ? null : _signInWithGitHub,
-                        ),
-                      ),
-                    ),
-                  ),
-                  const SizedBox(height: 12),
                   SizedBox(
                     width: double.infinity,
                     child: Center(
