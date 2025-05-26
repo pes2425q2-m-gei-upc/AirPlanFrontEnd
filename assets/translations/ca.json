@@ -482,7 +482,7 @@
   "new_invitation_from": "Tens una nova invitació per a l'activitat amb ID: \"{}\" de \"{}\".",
   "activity_reminder": "L'activitat \"{}\" comença en \"{}\" minuts.",
   "reminder_with_time": "Recordatori en \"{}\" minuts: \"{}\"",
-  "reminder_without_time": "Recordatori: \"{}\""
+  "reminder_without_time": "Recordatori: \"{}\"",
   "error_checking_favorite": "Error en comprovar activitats favorites",
   "error_deleting_from_favorites": "Error en eliminar de favorits",
   "error_obtaining_favorites": "Error en obtenir activitats favorites",

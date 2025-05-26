@@ -483,7 +483,7 @@
   "new_invitation_from": "You have a new invitation for the activity with ID: \"{}\" from \"{}\".",
   "activity_reminder": "The activity \"{}\" starts in \"{}\" minutes.",
   "reminder_with_time": "Reminder in \"{}\" minutes: \"{}\"",
-  "reminder_without_time": "Reminder: \"{}\""
+  "reminder_without_time": "Reminder: \"{}\"",
   "error_deleting_from_favorites": "Error removing from favorites",
   "error_obtaining_favorites": "Error retrieving favorite activities",
   "inappropiat_message": "Inappropriate content",

@@ -486,7 +486,7 @@
   "new_invitation_from": "Tienes una nueva invitación para la actividad con ID: \"{}\" de \"{}\".",
   "activity_reminder": "La actividad \"{}\" empieza en \"{}\" minutos.",
   "reminder_with_time": "Recordatorio en \"{}\" minutos: \"{}\"",
-  "reminder_without_time": "Recordatorio: \"{}\""
+  "reminder_without_time": "Recordatorio: \"{}\"",
   "calendar_error_loading_notes": "Error cargando notas",
   "calendar_user_not_identified": "Usuario no identificado",
   "calendar_note_for_date_prefix": "Nota para ",
