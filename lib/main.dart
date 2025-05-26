@@ -123,7 +123,7 @@ class GlobalNotificationService {
 
     // Para notificaciones no urgentes, configurar un temporizador para ocultarlas automáticamente
     if (!isUrgent) {
-      Future.delayed(const Duration(seconds: 5), () {
+      Future.delayed(const Duration(seconds: 12), () {
         // Verificar si este banner sigue siendo el actual
         messenger.hideCurrentMaterialBanner();
         // Marcar que ya no estamos mostrando notificación
@@ -147,6 +147,14 @@ class GlobalNotificationService {
         return Colors.blue;
       case 'session_expired':
         return Colors.red.shade700;
+      case 'message':
+        return Colors.green;
+      case 'activity_reminder':
+        return Colors.yellow;
+      case 'invitacions':
+        return Colors.purple;
+      case 'note_reminder':
+        return Colors.teal;
       default:
         return Colors.grey;
     }
@@ -161,6 +169,14 @@ class GlobalNotificationService {
         return Icons.person;
       case 'session_expired':
         return Icons.lock_clock;
+      case 'activity_reminder':
+        return Icons.access_alarm;
+      case 'message':
+        return Icons.message;
+      case 'invitacions':
+        return Icons.group_add;
+      case 'note_reminder':
+        return Icons.note;
       default:
         return Icons.notifications;
     }
