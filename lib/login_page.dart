@@ -1,3 +1,4 @@
+import 'package:airplan/services/google_calendar_service.dart';
 import 'package:firebase_auth/firebase_auth.dart';
 import 'package:flutter/material.dart';
 import 'package:http/http.dart' as http;
@@ -37,6 +38,7 @@ class LoginPageState extends State<LoginPage> {
   late final AuthService _authService;
   late final WebSocketService _webSocketService;
   late final http.Client _httpClient;
+  late final GoogleCalendarService _googleCalendarService;
 
   final TextEditingController _emailController = TextEditingController();
   final TextEditingController _passwordController = TextEditingController();
@@ -51,11 +53,35 @@ class LoginPageState extends State<LoginPage> {
       _authService = widget.authService ?? AuthService();
       _webSocketService = widget.webSocketService ?? WebSocketService();
       _httpClient = widget.httpClient ?? http.Client();
-    } catch (_) {
-      // Tests may instantiate state directly without widget
+
+      // Configuramos Google Calendar Service
+      final googleSignIn = GoogleSignIn(
+        scopes: [
+          'https://www.googleapis.com/auth/calendar',
+          'https://www.googleapis.com/auth/userinfo.email',
+        ],
+        clientId: kIsWeb
+            ? '751649023508-rji7074men2mm1198oq93pvqc1nklip1.apps.googleusercontent.com'
+            : null,
+      );
+
+      _googleCalendarService = GoogleCalendarService(googleSignIn: googleSignIn);
+    } catch (e) {
+      // Manejo de errores más específico
+      debugPrint('Error inicializando servicios: $e');
       _authService = AuthService();
       _webSocketService = WebSocketService();
       _httpClient = http.Client();
+
+      // Configuración básica para tests
+      _googleCalendarService = GoogleCalendarService(
+        googleSignIn: GoogleSignIn(
+          scopes: [
+            'https://www.googleapis.com/auth/calendar',
+            'https://www.googleapis.com/auth/userinfo.email',
+          ],
+        ),
+      );
     }
   }
 
@@ -287,12 +313,21 @@ class LoginPageState extends State<LoginPage> {
       final GoogleSignIn googleSignIn;
       if (kIsWeb) {
         googleSignIn = GoogleSignIn(
-          clientId:
-              '751649023508-rji7074men2mm1198oq93pvqc1nklip1.apps.googleusercontent.com',
+          clientId: '751649023508-rji7074men2mm1198oq93pvqc1nklip1.apps.googleusercontent.com',
+          scopes: [
+            'email',
+            'https://www.googleapis.com/auth/calendar',
+          ],
         );
       } else {
-        googleSignIn = GoogleSignIn();
+        googleSignIn = GoogleSignIn(
+          scopes: [
+            'email',
+            'https://www.googleapis.com/auth/calendar',
+          ],
+        );
       }
+
       final GoogleSignInAccount? googleUser = await googleSignIn.signIn();
 
       if (googleUser == null) {
@@ -321,6 +356,19 @@ class LoginPageState extends State<LoginPage> {
         final uid = firebaseUser.uid;
 
         if (email != null) {
+          // Verificar acceso al calendario
+          try {
+            final googleSignIn = _googleCalendarService.getGoogleSignIn();
+            final hasAccess = await googleSignIn.canAccessScopes([
+              'https://www.googleapis.com/auth/calendar'
+            ]);
+            if (!hasAccess) {
+              throw Exception('No hay acceso al calendario de Google');
+            }
+          } catch (calendarError) {
+            debugPrint('Error al verificar acceso al calendario: $calendarError');
+          }
+
           final userExists = await _checkUserExists(email);
           if (!userExists) {
             await _createUserInBackend(email, displayName, uid);

@@ -1,3 +1,5 @@
+import 'package:airplan/services/google_calendar_service.dart';
+import 'package:airplan/services/sync_preferences_service.dart';
 import 'package:flutter/material.dart';
 import 'package:latlong2/latlong.dart';
 import 'package:table_calendar/table_calendar.dart';
@@ -36,7 +38,10 @@ class CalendarPageState extends State<CalendarPage> {
   final MapService mapService = MapService();
   Map<LatLng, Map<Contaminant, AirQualityData>> contaminantsPerLocation = {};
   final NoteService noteService = NoteService();
-  Map<DateTime, List<Nota>> _userNotes = {};
+  Map<DateTime,List<Nota>> _userNotes={};
+  final GoogleCalendarService _googleCalendarService = GoogleCalendarService();
+  final SyncPreferencesService _syncPreferencesService = SyncPreferencesService();
+  bool _isSyncEnabled = false;
 
   @override
   void initState() {
@@ -46,12 +51,77 @@ class CalendarPageState extends State<CalendarPage> {
     _loadActivities();
     fetchAirQualityData();
     _loadUserNotes();
+    _loadSyncPreference();
   }
 
   @override
   void dispose() {
     _selectedEvents.dispose();
     super.dispose();
+  }
+
+  Future<void> _loadSyncPreference() async {
+    try {
+      final isSyncEnabled = await _syncPreferencesService.isSyncEnabled();
+      setState(() {
+        _isSyncEnabled = isSyncEnabled;
+      });
+    } catch (e) {
+      debugPrint('Error al cargar preferencia de sincronización: $e');
+    }
+  }
+
+  Future<void> _toggleSync() async {
+    try {
+      final bool newSyncState = !_isSyncEnabled;
+
+      if (!newSyncState) {
+        // Si estamos desactivando la sincronización, eliminar todos los eventos
+        await _googleCalendarService.deleteAllEvents();
+      }
+
+      await _syncPreferencesService.setSyncEnabled(newSyncState);
+
+      setState(() {
+        _isSyncEnabled = newSyncState;
+      });
+
+      // Solo sincronizar si estamos activando la sincronización
+      if (_isSyncEnabled) {
+        final username = widget.authService.getCurrentUsername();
+        if (username != null) {
+          // Sincronizar notas existentes
+          await noteService.syncAllNotes(username);
+
+          // Sincronizar actividades existentes
+          final activities = await widget.activityService.fetchUserActivities(username);
+          for (var activity in activities) {
+            await widget.activityService.syncActivityWithGoogleCalendar(activity);
+          }
+        }
+      }
+
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: Text(
+                _isSyncEnabled
+                    ? 'Sincronización con Google Calendar activada'
+                    : 'Sincronización con Google Calendar desactivada'
+            ),
+          ),
+        );
+      }
+    } catch (e) {
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: Text('Error al cambiar la sincronización: $e'),
+            backgroundColor: Colors.red,
+          ),
+        );
+      }
+    }
   }
 
   Future<void> _loadUserNotes() async {
@@ -337,7 +407,12 @@ class CalendarPageState extends State<CalendarPage> {
         title: Text('calendar_activity_calendar'.tr()),
         actions: [
           IconButton(
-            icon: const Icon(Icons.sync),
+            icon: Icon(_isSyncEnabled ? Icons.sync : Icons.sync_disabled),
+            onPressed: _toggleSync,
+            tooltip: _isSyncEnabled ? 'Desactivar sincronización con Google Calendar' : 'Activar sincronización con Google Calendar',
+          ),
+          IconButton(
+            icon: const Icon(Icons.refresh),
             onPressed: _loadActivities,
             tooltip: 'refresh'.tr(),
           ),

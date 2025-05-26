@@ -5,16 +5,24 @@ import 'package:mockito/annotations.dart';
 import 'package:airplan/services/note_service.dart';
 import 'package:airplan/models/nota.dart';
 import 'package:airplan/services/api_config.dart';
+import 'package:shared_preferences/shared_preferences.dart';
+
 
 @GenerateMocks([http.Client])
 import 'note_service_test.mocks.dart';
 
 void main() {
+  TestWidgetsFlutterBinding.ensureInitialized();
+
   group('NoteService', () {
     late MockClient mockClient;
     late NoteService noteService;
 
-    setUp(() {
+    setUp(() async {
+      SharedPreferences.setMockInitialValues({
+        'token': 'mock_token',
+        'username': 'testuser'
+      });
       mockClient = MockClient();
       noteService = NoteService(client: mockClient);
     });
@@ -71,10 +79,22 @@ void main() {
     });
 
     test('updateNote sends correct data', () async {
+      SharedPreferences.setMockInitialValues({
+        'token': 'mock_token',
+        'username': 'testuser'
+      });
+
       final noteId = 1;
-      final testUrl = Uri.parse(ApiConfig().buildUrl('notas/$noteId'));
+      final getUrl = Uri.parse(ApiConfig().buildUrl('notas/id/$noteId'));
+      final updateUrl = Uri.parse(ApiConfig().buildUrl('notas/$noteId'));
+
+      when(mockClient.get(getUrl)).thenAnswer((_) async => http.Response(
+          '{"id":1,"username":"testuser","fechaCreacion":"2023-05-15","horaRecordatorio":"14:30","comentario":"Old note"}',
+          200
+      ));
+
       when(mockClient.put(
-        testUrl,
+        updateUrl,
         headers: anyNamed('headers'),
         body: anyNamed('body'),
       )).thenAnswer((_) async => http.Response('Updated', 200));
@@ -89,8 +109,9 @@ void main() {
 
       await noteService.updateNote(noteId, nota);
 
+      verify(mockClient.get(getUrl)).called(1);
       verify(mockClient.put(
-        testUrl,
+        updateUrl,
         headers: {'Content-Type': 'application/json'},
         body: contains('"comentario":"Updated note"'),
       )).called(1);

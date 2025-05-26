@@ -457,4 +457,34 @@ class MockAuthService extends _i1.Mock implements _i9.AuthService {
             returnValueForMissingStub: _i4.Future<void>.value(),
           )
           as _i4.Future<void>);
+
+  @override
+  _i4.Future<_i3.UserCredential> signInWithPopup(
+    _i3.GithubAuthProvider? githubProvider,
+  ) =>
+      (super.noSuchMethod(
+            Invocation.method(#signInWithPopup, [githubProvider]),
+            returnValue: _i4.Future<_i3.UserCredential>.value(
+              _FakeUserCredential_2(
+                this,
+                Invocation.method(#signInWithPopup, [githubProvider]),
+              ),
+            ),
+          )
+          as _i4.Future<_i3.UserCredential>);
+
+  @override
+  _i4.Future<_i3.UserCredential> signInWithProvider(
+    _i3.GithubAuthProvider? githubProvider,
+  ) =>
+      (super.noSuchMethod(
+            Invocation.method(#signInWithProvider, [githubProvider]),
+            returnValue: _i4.Future<_i3.UserCredential>.value(
+              _FakeUserCredential_2(
+                this,
+                Invocation.method(#signInWithProvider, [githubProvider]),
+              ),
+            ),
+          )
+          as _i4.Future<_i3.UserCredential>);
 }
