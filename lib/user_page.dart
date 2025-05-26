@@ -777,12 +777,12 @@ class _UserPageState extends State<UserPage> {
       context: contextCaptured,
       builder:
           (dialogContext) => AlertDialog(
-            title: const Text("close_session_title"),
-            content: const Text("close_session_message"),
+            title: Text("close_session_title".tr()),
+            content: Text("close_session_message".tr()),
             actions: [
               TextButton(
                 onPressed: () => Navigator.of(dialogContext).pop(false),
-                child: const Text("cancel"),
+                child: Text("cancel".tr()),
               ),
               TextButton(
                 onPressed: () => Navigator.of(dialogContext).pop(true),

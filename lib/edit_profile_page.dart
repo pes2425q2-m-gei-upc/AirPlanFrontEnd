@@ -181,7 +181,6 @@ class EditProfilePageState extends State<EditProfilePage> {
             // Idioma si está disponible
             debugPrint("se va a entrar al if");
             if (userData['idioma'] != null) {
-              debugPrint("se ha entrado al if");
               debugPrint("El idioma seleccionado es: ${userData['idioma']}");
               _selectedLanguage = userData['idioma'];
               debugPrint("El idioma seleccionado es: $_selectedLanguage");
@@ -302,26 +301,8 @@ class EditProfilePageState extends State<EditProfilePage> {
       emailChanged,
     );
     debugPrint("Update data prepared");
-    debugPrint("selected language: $_selectedLanguage");
-    debugPrint("initial language: $_initialLanguage");
+
     // 5. Si el usuario cambió idioma y la actualización fue exitosa, aplicar nuevo locale
-    if (_selectedLanguage != _initialLanguage) {
-      debugPrint(
-        'Changing locale from $_initialLanguage to $_selectedLanguage',
-      );
-      final raw = _selectedLanguage.toLowerCase();
-      final code =
-          raw.contains('eng')
-              ? 'en'
-              : raw.contains('cast')
-              ? 'es'
-              : raw.contains('ca')
-              ? 'ca'
-              : 'en';
-      if (!mounted) return;
-      await context.setLocale(Locale(code));
-      _initialLanguage = _selectedLanguage;
-    }
 
     // 6. Hide Loading Indicator (regardless of success/failure)
     if (mounted) {
@@ -626,8 +607,35 @@ class EditProfilePageState extends State<EditProfilePage> {
         // Se ha eliminado: await updatedUser.updateDisplayName(newUsername);
       }
       // Added mounted check
+
+      if (_selectedLanguage != _initialLanguage) {
+        debugPrint(
+          'Changing locale from $_initialLanguage to $_selectedLanguage',
+        );
+        final raw = _selectedLanguage.toLowerCase();
+        final code =
+            raw.contains('eng')
+                ? 'en'
+                : raw.contains('cast')
+                ? 'es'
+                : raw.contains('ca')
+                ? 'ca'
+                : 'en';
+        if (!mounted) return;
+        await context.setLocale(Locale(code));
+        _initialLanguage = _selectedLanguage;
+        if (code == 'en') {
+          message = "Profile updated successfully";
+        } else if (code == 'es') {
+          message = "Perfil actualizado con éxito";
+        } else if (code == 'ca') {
+          message = "Perfil actualitzat amb èxit";
+        }
+      }
+
       if (!mounted) return;
       _notificationService.showSuccess(context, message.tr());
+
       // _loadUserData(); // Moved to the end of _handleSuccessfulUpdate
     } catch (e) {
       // Added mounted check
@@ -661,12 +669,35 @@ class EditProfilePageState extends State<EditProfilePage> {
         await currentUser.updatePhotoURL(imageUrl);
       }
 
-      // Ya no actualizamos el username en Firebase Auth
-      // Se ha eliminado: await currentUser.updateDisplayName(newUsername);
-
+      debugPrint("holaEl idioma seleccionado es: $_selectedLanguage");
+      debugPrint("holaEl idioma inicial es: $_initialLanguage");
+      if (_selectedLanguage != _initialLanguage) {
+        debugPrint(
+          'Changing locale from $_initialLanguage to $_selectedLanguage',
+        );
+        final raw = _selectedLanguage.toLowerCase();
+        final code =
+            raw.contains('eng')
+                ? 'en'
+                : raw.contains('cast')
+                ? 'es'
+                : raw.contains('ca')
+                ? 'ca'
+                : 'en';
+        if (!mounted) return;
+        await context.setLocale(Locale(code));
+        _initialLanguage = _selectedLanguage;
+        if (code == 'en') {
+          message = "Profile updated successfully";
+        } else if (code == 'es') {
+          message = "Perfil actualizado con éxito";
+        } else if (code == 'ca') {
+          message = "Perfil actualitzat amb èxit";
+        }
+      }
       // Added mounted check
       if (!mounted) return;
-      _notificationService.showSuccess(context, message.tr());
+      _notificationService.showSuccess(context, message);
     } catch (e) {
       // Added mounted check
       if (!mounted) return;
