@@ -107,6 +107,7 @@ class _FormContentRegisterState extends State<FormContentRegister> {
         "idioma": _selectedLanguage,
         "sesionIniciada": false, // Consistent for all new user registrations
         "isAdmin": isActuallyAdmin,
+        "esExtern": false, // Default to false for new users
       };
 
       // 4. Enviar petición al backend

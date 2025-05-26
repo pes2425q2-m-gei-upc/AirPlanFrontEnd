@@ -216,7 +216,8 @@ class ActivityService {
     final response = await http.get(url);
 
     if (response.statusCode == 200) {
-      final List<dynamic> data = jsonDecode(response.body);
+      final body = utf8.decode(response.bodyBytes);
+      final List<dynamic> data = jsonDecode(body);
       final activities = data.cast<Map<String, dynamic>>();
       for (var activity in activities) {
         // Añadir el campo 'esExterna' a cada actividad
@@ -232,7 +233,8 @@ class ActivityService {
     final url = Uri.parse(ApiConfig().buildUrl('api/activitats/participant/$username'));
     return http.get(url).then((response) async {
       if (response.statusCode == 200) {
-        final List<dynamic> data = jsonDecode(response.body);
+        final body = utf8.decode(response.bodyBytes);
+        final List<dynamic> data = jsonDecode(body);
         final activities = data.cast<Map<String, dynamic>>();
         for (var activity in activities) {
           // Añadir el campo 'esExterna' a cada actividad
