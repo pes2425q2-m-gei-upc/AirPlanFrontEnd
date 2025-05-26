@@ -696,7 +696,7 @@ class ChatDetailPageState extends State<ChatDetailPage> {
                       ],
                     ),
                   ),
-                const PopupMenuItem<String>(
+                PopupMenuItem<String>(
                   value: 'report',
                   child: Row(
                     mainAxisSize: MainAxisSize.min,
@@ -705,7 +705,7 @@ class ChatDetailPageState extends State<ChatDetailPage> {
                       SizedBox(width: 10),
                       Flexible(
                         child: Text(
-                          'Reportar usuario',
+                          'Reportar usuario'.tr(),
                           style: TextStyle(color: Colors.orange),
                           overflow: TextOverflow.ellipsis,
                         ),
@@ -921,37 +921,36 @@ class ChatDetailPageState extends State<ChatDetailPage> {
 
     final confirmResult = await showDialog<bool>(
       context: context,
-      builder: (context) => AlertDialog(
-        title: Text('Reportar a ${widget.username}'),
-        content: Column(
-          mainAxisSize: MainAxisSize.min,
-          children: [
-            const Text(
-              'Por favor, introduce el motivo del reporte para facilitar la revisión de un administrador.',
+      builder:
+          (context) => AlertDialog(
+            title: Text('report_user'.tr(args: [widget.username])),
+            content: Column(
+              mainAxisSize: MainAxisSize.min,
+              children: [
+                Text('report_user_message'.tr()),
+                const SizedBox(height: 10),
+                TextField(
+                  controller: reasonController,
+                  maxLines: 3,
+                  decoration: InputDecoration(
+                    hintText: 'report_reason_placeholder'.tr(),
+                    border: OutlineInputBorder(),
+                  ),
+                ),
+              ],
             ),
-            const SizedBox(height: 10),
-            TextField(
-              controller: reasonController,
-              maxLines: 3,
-              decoration: const InputDecoration(
-                hintText: 'Escribe el motivo aquí...',
-                border: OutlineInputBorder(),
+            actions: [
+              TextButton(
+                onPressed: () => Navigator.of(context).pop(false),
+                child: Text('cancel'.tr()),
               ),
-            ),
-          ],
-        ),
-        actions: [
-          TextButton(
-            onPressed: () => Navigator.of(context).pop(false),
-            child: const Text('Cancelar'),
+              TextButton(
+                onPressed: () => Navigator.of(context).pop(true),
+                style: TextButton.styleFrom(foregroundColor: Colors.orange),
+                child: Text('report'.tr()),
+              ),
+            ],
           ),
-          TextButton(
-            onPressed: () => Navigator.of(context).pop(true),
-            style: TextButton.styleFrom(foregroundColor: Colors.orange),
-            child: const Text('Reportar'),
-          ),
-        ],
-      ),
     );
 
     if (confirmResult == true) {
@@ -962,7 +961,7 @@ class ChatDetailPageState extends State<ChatDetailPage> {
         if (mounted) {
           _notificationService.showError(
             context,
-            'Por favor, introduce un motivo para el reporte.',
+            'please_introduce_reason'.tr(),
           );
         }
       }

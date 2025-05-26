@@ -372,9 +372,11 @@ Future<TransitRoute> calculateRoute(
 
   try {
     // get current locale for simple route
-    final simpleLang =
+    String simpleLang =
         navigatorKey.currentContext?.locale.languageCode ??
         PlatformDispatcher.instance.locale.languageCode;
+
+    if (simpleLang == "ca") simpleLang = "es";
     final response = await http.get(
       url.replace(
         queryParameters: {
