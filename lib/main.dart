@@ -123,7 +123,7 @@ class GlobalNotificationService {
 
     // Para notificaciones no urgentes, configurar un temporizador para ocultarlas automáticamente
     if (!isUrgent) {
-      Future.delayed(const Duration(seconds: 5), () {
+      Future.delayed(const Duration(seconds: 12), () {
         // Verificar si este banner sigue siendo el actual
         messenger.hideCurrentMaterialBanner();
         // Marcar que ya no estamos mostrando notificación
