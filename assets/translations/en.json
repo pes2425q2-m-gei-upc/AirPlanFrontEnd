@@ -659,5 +659,8 @@
   "Calendar": "Calendar",
   "Chat": "Chat",
   "User": "User",
-  "please_introduce_reason": "Please introduce a reason for the report."
+  "please_introduce_reason": "Please introduce a reason for the report.",
+  "recommended_activities_error_no_activities_nearby": "There are no activities within a radius of 50 km from your current location.",
+  "recommended_activities_error_no_activities_in_system": "There are no activities in the system.",
+  "recommended_activities_error_server_or_communication": "Server error or communication error. Try again later."
 }

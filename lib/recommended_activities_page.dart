@@ -1,4 +1,5 @@
 import 'dart:convert';
+import 'dart:io';
 
 import 'package:airplan/air_quality.dart';
 import 'package:airplan/air_quality_service.dart';
@@ -65,6 +66,8 @@ class RecommendedActivitiesPageState extends State<RecommendedActivitiesPage> {
   int _loadedActivities = 0;
   final activityService = ActivityService();
   final authService = AuthService();
+  bool _error = false;
+  String _reason = '';
 
   @override
   void initState() {
@@ -143,9 +146,14 @@ class RecommendedActivitiesPageState extends State<RecommendedActivitiesPage> {
         _activities = _activities;
       });
     } else {
-      throw Exception(
-        '${'recommended_activities_fetch_error'.tr()}${response.statusCode}: ${response.reasonPhrase}',
-      );
+      _error = true;
+      if (response.statusCode == HttpStatus.serviceUnavailable) {
+        _reason = 'recommended_activities_error_no_activities_nearby'.tr();
+      } else if (response.statusCode == HttpStatus.internalServerError && utf8.decode(response.bodyBytes) == "No hi han activitats al sistema.") {
+        _reason = 'recommended_activities_error_no_activities_in_system'.tr();
+      } else {
+        _reason = 'recommended_activities_error_server_or_communication'.tr();
+      }
     }
   }
 
@@ -410,7 +418,22 @@ class RecommendedActivitiesPageState extends State<RecommendedActivitiesPage> {
                     ),
                 ],
               )
-              : Column(
+              : _error
+                  ? Center(
+                    child: Padding(
+                      padding: const EdgeInsets.all(32.0),
+                      child: Text(
+                        _reason,
+                        style: TextStyle(
+                          color: Colors.red[700],
+                          fontSize: 18,
+                          fontWeight: FontWeight.bold,
+                        ),
+                        textAlign: TextAlign.center,
+                      ),
+                    ),
+                  )
+                  : Column(
                 children: [
                   Padding(
                     padding: const EdgeInsets.all(16.0),

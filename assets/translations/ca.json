@@ -659,5 +659,8 @@
   "Calendar": "Calendari",
   "Chat": "Xat",
   "User": "Usuari",
-  "please_introduce_reason": "Si us plau, introdueix un motiu per al report"
+  "please_introduce_reason": "Si us plau, introdueix un motiu per al report",
+  "recommended_activities_error_no_activities_nearby": "No hi ha cap activitat en un radi de 50 km des de la teva ubicació actual.",
+  "recommended_activities_error_no_activities_in_system": "No hi ha activitats al sistema.",
+  "recommended_activities_error_server_or_communication": "Error del servidor o de comunicació. Si us plau, intenta-ho de nou més tard."
 }
