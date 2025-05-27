@@ -29,12 +29,11 @@ class FormContentRegister extends StatefulWidget {
 class _FormContentRegisterState extends State<FormContentRegister> {
   // Usamos late para inicializar en initState
   late final AuthService _authService;
-
   bool _isPasswordVisible = false;
   bool _isConfirmPasswordVisible = false;
   bool _agreeToTerms = false;
   bool _isAdmin = false;
-  String _selectedLanguage = 'Castellano';
+  String _selectedLanguage = 'Castellano'; // Will be updated in initState
   String? _emailError;
   String? _usernameError;
   String? _nameError; // Add name error variable
@@ -52,13 +51,36 @@ class _FormContentRegisterState extends State<FormContentRegister> {
   final FocusNode _confirmPasswordFocusNode = FocusNode();
 
   Widget _gap() => const SizedBox(height: 16);
-
   @override
   void initState() {
     super.initState();
     // Inicializamos el servicio auth usando el proporcionado o creando uno nuevo
     _authService = widget.authService ?? AuthService();
     _setupPasswordFocusListeners();
+  }
+
+  @override
+  void didChangeDependencies() {
+    super.didChangeDependencies();
+    // Establecer el idioma seleccionado basado en el locale actual de EasyLocalization
+    // Se hace aquí porque context.locale necesita que el widget tree esté completamente construido
+    _setInitialLanguage();
+  }
+
+  void _setInitialLanguage() {
+    final currentLocale = context.locale;
+    switch (currentLocale.languageCode) {
+      case 'ca':
+        _selectedLanguage = 'Català';
+        break;
+      case 'en':
+        _selectedLanguage = 'English';
+        break;
+      case 'es':
+      default:
+        _selectedLanguage = 'Castellano';
+        break;
+    }
   }
 
   void _setupPasswordFocusListeners() {

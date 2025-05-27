@@ -663,5 +663,18 @@
   "recommended_activities_error_no_activities_nearby": "There are no activities within a radius of 50 km from your current location.",
   "recommended_activities_error_no_activities_in_system": "There are no activities in the system.",
   "recommended_activities_error_server_or_communication": "Server error or communication error. Try again later.",
-  "calculate_ubication": "For calculate your location, you need to enable location services."
+  "calculate_ubication": "For calculate your location, you need to enable location services.",
+  "Selected Location": "Selected Location",
+  "Please select a location": "Please select a location",
+  "Title": "Title",
+  "Please enter a title": "Please enter a title",
+  "Description": "Description",
+  "Please enter a description": "Please enter a description",
+  "Start Date and Time": "Start Date and Time",
+  "Please enter a start date and time": "Please enter a start date and time",
+  "End Date and Time": "End Date and Time",
+  "Please enter an end date and time": "Please enter an end date and time",
+  "Submit": "Submit",
+  "Desactivar sincronización con Google Calendar": "Disable synchronization with Google Calendar",
+  "Activar sincronización con Google Calendar": "Enable synchronization with Google Calendar"
 }

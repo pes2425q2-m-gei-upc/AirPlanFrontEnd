@@ -1,8 +1,8 @@
 // form_dialog.dart
 import 'package:firebase_auth/firebase_auth.dart';
 import 'package:flutter/material.dart';
-import 'package:intl/intl.dart';
 import 'package:latlong2/latlong.dart';
+import 'package:easy_localization/easy_localization.dart';
 
 class FormDialog extends StatefulWidget {
   final String initialPlaceDetails;
@@ -52,7 +52,7 @@ class FormDialogState extends State<FormDialog> {
     }
   }
 
-// ignore: use_build_context_synchronously
+  // ignore: use_build_context_synchronously
   Future<void> _selectDateTime(TextEditingController controller) async {
     if (!mounted) return;
 
@@ -98,24 +98,26 @@ class FormDialogState extends State<FormDialog> {
             child: DropdownButtonFormField<LatLng>(
               isExpanded: true,
               value: _selectedLocation,
-              items: widget.savedLocations.entries.map((entry) {
-                String displayText = entry.value.isNotEmpty
-                    ? entry.value
-                    : '${entry.key.latitude}, ${entry.key.longitude}';
-                return DropdownMenuItem<LatLng>(
-                  value: entry.key,
-                  child: Text(displayText, overflow: TextOverflow.ellipsis),
-                );
-              }).toList(),
+              items:
+                  widget.savedLocations.entries.map((entry) {
+                    String displayText =
+                        entry.value.isNotEmpty
+                            ? entry.value
+                            : '${entry.key.latitude}, ${entry.key.longitude}';
+                    return DropdownMenuItem<LatLng>(
+                      value: entry.key,
+                      child: Text(displayText, overflow: TextOverflow.ellipsis),
+                    );
+                  }).toList(),
               onChanged: (value) {
                 setState(() {
                   _selectedLocation = value!;
                 });
               },
-              decoration: InputDecoration(labelText: 'Selected Location'),
+              decoration: InputDecoration(labelText: 'Selected Location'.tr()),
               validator: (value) {
                 if (value == null) {
-                  return 'Please select a location';
+                  return 'Please select a location'.tr();
                 }
                 return null;
               },
@@ -123,20 +125,20 @@ class FormDialogState extends State<FormDialog> {
           ),
           TextFormField(
             controller: _titleController,
-            decoration: InputDecoration(labelText: 'Title'),
+            decoration: InputDecoration(labelText: 'Title'.tr()),
             validator: (value) {
               if (value == null || value.isEmpty) {
-                return 'Please enter a title';
+                return 'Please enter a title'.tr();
               }
               return null;
             },
           ),
           TextFormField(
             controller: _descriptionController,
-            decoration: InputDecoration(labelText: 'Description'),
+            decoration: InputDecoration(labelText: 'Description'.tr()),
             validator: (value) {
               if (value == null || value.isEmpty) {
-                return 'Please enter a description';
+                return 'Please enter a description'.tr();
               }
               return null;
             },
@@ -144,7 +146,7 @@ class FormDialogState extends State<FormDialog> {
           TextFormField(
             controller: _startDateController,
             decoration: InputDecoration(
-              labelText: 'Start Date and Time',
+              labelText: 'Start Date and Time'.tr(),
               suffixIcon: IconButton(
                 icon: Icon(Icons.calendar_today),
                 onPressed: () => _selectDateTime(_startDateController),
@@ -152,7 +154,7 @@ class FormDialogState extends State<FormDialog> {
             ),
             validator: (value) {
               if (value == null || value.isEmpty) {
-                return 'Please enter a start date and time';
+                return 'Please enter a start date and time'.tr();
               }
               return null;
             },
@@ -160,7 +162,7 @@ class FormDialogState extends State<FormDialog> {
           TextFormField(
             controller: _endDateController,
             decoration: InputDecoration(
-              labelText: 'End Date and Time',
+              labelText: 'End Date and Time'.tr(),
               suffixIcon: IconButton(
                 icon: Icon(Icons.calendar_today),
                 onPressed: () => _selectDateTime(_endDateController),
@@ -168,7 +170,7 @@ class FormDialogState extends State<FormDialog> {
             ),
             validator: (value) {
               if (value == null || value.isEmpty) {
-                return 'Please enter an end date and time';
+                return 'Please enter an end date and time'.tr();
               }
               return null;
             },
@@ -191,7 +193,7 @@ class FormDialogState extends State<FormDialog> {
                 });
               }
             },
-            child: Text('Submit'),
+            child: Text('Submit'.tr()),
           ),
         ],
       ),

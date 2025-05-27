@@ -38,9 +38,10 @@ class CalendarPageState extends State<CalendarPage> {
   final MapService mapService = MapService();
   Map<LatLng, Map<Contaminant, AirQualityData>> contaminantsPerLocation = {};
   final NoteService noteService = NoteService();
-  Map<DateTime,List<Nota>> _userNotes={};
+  Map<DateTime, List<Nota>> _userNotes = {};
   final GoogleCalendarService _googleCalendarService = GoogleCalendarService();
-  final SyncPreferencesService _syncPreferencesService = SyncPreferencesService();
+  final SyncPreferencesService _syncPreferencesService =
+      SyncPreferencesService();
   bool _isSyncEnabled = false;
 
   @override
@@ -94,9 +95,13 @@ class CalendarPageState extends State<CalendarPage> {
           await noteService.syncAllNotes(username);
 
           // Sincronizar actividades existentes
-          final activities = await widget.activityService.fetchUserActivities(username);
+          final activities = await widget.activityService.fetchUserActivities(
+            username,
+          );
           for (var activity in activities) {
-            await widget.activityService.syncActivityWithGoogleCalendar(activity);
+            await widget.activityService.syncActivityWithGoogleCalendar(
+              activity,
+            );
           }
         }
       }
@@ -105,9 +110,9 @@ class CalendarPageState extends State<CalendarPage> {
         ScaffoldMessenger.of(context).showSnackBar(
           SnackBar(
             content: Text(
-                _isSyncEnabled
-                    ? 'Sincronización con Google Calendar activada'
-                    : 'Sincronización con Google Calendar desactivada'
+              _isSyncEnabled
+                  ? 'Sincronización con Google Calendar activada'
+                  : 'Sincronización con Google Calendar desactivada',
             ),
           ),
         );
@@ -409,7 +414,10 @@ class CalendarPageState extends State<CalendarPage> {
           IconButton(
             icon: Icon(_isSyncEnabled ? Icons.sync : Icons.sync_disabled),
             onPressed: _toggleSync,
-            tooltip: _isSyncEnabled ? 'Desactivar sincronización con Google Calendar' : 'Activar sincronización con Google Calendar',
+            tooltip:
+                _isSyncEnabled
+                    ? 'Desactivar sincronización con Google Calendar'.tr()
+                    : 'Activar sincronización con Google Calendar'.tr(),
           ),
           IconButton(
             icon: const Icon(Icons.refresh),
