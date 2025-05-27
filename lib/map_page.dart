@@ -377,10 +377,7 @@ class MapPageState extends State<MapPage> {
     MapService mapService,
   ) async {
     if (!locationPermissionGranted) {
-      NotificationService().showError(
-        context,
-        "Per calcular la ruta, primer has d'activar la ubicació.",
-      );
+      NotificationService().showError(context, "calculate_ubication".tr());
       return;
     }
     final selectedOption = await showDialog<int>(
@@ -912,8 +909,8 @@ class MapPageState extends State<MapPage> {
                         ),
                       ],
                     )
-                  else if (currentUser !=
-                      null && !activity['esExterna']) // Botón "+" o tick azul para otros usuarios
+                  else if (currentUser != null &&
+                      !activity['esExterna']) // Botón "+" o tick azul para otros usuarios
                     IconButton(
                       icon: Icon(
                         solicitudExistente ? Icons.check_circle : Icons.add,

@@ -662,5 +662,19 @@
   "please_introduce_reason": "Si us plau, introdueix un motiu per al report",
   "recommended_activities_error_no_activities_nearby": "No hi ha cap activitat en un radi de 50 km des de la teva ubicació actual.",
   "recommended_activities_error_no_activities_in_system": "No hi ha activitats al sistema.",
-  "recommended_activities_error_server_or_communication": "Error del servidor o de comunicació. Si us plau, intenta-ho de nou més tard."
+  "recommended_activities_error_server_or_communication": "Error del servidor o de comunicació. Si us plau, intenta-ho de nou més tard.",
+  "calculate_ubication": "Per calcular la teva ubicació, si us plau, activa els serveis de localització.",
+  "Selected Location": "Ubicació seleccionada",
+  "Please select a location": "Si us plau, selecciona una ubicació",
+  "Title": "Títol",
+  "Please enter a title": "Si us plau, introdueix un títol",
+  "Description": "Descripció",
+  "Please enter a description": "Si us plau, introdueix una descripció",
+  "Start Date and Time": "Data i hora d'inici",
+  "Please enter a start date and time": "Si us plau, introdueix una data i hora d'inici",
+  "End Date and Time": "Data i hora de finalització",
+  "Please enter an end date and time": "Si us plau, introdueix una data i hora de finalització",
+  "Submit": "Enviar",
+  "Desactivar sincronización con Google Calendar": "Desactivar sincronització amb Google Calendar",
+  "Activar sincronización con Google Calendar": "Activar sincronització amb Google Calendar"
 }

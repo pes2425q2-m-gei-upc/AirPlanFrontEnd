@@ -47,9 +47,11 @@ class ChatDetailPageState extends State<ChatDetailPage> {
   bool _isInitializing = true;
   bool _currentUserBlockedOther = false;
   bool _otherUserBlockedCurrent = false;
-
   // Suscripción a mensajes de WebSocket
   StreamSubscription? _chatSubscription;
+
+  // Timer para timeout de seguridad en conectToChat
+  Timer? _loadingTimeoutTimer;
 
   // Getter para determinar si el chat está bloqueado
   bool get _isChatBlocked =>
@@ -76,6 +78,16 @@ class ChatDetailPageState extends State<ChatDetailPage> {
     if (_currentUsername != null) {
       _chatWebSocketService.connectToChat(widget.username);
       setState(() => _isInitializing = false);
+
+      // Timeout de seguridad: si después de 5 segundos no se recibe el historial,
+      // establecer _isLoading = false para mostrar el chat vacío
+      _loadingTimeoutTimer = Timer(const Duration(seconds: 5), () {
+        if (mounted && _isLoading) {
+          setState(() {
+            _isLoading = false;
+          });
+        }
+      });
     } else {
       // Intentar de nuevo después de un breve retraso
       Future.delayed(const Duration(milliseconds: 300), () {
@@ -341,17 +353,28 @@ class ChatDetailPageState extends State<ChatDetailPage> {
       }
 
       _scrollToBottom();
+    } else {
+      // Si no hay mensajes o no se puede procesar el historial,
+      // asegurar que se quite el estado de carga
+      if (mounted) {
+        setState(() {
+          _isLoading = false;
+        });
+      }
     }
 
     // Procesar información de bloqueo inicial
     if (data.containsKey('blockStatus')) {
       _updateBlockStatus(data['blockStatus']);
-    } else if (_isLoading && mounted) {
-      setState(() {
-        _currentUserBlockedOther = false;
-        _otherUserBlockedCurrent = false;
-        _isLoading = false;
-      });
+    } else {
+      // Siempre asegurar que _isLoading se establezca en false
+      if (mounted && _isLoading) {
+        setState(() {
+          _currentUserBlockedOther = false;
+          _otherUserBlockedCurrent = false;
+          _isLoading = false;
+        });
+      }
     }
   }
 
@@ -626,6 +649,7 @@ class ChatDetailPageState extends State<ChatDetailPage> {
   @override
   void dispose() {
     _chatSubscription?.cancel();
+    _loadingTimeoutTimer?.cancel();
     _chatService.disconnectFromChat();
     _messageController.dispose();
     _scrollController.dispose();

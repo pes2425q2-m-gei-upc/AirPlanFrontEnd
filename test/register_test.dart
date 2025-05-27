@@ -8,7 +8,32 @@ import 'package:airplan/services/auth_service.dart';
 import 'package:airplan/form_content_register.dart';
 import 'package:airplan/logo_widget.dart';
 import 'package:airplan/rive_controller.dart';
+import 'package:easy_localization/easy_localization.dart';
+import 'package:flutter_localizations/flutter_localizations.dart';
 import 'register_test.mocks.dart';
+
+// Custom asset loader for tests that provides in-memory translations
+class TestAssetLoader extends AssetLoader {
+  @override
+  Future<Map<String, dynamic>?> load(String path, Locale locale) async {
+    // Return translations map directly - EasyLocalization will handle loading
+    return {
+      'register_name_label': 'Name',
+      'register_username_label': 'Username',
+      'register_email_label': 'Email',
+      'register_password_label': 'Password',
+      'register_confirm_password_label': 'Confirm password',
+      'register_language_label': 'Language',
+      'register_admin_title': 'Are you an administrator?',
+      'register_verification_code_label': 'Verification code',
+      'register_agree_terms': 'I accept the terms and conditions',
+      'register_button': 'Sign Up',
+      'register_view_terms': 'View terms and conditions',
+      'register_have_account_login': 'Already have an account? Log in',
+      'app_title': 'AirPlan',
+    };
+  }
+}
 
 // Mock the Rive animation widget to avoid using actual Rive library in tests
 class MockRiveAnimationWidget extends StatelessWidget {
@@ -154,7 +179,6 @@ void main() {
           },
         );
   });
-
   testWidgets('SignUpPage renders correctly on small screen', (
     WidgetTester tester,
   ) async {
@@ -166,10 +190,29 @@ void main() {
 
     // Build the widget with mock auth service and mock rive helper
     await tester.pumpWidget(
-      MaterialApp(
-        home: TestSignUpPage(
-          authService: mockAuthService,
-          riveHelper: mockRiveHelper,
+      EasyLocalization(
+        supportedLocales: const [Locale('en')],
+        path: 'assets/translations',
+        fallbackLocale: const Locale('en'),
+        startLocale: const Locale('en'),
+        assetLoader: TestAssetLoader(),
+        child: Builder(
+          builder: (BuildContext context) {
+            return MaterialApp(
+              localizationsDelegates: [
+                EasyLocalization.of(context)!.delegate,
+                GlobalMaterialLocalizations.delegate,
+                GlobalWidgetsLocalizations.delegate,
+                GlobalCupertinoLocalizations.delegate,
+              ],
+              supportedLocales: EasyLocalization.of(context)!.supportedLocales,
+              locale: EasyLocalization.of(context)!.locale,
+              home: TestSignUpPage(
+                authService: mockAuthService,
+                riveHelper: mockRiveHelper,
+              ),
+            );
+          },
         ),
       ),
     );
@@ -182,7 +225,6 @@ void main() {
     expect(find.byType(FormContentRegister), findsOneWidget);
     expect(find.byType(MockRiveAnimationWidget), findsOneWidget);
   });
-
   testWidgets('SignUpPage renders correctly on large screen', (
     WidgetTester tester,
   ) async {
@@ -194,10 +236,29 @@ void main() {
 
     // Build the widget with mock auth service
     await tester.pumpWidget(
-      MaterialApp(
-        home: TestSignUpPage(
-          authService: mockAuthService,
-          riveHelper: mockRiveHelper,
+      EasyLocalization(
+        supportedLocales: const [Locale('en')],
+        path: 'assets/translations',
+        fallbackLocale: const Locale('en'),
+        startLocale: const Locale('en'),
+        assetLoader: TestAssetLoader(),
+        child: Builder(
+          builder: (BuildContext context) {
+            return MaterialApp(
+              localizationsDelegates: [
+                EasyLocalization.of(context)!.delegate,
+                GlobalMaterialLocalizations.delegate,
+                GlobalWidgetsLocalizations.delegate,
+                GlobalCupertinoLocalizations.delegate,
+              ],
+              supportedLocales: EasyLocalization.of(context)!.supportedLocales,
+              locale: EasyLocalization.of(context)!.locale,
+              home: TestSignUpPage(
+                authService: mockAuthService,
+                riveHelper: mockRiveHelper,
+              ),
+            );
+          },
         ),
       ),
     );
@@ -213,7 +274,6 @@ void main() {
     );
     expect(container.constraints?.maxWidth, 800);
   });
-
   testWidgets('SignUpPage back button navigates correctly', (
     WidgetTester tester,
   ) async {
@@ -222,16 +282,37 @@ void main() {
 
     // Build the widget with navigation and mock auth service
     await tester.pumpWidget(
-      MaterialApp(
-        initialRoute: '/signup',
-        routes: {
-          '/': (context) => Scaffold(key: homeKey, body: const Text('Home')),
-          '/signup':
-              (context) => TestSignUpPage(
-                authService: mockAuthService,
-                riveHelper: mockRiveHelper,
-              ),
-        },
+      EasyLocalization(
+        supportedLocales: const [Locale('en')],
+        path: 'assets/translations',
+        fallbackLocale: const Locale('en'),
+        startLocale: const Locale('en'),
+        assetLoader: TestAssetLoader(),
+        child: Builder(
+          builder: (BuildContext context) {
+            return MaterialApp(
+              localizationsDelegates: [
+                EasyLocalization.of(context)!.delegate,
+                GlobalMaterialLocalizations.delegate,
+                GlobalWidgetsLocalizations.delegate,
+                GlobalCupertinoLocalizations.delegate,
+              ],
+              supportedLocales: EasyLocalization.of(context)!.supportedLocales,
+              locale: EasyLocalization.of(context)!.locale,
+              initialRoute: '/signup',
+              routes: {
+                '/':
+                    (context) =>
+                        Scaffold(key: homeKey, body: const Text('Home')),
+                '/signup':
+                    (context) => TestSignUpPage(
+                      authService: mockAuthService,
+                      riveHelper: mockRiveHelper,
+                    ),
+              },
+            );
+          },
+        ),
       ),
     );
     await tester.pumpAndSettle();
@@ -249,16 +330,34 @@ void main() {
       findsNothing,
     ); // Ensure SignUpPage is gone
   });
-
   testWidgets('SignUpPage injects AuthService to FormContentRegister', (
     WidgetTester tester,
   ) async {
     // Build the widget
     await tester.pumpWidget(
-      MaterialApp(
-        home: TestSignUpPage(
-          authService: mockAuthService,
-          riveHelper: mockRiveHelper,
+      EasyLocalization(
+        supportedLocales: const [Locale('en')],
+        path: 'assets/translations',
+        fallbackLocale: const Locale('en'),
+        startLocale: const Locale('en'),
+        assetLoader: TestAssetLoader(),
+        child: Builder(
+          builder: (BuildContext context) {
+            return MaterialApp(
+              localizationsDelegates: [
+                EasyLocalization.of(context)!.delegate,
+                GlobalMaterialLocalizations.delegate,
+                GlobalWidgetsLocalizations.delegate,
+                GlobalCupertinoLocalizations.delegate,
+              ],
+              supportedLocales: EasyLocalization.of(context)!.supportedLocales,
+              locale: EasyLocalization.of(context)!.locale,
+              home: TestSignUpPage(
+                authService: mockAuthService,
+                riveHelper: mockRiveHelper,
+              ),
+            );
+          },
         ),
       ),
     );

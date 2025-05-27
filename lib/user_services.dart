@@ -133,7 +133,9 @@ class UserService {
             );
 
             if (usernameResponse.statusCode == 200) {
-              final userData = jsonDecode(usernameResponse.body);
+              final userData = jsonDecode(
+                utf8.decode(usernameResponse.bodyBytes),
+              );
               final databaseEmail = userData['email'] as String?;
 
               if (databaseEmail != null && databaseEmail != currentEmail) {
