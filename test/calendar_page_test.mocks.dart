@@ -219,6 +219,36 @@ class MockAuthService extends _i1.Mock implements _i6.AuthService {
             returnValueForMissingStub: _i7.Future<void>.value(),
           )
           as _i7.Future<void>);
+
+  @override
+  _i7.Future<_i2.UserCredential> signInWithPopup(
+    _i2.GithubAuthProvider? githubProvider,
+  ) =>
+      (super.noSuchMethod(
+            Invocation.method(#signInWithPopup, [githubProvider]),
+            returnValue: _i7.Future<_i2.UserCredential>.value(
+              _FakeUserCredential_0(
+                this,
+                Invocation.method(#signInWithPopup, [githubProvider]),
+              ),
+            ),
+          )
+          as _i7.Future<_i2.UserCredential>);
+
+  @override
+  _i7.Future<_i2.UserCredential> signInWithProvider(
+    _i2.GithubAuthProvider? githubProvider,
+  ) =>
+      (super.noSuchMethod(
+            Invocation.method(#signInWithProvider, [githubProvider]),
+            returnValue: _i7.Future<_i2.UserCredential>.value(
+              _FakeUserCredential_0(
+                this,
+                Invocation.method(#signInWithProvider, [githubProvider]),
+              ),
+            ),
+          )
+          as _i7.Future<_i2.UserCredential>);
 }
 
 /// A class which mocks [ActivityService].
@@ -419,20 +449,6 @@ class MockMapService extends _i1.Mock implements _i11.MapService {
             ),
           )
           as _i7.Future<List<_i12.CircleMarker<Object>>>);
-
-  List<_i12.CircleMarker<Object>> createCirclesFromAirQualityData(
-    dynamic data,
-    Map<_i13.LatLng, Map<_i14.Contaminant, _i14.AirQualityData>>?
-    contaminantsPerLocation,
-  ) =>
-      (super.noSuchMethod(
-            Invocation.method(#createCirclesFromAirQualityData, [
-              data,
-              contaminantsPerLocation,
-            ]),
-            returnValue: <_i12.CircleMarker<Object>>[],
-          )
-          as List<_i12.CircleMarker<Object>>);
 
   @override
   _i7.Future<String> fetchPlaceDetails(_i13.LatLng? position) =>

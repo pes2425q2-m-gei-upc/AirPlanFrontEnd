@@ -29,25 +29,20 @@ import 'package:mockito/src/dummies.dart' as _i7;
 // ignore_for_file: camel_case_types
 // ignore_for_file: subtype_of_sealed_class
 
-class _FakeClient_0 extends _i1.SmartFake implements _i2.Client {
-  _FakeClient_0(Object parent, Invocation parentInvocation)
+class _FakeResponse_0 extends _i1.SmartFake implements _i2.Response {
+  _FakeResponse_0(Object parent, Invocation parentInvocation)
     : super(parent, parentInvocation);
 }
 
-class _FakeResponse_1 extends _i1.SmartFake implements _i2.Response {
-  _FakeResponse_1(Object parent, Invocation parentInvocation)
-    : super(parent, parentInvocation);
-}
-
-class _FakeStreamedResponse_2 extends _i1.SmartFake
+class _FakeStreamedResponse_1 extends _i1.SmartFake
     implements _i2.StreamedResponse {
-  _FakeStreamedResponse_2(Object parent, Invocation parentInvocation)
+  _FakeStreamedResponse_1(Object parent, Invocation parentInvocation)
     : super(parent, parentInvocation);
 }
 
-class _FakeUserCredential_3 extends _i1.SmartFake
+class _FakeUserCredential_2 extends _i1.SmartFake
     implements _i3.UserCredential {
-  _FakeUserCredential_3(Object parent, Invocation parentInvocation)
+  _FakeUserCredential_2(Object parent, Invocation parentInvocation)
     : super(parent, parentInvocation);
 }
 
@@ -163,13 +158,6 @@ class MockApiConfig extends _i1.Mock implements _i6.ApiConfig {
     _i1.throwOnMissingStub(this);
   }
 
-  _i2.Client get client =>
-      (super.noSuchMethod(
-            Invocation.getter(#client),
-            returnValue: _FakeClient_0(this, Invocation.getter(#client)),
-          )
-          as _i2.Client);
-
   @override
   String get baseUrl =>
       (super.noSuchMethod(
@@ -212,7 +200,7 @@ class MockClient extends _i1.Mock implements _i2.Client {
       (super.noSuchMethod(
             Invocation.method(#head, [url], {#headers: headers}),
             returnValue: _i5.Future<_i2.Response>.value(
-              _FakeResponse_1(
+              _FakeResponse_0(
                 this,
                 Invocation.method(#head, [url], {#headers: headers}),
               ),
@@ -225,7 +213,7 @@ class MockClient extends _i1.Mock implements _i2.Client {
       (super.noSuchMethod(
             Invocation.method(#get, [url], {#headers: headers}),
             returnValue: _i5.Future<_i2.Response>.value(
-              _FakeResponse_1(
+              _FakeResponse_0(
                 this,
                 Invocation.method(#get, [url], {#headers: headers}),
               ),
@@ -247,7 +235,7 @@ class MockClient extends _i1.Mock implements _i2.Client {
               {#headers: headers, #body: body, #encoding: encoding},
             ),
             returnValue: _i5.Future<_i2.Response>.value(
-              _FakeResponse_1(
+              _FakeResponse_0(
                 this,
                 Invocation.method(
                   #post,
@@ -273,7 +261,7 @@ class MockClient extends _i1.Mock implements _i2.Client {
               {#headers: headers, #body: body, #encoding: encoding},
             ),
             returnValue: _i5.Future<_i2.Response>.value(
-              _FakeResponse_1(
+              _FakeResponse_0(
                 this,
                 Invocation.method(
                   #put,
@@ -299,7 +287,7 @@ class MockClient extends _i1.Mock implements _i2.Client {
               {#headers: headers, #body: body, #encoding: encoding},
             ),
             returnValue: _i5.Future<_i2.Response>.value(
-              _FakeResponse_1(
+              _FakeResponse_0(
                 this,
                 Invocation.method(
                   #patch,
@@ -325,7 +313,7 @@ class MockClient extends _i1.Mock implements _i2.Client {
               {#headers: headers, #body: body, #encoding: encoding},
             ),
             returnValue: _i5.Future<_i2.Response>.value(
-              _FakeResponse_1(
+              _FakeResponse_0(
                 this,
                 Invocation.method(
                   #delete,
@@ -366,7 +354,7 @@ class MockClient extends _i1.Mock implements _i2.Client {
       (super.noSuchMethod(
             Invocation.method(#send, [request]),
             returnValue: _i5.Future<_i2.StreamedResponse>.value(
-              _FakeStreamedResponse_2(
+              _FakeStreamedResponse_1(
                 this,
                 Invocation.method(#send, [request]),
               ),
@@ -422,7 +410,7 @@ class MockAuthService extends _i1.Mock implements _i10.AuthService {
       (super.noSuchMethod(
             Invocation.method(#signInWithEmailAndPassword, [email, password]),
             returnValue: _i5.Future<_i3.UserCredential>.value(
-              _FakeUserCredential_3(
+              _FakeUserCredential_2(
                 this,
                 Invocation.method(#signInWithEmailAndPassword, [
                   email,
@@ -444,7 +432,7 @@ class MockAuthService extends _i1.Mock implements _i10.AuthService {
               password,
             ]),
             returnValue: _i5.Future<_i3.UserCredential>.value(
-              _FakeUserCredential_3(
+              _FakeUserCredential_2(
                 this,
                 Invocation.method(#createUserWithEmailAndPassword, [
                   email,
@@ -460,7 +448,7 @@ class MockAuthService extends _i1.Mock implements _i10.AuthService {
       (super.noSuchMethod(
             Invocation.method(#signInWithCustomToken, [token]),
             returnValue: _i5.Future<_i3.UserCredential>.value(
-              _FakeUserCredential_3(
+              _FakeUserCredential_2(
                 this,
                 Invocation.method(#signInWithCustomToken, [token]),
               ),
@@ -520,7 +508,7 @@ class MockAuthService extends _i1.Mock implements _i10.AuthService {
       (super.noSuchMethod(
             Invocation.method(#reauthenticateWithCredential, [credential]),
             returnValue: _i5.Future<_i3.UserCredential>.value(
-              _FakeUserCredential_3(
+              _FakeUserCredential_2(
                 this,
                 Invocation.method(#reauthenticateWithCredential, [credential]),
               ),
@@ -545,4 +533,34 @@ class MockAuthService extends _i1.Mock implements _i10.AuthService {
             returnValueForMissingStub: _i5.Future<void>.value(),
           )
           as _i5.Future<void>);
+
+  @override
+  _i5.Future<_i3.UserCredential> signInWithPopup(
+    _i3.GithubAuthProvider? githubProvider,
+  ) =>
+      (super.noSuchMethod(
+            Invocation.method(#signInWithPopup, [githubProvider]),
+            returnValue: _i5.Future<_i3.UserCredential>.value(
+              _FakeUserCredential_2(
+                this,
+                Invocation.method(#signInWithPopup, [githubProvider]),
+              ),
+            ),
+          )
+          as _i5.Future<_i3.UserCredential>);
+
+  @override
+  _i5.Future<_i3.UserCredential> signInWithProvider(
+    _i3.GithubAuthProvider? githubProvider,
+  ) =>
+      (super.noSuchMethod(
+            Invocation.method(#signInWithProvider, [githubProvider]),
+            returnValue: _i5.Future<_i3.UserCredential>.value(
+              _FakeUserCredential_2(
+                this,
+                Invocation.method(#signInWithProvider, [githubProvider]),
+              ),
+            ),
+          )
+          as _i5.Future<_i3.UserCredential>);
 }

@@ -585,7 +585,7 @@ class ActivityDetailsPageState extends State<ActivityDetailsPage> {
                 ),
                 ElevatedButton(
                   onPressed: () async {
-                    final solicitudes = await fetchSolicitudes(widget.id);
+                    final solicitudes = await SolicitudsService().fetchSolicitudesUnio(widget.id);
                     if (!context.mounted) return;
 
                     showDialog(
@@ -605,7 +605,7 @@ class ActivityDetailsPageState extends State<ActivityDetailsPage> {
                                   IconButton(
                                     icon: Icon(Icons.check, color: Colors.green),
                                     onPressed: () async {
-                                      await aceptarSolicitud(widget.id, solicitud);
+                                      await SolicitudsService().aceptarSolicitudUnio(widget.id, solicitud);
                                       if (!context.mounted) return;
                                       Navigator.of(context).pop();
                                       setState(() {});
@@ -614,7 +614,7 @@ class ActivityDetailsPageState extends State<ActivityDetailsPage> {
                                   IconButton(
                                     icon: Icon(Icons.close, color: Colors.red),
                                     onPressed: () async {
-                                      await rechazarSolicitud(widget.id, solicitud);
+                                      await SolicitudsService().rechazarSolicitudUnio(widget.id, solicitud);
                                       if (!context.mounted) return;
                                       Navigator.of(context).pop();
                                       setState(() {});
@@ -856,45 +856,6 @@ class ActivityDetailsPageState extends State<ActivityDetailsPage> {
         return 'aqi_very_unhealthy'.tr();
       case AirQuality.perillosa:
         return 'aqi_hazardous'.tr();
-    }
-  }
-
-  Future<List<String>> fetchSolicitudes(String activityId) async {
-    final int activityIdInt = int.parse(activityId);
-    final url = Uri.parse(ApiConfig().buildUrl('api/solicituds/$activityIdInt/solicituds'));
-    try {
-      final response = await http.get(url);
-      if (response.statusCode == 200) {
-        final List<dynamic> solicitudesJson = json.decode(response.body);
-        return solicitudesJson
-            .map((json) => json['usernameSolicitant'] as String)
-            .toList();
-      } else {
-        throw Exception('Error al obtener solicitudes: ${response.statusCode}');
-      }
-    } catch (e) {
-      throw Exception('Error de red: $e');
-    }
-  }
-
-  Future<void> aceptarSolicitud(String activityId, String username) async {
-    final addParticipantUrl = Uri.parse(ApiConfig().buildUrl('api/activitats/$activityId/$username'));
-    final deleteRequestUrl = Uri.parse(ApiConfig().buildUrl('api/solicituds/$username/$activityId'));
-
-    try {
-      await http.post(addParticipantUrl);
-      await http.delete(deleteRequestUrl);
-    } catch (e) {
-      throw Exception('Error al aceptar la solicitud: $e');
-    }
-  }
-
-  Future<void> rechazarSolicitud(String activityId, String username) async {
-    final url = Uri.parse(ApiConfig().buildUrl('api/solicituds/$username/$activityId'));
-    try {
-      await http.delete(url);
-    } catch (e) {
-      throw Exception('Error al rechazar la solicitud: $e');
     }
   }
 }

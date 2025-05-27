@@ -5,9 +5,19 @@ import 'package:easy_localization/easy_localization.dart';
 import 'services/api_config.dart';
 
 class ReportService {
+  final http.Client client;
+  final ApiConfig apiConfig;
+
+  ReportService({
+    http.Client? client,
+    ApiConfig? apiConfig,
+  })  : client = client ?? http.Client(),
+        apiConfig = apiConfig ?? ApiConfig();
+
   Future<List<Report>> fetchReports() async {
-    final url = Uri.parse(ApiConfig().buildUrl('api/report'));
-    final response = await http.get(url);
+    final url = Uri.parse(apiConfig.buildUrl('api/report'));
+    // Usar client en lugar de http.get
+    final response = await client.get(url);
 
     if (response.statusCode == 200) {
       final List<dynamic> data = jsonDecode(response.body);
@@ -18,14 +28,15 @@ class ReportService {
   }
 
   Future<void> deleteReport(Report report) async {
-    final url = Uri.parse(ApiConfig().buildUrl('api/report'));
+    final url = Uri.parse(apiConfig.buildUrl('api/report'));
     final body = jsonEncode({
       'reporterUsername': report.reportingUser,
       'reportedUsername': report.reportedUser,
       'reason': report.reason,
     });
 
-    final response = await http.delete(
+    // Usar client en lugar de http.delete
+    final response = await client.delete(
       url,
       headers: {
         'Content-Type': 'application/json',
@@ -39,13 +50,14 @@ class ReportService {
   }
 
   Future<void> blockUser(String blockerUsername, String blockedUsername) async {
-    final url = Uri.parse(ApiConfig().buildUrl('api/blocks/create'));
+    final url = Uri.parse(apiConfig.buildUrl('api/blocks/create'));
     final body = jsonEncode({
       'blockerUsername': blockerUsername,
       'blockedUsername': blockedUsername,
     });
 
-    final response = await http.post(
+    // Usar client en lugar de http.post
+    final response = await client.post(
       url,
       headers: {
         'Content-Type': 'application/json',
