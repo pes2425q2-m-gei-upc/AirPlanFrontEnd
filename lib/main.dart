@@ -260,6 +260,7 @@ class _MiAppState extends State<MiApp> with WidgetsBindingObserver {
     // Escuchar cambios de autenticación para inicializar/destruir el WebSocket según corresponda
     FirebaseAuth.instance.authStateChanges().listen((User? user) {
       if (user != null) {
+        debugPrint('User logged in: ${user.email}');
         _initializeGlobalWebSocketListener();
       } else {
         _disposeGlobalWebSocketListener();
@@ -609,31 +610,21 @@ class AuthWrapper extends StatefulWidget {
 
 class AuthWrapperState extends State<AuthWrapper> {
   bool _langLoaded = false;
-  // Flag para indicar si el usuario estaba previamente autenticado
-  bool _wasAuthenticated = false;
-  // Flag para indicar si el logout fue manual
-  bool _isManualLogout = false;
 
   @override
   void initState() {
     super.initState();
-
-    // Verificar si hay un usuario actualmente autenticado
-    final currentUser = FirebaseAuth.instance.currentUser;
-    _wasAuthenticated = currentUser != null;
-  }
-
-  // Método para establecer que el logout es manual
-  void setManualLogout(bool isManual) {
-    setState(() {
-      _isManualLogout = isManual;
-    });
+    // solo cargamos idioma si hay usuario
   }
 
   Future<bool> checkIfAdmin(String email) async {
+    // Construir URL y log para depuración
+    final url = ApiConfig().buildUrl('isAdmin/$email');
+    debugPrint('>>> checkIfAdmin: GET $url');
     try {
-      final response = await http.get(
-        Uri.parse(ApiConfig().buildUrl('isAdmin/$email')),
+      final response = await http.get(Uri.parse(url));
+      debugPrint(
+        '>>> checkIfAdmin response: ${response.statusCode} ${response.body}',
       );
       if (response.statusCode == 200) {
         final data = jsonDecode(response.body);
@@ -663,30 +654,6 @@ class AuthWrapperState extends State<AuthWrapper> {
             _langLoaded = true;
             _fetchUserLanguage(user);
           }
-          // Comprobar si la sesión ha caducado (estaba autenticado pero ahora no)
-          if (_wasAuthenticated && user == null && !_isManualLogout) {
-            // La sesión ha caducado, mostrar notificación solo si NO es logout manual
-            // Usar el servicio global de notificaciones
-            Future.delayed(Duration.zero, () {
-              GlobalNotificationService().addNotification(
-                'session_expired'.tr(),
-                'session_expired',
-                isUrgent: true,
-              );
-            });
-
-            // Actualizar el estado
-            _wasAuthenticated = false;
-          } else if (user != null) {
-            _wasAuthenticated = true;
-            // Resetear la bandera de logout manual cuando hay un nuevo login
-            _isManualLogout = false;
-          } else if (user == null && _isManualLogout) {
-            // Si es un logout manual, simplemente actualizamos el estado sin mostrar notificación
-            _wasAuthenticated = false;
-            // Resetear la bandera después de procesarla
-            _isManualLogout = false;
-          }
 
           if (user != null) {
             // El usuario está autenticado, verificar si es admin
@@ -701,6 +668,9 @@ class AuthWrapperState extends State<AuthWrapper> {
                   final isAdmin = adminSnapshot.data ?? false;
                   // Ensure WebSocket is connected
                   WebSocketService().connect();
+                  debugPrint(
+                    'User is authenticated: ${user.email}, Admin: $isAdmin',
+                  );
                   return isAdmin ? AdminPage() : const MyHomePage();
                 }
               },

@@ -76,6 +76,16 @@ class ChatDetailPageState extends State<ChatDetailPage> {
     if (_currentUsername != null) {
       _chatWebSocketService.connectToChat(widget.username);
       setState(() => _isInitializing = false);
+
+      // Timeout de seguridad: si después de 5 segundos no se recibe el historial,
+      // establecer _isLoading = false para mostrar el chat vacío
+      Future.delayed(const Duration(seconds: 5), () {
+        if (mounted && _isLoading) {
+          setState(() {
+            _isLoading = false;
+          });
+        }
+      });
     } else {
       // Intentar de nuevo después de un breve retraso
       Future.delayed(const Duration(milliseconds: 300), () {
@@ -96,10 +106,12 @@ class ChatDetailPageState extends State<ChatDetailPage> {
     if (!mounted) return;
 
     // Log para debug
+    print('Mensaje recibido: ${messageData.toString()}');
 
     // Procesar por tipo de mensaje
     if (messageData.containsKey('type')) {
       final messageType = messageData['type'];
+      print('Tipo de mensaje: $messageType');
 
       if (messageType == 'DELETE') {
         final sender = messageData['usernameSender'];
@@ -341,17 +353,28 @@ class ChatDetailPageState extends State<ChatDetailPage> {
       }
 
       _scrollToBottom();
+    } else {
+      // Si no hay mensajes o no se puede procesar el historial,
+      // asegurar que se quite el estado de carga
+      if (mounted) {
+        setState(() {
+          _isLoading = false;
+        });
+      }
     }
 
     // Procesar información de bloqueo inicial
     if (data.containsKey('blockStatus')) {
       _updateBlockStatus(data['blockStatus']);
-    } else if (_isLoading && mounted) {
-      setState(() {
-        _currentUserBlockedOther = false;
-        _otherUserBlockedCurrent = false;
-        _isLoading = false;
-      });
+    } else {
+      // Siempre asegurar que _isLoading se establezca en false
+      if (mounted && _isLoading) {
+        setState(() {
+          _currentUserBlockedOther = false;
+          _otherUserBlockedCurrent = false;
+          _isLoading = false;
+        });
+      }
     }
   }
 

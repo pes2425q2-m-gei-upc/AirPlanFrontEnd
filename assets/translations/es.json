@@ -662,5 +662,6 @@
   "please_introduce_reason": "Por favor, introduce un motivo para el reporte.",
   "recommended_activities_error_no_activities_nearby": "No hay actividades en un radio de 50 km desde tu ubicación actual.",
   "recommended_activities_error_no_activities_in_system": "No hay actividades en el sistema.",
-  "recommended_activities_error_server_or_communication": "Error del servidor o de comunicación. Por favor, inténtalo de nuevo más tarde."
+  "recommended_activities_error_server_or_communication": "Error del servidor o de comunicación. Por favor, inténtalo de nuevo más tarde.",
+  "calculate_ubication": "Para calcular la ubicación, por favor, selecciona una ubicación en el mapa."
 }

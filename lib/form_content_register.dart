@@ -8,6 +8,7 @@ import 'package:airplan/terms_page.dart';
 import 'package:airplan/user_services.dart';
 import 'rive_controller.dart';
 import 'services/auth_service.dart';
+import 'package:airplan/main.dart';
 import 'package:easy_localization/easy_localization.dart';
 
 class FormContentRegister extends StatefulWidget {
@@ -171,8 +172,11 @@ class _FormContentRegisterState extends State<FormContentRegister> {
 
       if (!mounted) return;
 
-      // Regresar a la pantalla anterior
-      Navigator.of(context).pop();
+      // Navegar al AuthWrapper para que detecte el nuevo usuario y muestre AdminPage
+      Navigator.of(context).pushAndRemoveUntil(
+        MaterialPageRoute(builder: (_) => const AuthWrapper()),
+        (route) => false,
+      );
     } catch (e) {
       _handleGenericError();
     }
