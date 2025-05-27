@@ -10,6 +10,10 @@ jobs:
   build:
     runs-on: ubuntu-latest
 
+    env:
+      RELEASE_STORE_PASSWORD: ${{ secrets.RELEASE_STORE_PASSWORD }}
+      RELEASE_KEY_PASSWORD: ${{ secrets.RELEASE_KEY_PASSWORD }}
+
     steps:
       - name: Checkout repository
         uses: actions/checkout@v2
@@ -48,6 +52,12 @@ jobs:
 
       - name: Run tests
         run: flutter test
+
+      - name: Decrypt keystore
+        run: |
+          gpg --batch --yes --passphrase "$KEYSTORE_PASSPHRASE" -o android/app/release-keystore.jks -d android/app/release-keystore.jks.gpg
+        env:
+          KEYSTORE_PASSPHRASE: ${{ secrets.KEYSTORE_PASSPHRASE }}
 
       - name: Build APK
         run: flutter build apk
