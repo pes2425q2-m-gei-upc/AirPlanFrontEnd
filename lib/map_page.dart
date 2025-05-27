@@ -1073,6 +1073,7 @@ class MapPageState extends State<MapPage> {
                   ),
                   DropdownButtonFormField<LatLng>(
                     value: selectedLocation,
+                    isExpanded: true,
                     items:
                         savedLocations.entries.map((entry) {
                           String displayText =
