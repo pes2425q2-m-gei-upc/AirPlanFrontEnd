@@ -954,8 +954,12 @@ class CalendarPageState extends State<CalendarPage> {
               isEditable:
                   activity['creador'] ==
                   widget.authService.getCurrentUsername(),
-              onEdit: () => {},
-              onDelete: () => {},
+              onEdit: () => _showEditActivityForm(
+                activity,
+              ),
+              onDelete: () => _showDeleteConfirmation(
+                activity,
+              ),
             ),
       ),
     );
@@ -1014,4 +1018,187 @@ class CalendarPageState extends State<CalendarPage> {
 
     return listAQD;
   }
+
+  void _showEditActivityForm(Map<String, dynamic> activity) {
+    final parentContext = context; // capture scaffold context
+    final formKey = GlobalKey<FormState>();
+    final titleController = TextEditingController(text: activity['nom']);
+    final descriptionController = TextEditingController(
+      text: activity['descripcio'],
+    );
+    final startDateController = TextEditingController(
+      text: activity['dataInici'],
+    );
+    final endDateController = TextEditingController(text: activity['dataFi']);
+    final creatorController = TextEditingController(text: activity['creador']);
+    final locationController = TextEditingController(
+      text:
+      activity['ubicacio'] != null
+          ? '${activity['ubicacio']['latitud']},${activity['ubicacio']['longitud']}'
+          : '',
+    );
+
+    showDialog(
+      context: parentContext,
+      builder: (BuildContext dialogContext) {
+        return AlertDialog(
+          title: Text('edit_activity'.tr()),
+          content: Form(
+            key: formKey,
+            child: SingleChildScrollView(
+              child: Column(
+                mainAxisSize: MainAxisSize.min,
+                children: [
+                  TextFormField(
+                    controller: titleController,
+                    decoration: InputDecoration(labelText: 'title'.tr()),
+                    validator: (value) {
+                      if (value == null || value.isEmpty) {
+                        return 'please_title'.tr();
+                      }
+                      return null;
+                    },
+                  ),
+                  TextFormField(
+                    controller: descriptionController,
+                    decoration: InputDecoration(labelText: 'description'.tr()),
+                    validator: (value) {
+                      if (value == null || value.isEmpty) {
+                        return 'please_description'.tr();
+                      }
+                      return null;
+                    },
+                  ),
+                  TextFormField(
+                    controller: startDateController,
+                    decoration: InputDecoration(labelText: 'start_date'.tr()),
+                    validator: (value) {
+                      if (value == null || value.isEmpty) {
+                        return 'please_start_date'.tr();
+                      }
+                      return null;
+                    },
+                  ),
+                  TextFormField(
+                    controller: endDateController,
+                    decoration: InputDecoration(labelText: 'end_date'.tr()),
+                    validator: (value) {
+                      if (value == null || value.isEmpty) {
+                        return 'please_end_date'.tr();
+                      }
+                      return null;
+                    },
+                  ),
+                ],
+              ),
+            ),
+          ),
+          actions: [
+            TextButton(
+              onPressed: () {
+                Navigator.of(dialogContext).pop();
+              },
+              child: Text('Cancelar'),
+            ),
+            TextButton(
+              onPressed: () async {
+                if (formKey.currentState!.validate()) {
+                  Navigator.of(dialogContext).pop();
+
+                  final updatedActivityData = {
+                    'title': titleController.text,
+                    'description': descriptionController.text,
+                    'startDate': startDateController.text,
+                    'endDate': endDateController.text,
+                    'location': locationController.text,
+                    'user': creatorController.text,
+                  };
+
+                  try {
+                    final activityService = ActivityService();
+                    await activityService.updateActivityInBackend(
+                      activity['id'].toString(),
+                      updatedActivityData,
+                    );
+                    if (mounted) {
+                      if (!parentContext.mounted) return;
+                      ScaffoldMessenger.of(parentContext).showSnackBar(
+                        SnackBar(
+                          content: Text('activity_updated_success'.tr()),
+                        ),
+                      );
+                    }
+                  } catch (e) {
+                    if (mounted) {
+                      // Get only the part after the last ': '
+                      final parts = e.toString().split(': ');
+                      String msg = parts.isNotEmpty ? parts.last : e.toString();
+                      if (msg.contains("inapropiats")) {
+                        msg = "inappropiat_message".tr();
+                      }
+                      if (!parentContext.mounted) return;
+                      ScaffoldMessenger.of(
+                        parentContext,
+                      ).showSnackBar(SnackBar(content: Text(msg)));
+                    }
+                  }
+                }
+              },
+              child: Text('save'.tr()),
+            ),
+          ],
+        );
+      },
+    );
+  }
+
+  void _showDeleteConfirmation(Map<String, dynamic> activity) {
+    showDialog(
+      context: context,
+      builder: (context) {
+        return AlertDialog(
+          title: Text(tr('confirm_delete_activity_title')),
+          content: Text(tr('confirm_delete_activity_content')),
+          actions: [
+            TextButton(
+              onPressed: () {
+                Navigator.pop(context); // Cierra el diálogo
+              },
+              child: Text(tr('cancel')),
+            ),
+            TextButton(
+              onPressed: () async {
+                Navigator.pop(context); // Cierra el diálogo
+
+                // Llama al servicio para eliminar la actividad
+                try {
+                  final activityService = ActivityService();
+                  await activityService.deleteActivityFromBackend(
+                    activity['id'].toString(),
+                  );
+                  if (context.mounted) {
+                    ScaffoldMessenger.of(context).showSnackBar(
+                      SnackBar(content: Text(tr('activity_deleted_success'))),
+                    );
+                  }
+                } catch (e) {
+                  if (context.mounted) {
+                    ScaffoldMessenger.of(context).showSnackBar(
+                      SnackBar(
+                        content: Text(
+                          tr('activity_delete_error', args: [e.toString()]),
+                        ),
+                      ),
+                    );
+                  }
+                }
+              },
+              child: Text(tr('delete'), style: TextStyle(color: Colors.red)),
+            ),
+          ],
+        );
+      },
+    );
+  }
+
 }

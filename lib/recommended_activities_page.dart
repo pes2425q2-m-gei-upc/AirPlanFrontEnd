@@ -581,34 +581,43 @@ class RecommendedActivitiesPageState extends State<RecommendedActivitiesPage> {
                                         ),
                                       ),
                                       const SizedBox(height: 8),
-                                      Row(
+                                      Column(
+                                        crossAxisAlignment: CrossAxisAlignment.start,
                                         children: [
-                                          Icon(
-                                            Icons.calendar_today,
-                                            size: 16,
-                                            color: Colors.teal[700],
+                                          Row(
+                                            children: [
+                                              Icon(
+                                                Icons.calendar_today,
+                                                size: 16,
+                                                color: Colors.teal[700],
+                                              ),
+                                              const SizedBox(width: 4),
+                                              Text(
+                                                '${'start'.tr()}: ${DateFormat('dd/MM/yyyy HH:mm').format(activity.dataInici)}',
+                                                style: TextStyle(
+                                                  fontSize: 13,
+                                                  color: Colors.teal[900],
+                                                ),
+                                              ),
+                                            ],
                                           ),
-                                          const SizedBox(width: 4),
-                                          Text(
-                                            '${'start'.tr()}: ${DateFormat('dd/MM/yyyy HH:mm').format(activity.dataInici)}',
-                                            style: TextStyle(
-                                              fontSize: 13,
-                                              color: Colors.teal[900],
-                                            ),
-                                          ),
-                                          const SizedBox(width: 12),
-                                          Icon(
-                                            Icons.event,
-                                            size: 16,
-                                            color: Colors.teal[700],
-                                          ),
-                                          const SizedBox(width: 4),
-                                          Text(
-                                            '${'end'.tr()}: ${DateFormat('dd/MM/yyyy HH:mm').format(activity.dataFi)}',
-                                            style: TextStyle(
-                                              fontSize: 13,
-                                              color: Colors.teal[900],
-                                            ),
+                                          const SizedBox(height: 4),
+                                          Row(
+                                            children: [
+                                              Icon(
+                                                Icons.event,
+                                                size: 16,
+                                                color: Colors.teal[700],
+                                              ),
+                                              const SizedBox(width: 4),
+                                              Text(
+                                                '${'end'.tr()}: ${DateFormat('dd/MM/yyyy HH:mm').format(activity.dataFi)}',
+                                                style: TextStyle(
+                                                  fontSize: 13,
+                                                  color: Colors.teal[900],
+                                                ),
+                                              ),
+                                            ],
                                           ),
                                         ],
                                       ),

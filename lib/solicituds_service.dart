@@ -54,4 +54,43 @@ class SolicitudsService {
       throw Exception('Error al cancelar la solicitud: ${response.body}');
     }
   }
+
+  Future<List<String>> fetchSolicitudesUnio(String activityId) async {
+    final int activityIdInt = int.parse(activityId);
+    final url = Uri.parse(ApiConfig().buildUrl('api/solicituds/$activityIdInt/solicituds'));
+    try {
+      final response = await http.get(url);
+      if (response.statusCode == 200) {
+        final List<dynamic> solicitudesJson = json.decode(response.body);
+        return solicitudesJson
+            .map((json) => json['usernameSolicitant'] as String)
+            .toList();
+      } else {
+        throw Exception('Error al obtener solicitudes: ${response.statusCode}');
+      }
+    } catch (e) {
+      throw Exception('Error de red: $e');
+    }
+  }
+
+  Future<void> aceptarSolicitudUnio(String activityId, String username) async {
+    final addParticipantUrl = Uri.parse(ApiConfig().buildUrl('api/activitats/$activityId/$username'));
+    final deleteRequestUrl = Uri.parse(ApiConfig().buildUrl('api/solicituds/$username/$activityId'));
+
+    try {
+      await http.post(addParticipantUrl);
+      await http.delete(deleteRequestUrl);
+    } catch (e) {
+      throw Exception('Error al aceptar la solicitud: $e');
+    }
+  }
+
+  Future<void> rechazarSolicitudUnio(String activityId, String username) async {
+    final url = Uri.parse(ApiConfig().buildUrl('api/solicituds/$username/$activityId'));
+    try {
+      await http.delete(url);
+    } catch (e) {
+      throw Exception('Error al rechazar la solicitud: $e');
+    }
+  }
 }

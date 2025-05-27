@@ -12,7 +12,7 @@ class FormDialog extends StatefulWidget {
   final String initialStartDate;
   final String initialEndDate;
   final Map<LatLng, String> savedLocations;
-  final String initialLocation;
+  final LatLng initialLocation;
 
   const FormDialog({
     super.key,
@@ -37,6 +37,7 @@ class FormDialogState extends State<FormDialog> {
   final _descriptionController = TextEditingController();
   final _startDateController = TextEditingController();
   final _endDateController = TextEditingController();
+  late final Map<LatLng,String> _savedLocations;
   LatLng _selectedLocation = LatLng(0, 0);
 
   @override
@@ -47,9 +48,13 @@ class FormDialogState extends State<FormDialog> {
     _descriptionController.text = widget.initialDescription;
     _startDateController.text = widget.initialStartDate;
     _endDateController.text = widget.initialEndDate;
-    if (widget.savedLocations.isNotEmpty) {
-      _selectedLocation = widget.savedLocations.keys.first;
-    }
+
+    // Make sure the initial location is in the saved locations map
+    _savedLocations = Map<LatLng, String>.from(widget.savedLocations);
+    _savedLocations[widget.initialLocation] = widget.initialPlaceDetails;
+
+    // Set the selected location to the initial location
+    _selectedLocation = widget.initialLocation;
   }
 
   // ignore: use_build_context_synchronously
@@ -98,17 +103,15 @@ class FormDialogState extends State<FormDialog> {
             child: DropdownButtonFormField<LatLng>(
               isExpanded: true,
               value: _selectedLocation,
-              items:
-                  widget.savedLocations.entries.map((entry) {
-                    String displayText =
-                        entry.value.isNotEmpty
-                            ? entry.value
-                            : '${entry.key.latitude}, ${entry.key.longitude}';
-                    return DropdownMenuItem<LatLng>(
-                      value: entry.key,
-                      child: Text(displayText, overflow: TextOverflow.ellipsis),
-                    );
-                  }).toList(),
+              items: _savedLocations.entries.map((entry) {
+                String displayText = entry.value.isNotEmpty
+                    ? entry.value
+                    : '${entry.key.latitude}, ${entry.key.longitude}';
+                return DropdownMenuItem<LatLng>(
+                  value: entry.key,
+                  child: Text(displayText, overflow: TextOverflow.ellipsis),
+                );
+              }).toList(),
               onChanged: (value) {
                 setState(() {
                   _selectedLocation = value!;
@@ -200,3 +203,4 @@ class FormDialogState extends State<FormDialog> {
     );
   }
 }
+

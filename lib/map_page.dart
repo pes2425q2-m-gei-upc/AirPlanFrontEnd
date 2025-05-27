@@ -352,10 +352,10 @@ class MapPageState extends State<MapPage> {
       ];
     });
 
-    String details;
     try {
-      details = await mapService.fetchPlaceDetails(position);
-      _showPlaceDetails(position, details);
+      placeDetails = await mapService.fetchPlaceDetails(position);
+      selectedLocation = position;
+      _showPlaceDetails(position, placeDetails);
     } catch (e) {
       final actualContext = context;
       if (actualContext.mounted) {
@@ -645,7 +645,6 @@ class MapPageState extends State<MapPage> {
                                 selectedLocation,
                                 placeDetails,
                               );
-                              savedLocations[selectedLocation] = placeDetails;
                             },
                             child: Text('create_activity'.tr()),
                           ),
@@ -734,7 +733,7 @@ class MapPageState extends State<MapPage> {
         return AlertDialog(
           title: Text(tr('enter_details')),
           content: FormDialog(
-            initialLocation: '${location.latitude},${location.longitude}',
+            initialLocation: location,
             initialPlaceDetails: placeDetails,
             initialTitle: '',
             initialUser: '',
@@ -1070,6 +1069,7 @@ class MapPageState extends State<MapPage> {
                   ),
                   DropdownButtonFormField<LatLng>(
                     value: selectedLocation,
+                    isExpanded: true,
                     items:
                         savedLocations.entries.map((entry) {
                           String displayText =
@@ -2437,9 +2437,9 @@ class MapPageState extends State<MapPage> {
             FloatingActionButton(
               heroTag: "addLocation",
               onPressed: () {
-                if (savedLocations.entries.isNotEmpty) {
+                if (savedLocations.entries.isNotEmpty || selectedLocation != LatLng(0,0)) {
                   _showFormWithLocation(
-                    savedLocations.keys.first,
+                    selectedLocation != LatLng(0,0) ? selectedLocation : savedLocations.keys.first,
                     placeDetails,
                   );
                 } else {
