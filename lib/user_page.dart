@@ -851,102 +851,109 @@ class _UserPageState extends State<UserPage> {
                   userLevel: _userLevel,
                   isLoading: _isLoading,
                 ),
-                const SizedBox(height: 16), // Espaciado entre botones
-                ElevatedButton.icon(
-                  onPressed: () {
-                    Navigator.of(context).push(
-                      MaterialPageRoute(
-                        builder: (context) => TrophiesPage(username: _username),
-                      ),
-                    );
-                  },
-                  icon: const Icon(Icons.emoji_events),
-                  label: Text('show_trophies'.tr()),
-                  style: ElevatedButton.styleFrom(
-                    backgroundColor: Colors.amber,
-                    foregroundColor: Colors.white,
-                    minimumSize: const Size(double.infinity, 50),
-                    padding: const EdgeInsets.symmetric(vertical: 12),
+                // Mostrar botones solo si el usuario es cliente
+                if (_isClient) ...[
+                  const SizedBox(height: 16), // Espaciado entre botones
+                  ElevatedButton.icon(
+                    onPressed: () {
+                      Navigator.of(context).push(
+                        MaterialPageRoute(
+                          builder:
+                              (context) => TrophiesPage(username: _username),
+                        ),
+                      );
+                    },
+                    icon: const Icon(Icons.emoji_events),
+                    label: Text('show_trophies'.tr()),
+                    style: ElevatedButton.styleFrom(
+                      backgroundColor: Colors.amber,
+                      foregroundColor: Colors.white,
+                      minimumSize: const Size(double.infinity, 50),
+                      padding: const EdgeInsets.symmetric(vertical: 12),
+                    ),
                   ),
-                ),
-                const SizedBox(height: 16),
-                ElevatedButton.icon(
-                  onPressed: () {
-                    Navigator.of(context).push(
-                      MaterialPageRoute(
-                        builder: (context) => RatingsPage(username: _username),
-                      ),
-                    );
-                  },
-                  icon: const Icon(Icons.star),
-                  label: Text('view_ratings'.tr()),
-                  style: ElevatedButton.styleFrom(
-                    backgroundColor: Colors.green,
-                    foregroundColor: Colors.white,
-                    minimumSize: const Size(double.infinity, 50),
-                    padding: const EdgeInsets.symmetric(vertical: 12),
+                  const SizedBox(height: 16),
+                  ElevatedButton.icon(
+                    onPressed: () {
+                      Navigator.of(context).push(
+                        MaterialPageRoute(
+                          builder:
+                              (context) => RatingsPage(username: _username),
+                        ),
+                      );
+                    },
+                    icon: const Icon(Icons.star),
+                    label: Text('view_ratings'.tr()),
+                    style: ElevatedButton.styleFrom(
+                      backgroundColor: Colors.green,
+                      foregroundColor: Colors.white,
+                      minimumSize: const Size(double.infinity, 50),
+                      padding: const EdgeInsets.symmetric(vertical: 12),
+                    ),
                   ),
-                ),
-                // Add this button after the "Ver Mis Valoraciones" button
-                const SizedBox(height: 16), // Espaciado entre botones
-                ElevatedButton.icon(
-                  onPressed: () {
-                    Navigator.push(
-                      context,
-                      MaterialPageRoute(
-                        builder:
-                            (context) => InvitationsPage(username: _username),
-                      ),
-                    );
-                  },
-                  icon: const Icon(Icons.mail_outline),
-                  label: Text('view_invitations'.tr()),
-                  style: ElevatedButton.styleFrom(
-                    backgroundColor: Colors.purple,
-                    foregroundColor: Colors.white,
-                    minimumSize: const Size(double.infinity, 50),
-                    padding: const EdgeInsets.symmetric(vertical: 12),
+                  // Add this button after the "Ver Mis Valoraciones" button
+                  const SizedBox(height: 16), // Espaciado entre botones
+                  ElevatedButton.icon(
+                    onPressed: () {
+                      Navigator.push(
+                        context,
+                        MaterialPageRoute(
+                          builder:
+                              (context) => InvitationsPage(username: _username),
+                        ),
+                      );
+                    },
+                    icon: const Icon(Icons.mail_outline),
+                    label: Text('view_invitations'.tr()),
+                    style: ElevatedButton.styleFrom(
+                      backgroundColor: Colors.purple,
+                      foregroundColor: Colors.white,
+                      minimumSize: const Size(double.infinity, 50),
+                      padding: const EdgeInsets.symmetric(vertical: 12),
+                    ),
                   ),
-                ),
-                const SizedBox(height: 16),
-                ElevatedButton.icon(
-                  onPressed: () {
-                    Navigator.of(context).push(
-                      MaterialPageRoute(
-                        builder:
-                            (context) => UserRequestsPage(username: _username),
-                      ),
-                    );
-                  },
-                  icon: const Icon(Icons.list_alt),
-                  label: Text('my_requests'.tr()),
-                  style: ElevatedButton.styleFrom(
-                    backgroundColor: Colors.blueAccent,
-                    foregroundColor: Colors.white,
-                    minimumSize: const Size(double.infinity, 50),
-                    padding: const EdgeInsets.symmetric(vertical: 12),
+                  const SizedBox(height: 16),
+                  ElevatedButton.icon(
+                    onPressed: () {
+                      Navigator.of(context).push(
+                        MaterialPageRoute(
+                          builder:
+                              (context) =>
+                                  UserRequestsPage(username: _username),
+                        ),
+                      );
+                    },
+                    icon: const Icon(Icons.list_alt),
+                    label: Text('my_requests'.tr()),
+                    style: ElevatedButton.styleFrom(
+                      backgroundColor: Colors.blueAccent,
+                      foregroundColor: Colors.white,
+                      minimumSize: const Size(double.infinity, 50),
+                      padding: const EdgeInsets.symmetric(vertical: 12),
+                    ),
                   ),
-                ),
-                // Botón para ver usuarios bloqueados
-                const SizedBox(height: 16),
-                ElevatedButton.icon(
-                  onPressed: () {
-                    Navigator.of(context).push(
-                      MaterialPageRoute(
-                        builder:
-                            (context) => BlockedUsersPage(username: _username),
-                      ),
-                    );
-                  },
-                  icon: const Icon(Icons.block),
-                  label: Text('blocked_users'.tr()),
-                  style: ElevatedButton.styleFrom(
-                    backgroundColor: Colors.redAccent,
-                    foregroundColor: Colors.white,
-                    minimumSize: const Size(double.infinity, 50),
-                    padding: const EdgeInsets.symmetric(vertical: 12),
+                  // Botón para ver usuarios bloqueados
+                  const SizedBox(height: 16),
+                  ElevatedButton.icon(
+                    onPressed: () {
+                      Navigator.of(context).push(
+                        MaterialPageRoute(
+                          builder:
+                              (context) =>
+                                  BlockedUsersPage(username: _username),
+                        ),
+                      );
+                    },
+                    icon: const Icon(Icons.block),
+                    label: Text('blocked_users'.tr()),
+                    style: ElevatedButton.styleFrom(
+                      backgroundColor: Colors.redAccent,
+                      foregroundColor: Colors.white,
+                      minimumSize: const Size(double.infinity, 50),
+                      padding: const EdgeInsets.symmetric(vertical: 12),
+                    ),
                   ),
-                ),
+                ],
                 const SizedBox(height: 20),
                 // Botones de acción
                 Row(

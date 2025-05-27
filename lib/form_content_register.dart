@@ -243,6 +243,7 @@ class _FormContentRegisterState extends State<FormContentRegister> {
       await Future.delayed(const Duration(milliseconds: 100));
 
       // Navegar al AuthWrapper
+      if (!mounted) return;
       Navigator.of(context).pushAndRemoveUntil(
         MaterialPageRoute(builder: (_) => const AuthWrapper()),
         (route) => false,

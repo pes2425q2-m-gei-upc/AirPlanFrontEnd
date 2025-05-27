@@ -108,12 +108,10 @@ class ChatDetailPageState extends State<ChatDetailPage> {
     if (!mounted) return;
 
     // Log para debug
-    print('Mensaje recibido: ${messageData.toString()}');
 
     // Procesar por tipo de mensaje
     if (messageData.containsKey('type')) {
       final messageType = messageData['type'];
-      print('Tipo de mensaje: $messageType');
 
       if (messageType == 'DELETE') {
         final sender = messageData['usernameSender'];
