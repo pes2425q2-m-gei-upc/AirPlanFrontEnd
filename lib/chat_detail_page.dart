@@ -47,9 +47,11 @@ class ChatDetailPageState extends State<ChatDetailPage> {
   bool _isInitializing = true;
   bool _currentUserBlockedOther = false;
   bool _otherUserBlockedCurrent = false;
-
   // Suscripción a mensajes de WebSocket
   StreamSubscription? _chatSubscription;
+
+  // Timer para timeout de seguridad en conectToChat
+  Timer? _loadingTimeoutTimer;
 
   // Getter para determinar si el chat está bloqueado
   bool get _isChatBlocked =>
@@ -79,7 +81,7 @@ class ChatDetailPageState extends State<ChatDetailPage> {
 
       // Timeout de seguridad: si después de 5 segundos no se recibe el historial,
       // establecer _isLoading = false para mostrar el chat vacío
-      Future.delayed(const Duration(seconds: 5), () {
+      _loadingTimeoutTimer = Timer(const Duration(seconds: 5), () {
         if (mounted && _isLoading) {
           setState(() {
             _isLoading = false;
@@ -649,6 +651,7 @@ class ChatDetailPageState extends State<ChatDetailPage> {
   @override
   void dispose() {
     _chatSubscription?.cancel();
+    _loadingTimeoutTimer?.cancel();
     _chatService.disconnectFromChat();
     _messageController.dispose();
     _scrollController.dispose();

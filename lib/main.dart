@@ -1,4 +1,3 @@
-// main.dart
 import 'dart:convert';
 import 'package:firebase_core/firebase_core.dart';
 import 'package:flutter/material.dart';
@@ -15,6 +14,7 @@ import 'admin_page.dart';
 import 'chat_list_page.dart'; // Import the new ChatListPage
 import 'services/websocket_service.dart'; // Import WebSocket service
 import 'services/api_config.dart'; // Importar la configuración de API
+import 'services/registration_state_service.dart'; // Import registration state service
 import 'dart:async'; // Para StreamSubscription
 import 'package:easy_localization/easy_localization.dart';
 
@@ -610,11 +610,29 @@ class AuthWrapper extends StatefulWidget {
 
 class AuthWrapperState extends State<AuthWrapper> {
   bool _langLoaded = false;
+  String? _lastUserId; // Para evitar recargas innecesarias
+  StreamSubscription<RegistrationState>? _registrationSubscription;
 
   @override
   void initState() {
     super.initState();
-    // solo cargamos idioma si hay usuario
+    // Escuchar cambios en el estado de registro
+    _registrationSubscription = RegistrationStateService().stateStream.listen((
+      state,
+    ) {
+      if (state == RegistrationState.completed && mounted) {
+        // Si el registro se completó, forzar una reconstrucción después de un breve delay
+        Future.delayed(const Duration(milliseconds: 200), () {
+          if (mounted) setState(() {});
+        });
+      }
+    });
+  }
+
+  @override
+  void dispose() {
+    _registrationSubscription?.cancel();
+    super.dispose();
   }
 
   Future<bool> checkIfAdmin(String email) async {
@@ -646,25 +664,88 @@ class AuthWrapperState extends State<AuthWrapper> {
     return StreamBuilder<User?>(
       stream: FirebaseAuth.instance.authStateChanges(),
       builder: (context, snapshot) {
+        // Mostrar loading mientras se establece la conexión
+        if (snapshot.connectionState == ConnectionState.waiting) {
+          return const Scaffold(
+            body: Center(child: CircularProgressIndicator()),
+          );
+        }
+
         if (snapshot.connectionState == ConnectionState.active) {
           final user = snapshot.data;
 
-          // Cargar idioma del usuario según configuración del backend
-          if (user != null && !_langLoaded) {
-            _langLoaded = true;
-            _fetchUserLanguage(user);
+          // Si no hay usuario, mostrar login
+          if (user == null) {
+            _langLoaded = false;
+            _lastUserId = null;
+            WebSocketService().disconnect();
+            // Resetear el estado de registro si no hay usuario
+            RegistrationStateService().reset();
+            return const LoginPage();
           }
 
-          if (user != null) {
-            // El usuario está autenticado, verificar si es admin
-            return FutureBuilder<bool>(
-              future: checkIfAdmin(user.email!),
-              builder: (context, adminSnapshot) {
-                if (adminSnapshot.connectionState == ConnectionState.waiting) {
-                  return const Scaffold(
-                    body: Center(child: CircularProgressIndicator()),
-                  );
-                } else {
+          // Verificar si estamos en proceso de registro para este usuario
+          final registrationService = RegistrationStateService();
+          if (registrationService.isRegistering(user.email)) {
+            // Mostrar pantalla de loading mientras se completa el registro
+            return const Scaffold(
+              body: Center(
+                child: Column(
+                  mainAxisAlignment: MainAxisAlignment.center,
+                  children: [
+                    CircularProgressIndicator(),
+                    SizedBox(height: 16),
+                    Text('Completando registro...'),
+                  ],
+                ),
+              ),
+            );
+          }
+
+          // Verificar si es un nuevo usuario o si cambió el usuario
+          final currentUserId = user.uid;
+          if (_lastUserId != currentUserId) {
+            _langLoaded = false;
+            _lastUserId = currentUserId;
+          }
+
+          // Asegurar que el usuario esté completamente cargado antes de proceder
+          return FutureBuilder<void>(
+            future: _ensureUserReady(user),
+            builder: (context, readySnapshot) {
+              if (readySnapshot.connectionState == ConnectionState.waiting) {
+                return const Scaffold(
+                  body: Center(child: CircularProgressIndicator()),
+                );
+              }
+
+              // Cargar idioma del usuario según configuración del backend
+              if (!_langLoaded) {
+                _langLoaded = true;
+                _fetchUserLanguage(user);
+              }
+
+              // El usuario está autenticado, verificar si es admin
+              return FutureBuilder<bool>(
+                future: checkIfAdmin(user.email!),
+                builder: (context, adminSnapshot) {
+                  if (adminSnapshot.connectionState ==
+                      ConnectionState.waiting) {
+                    return const Scaffold(
+                      body: Center(child: CircularProgressIndicator()),
+                    );
+                  }
+
+                  // Manejar errores en la verificación de admin
+                  if (adminSnapshot.hasError) {
+                    debugPrint(
+                      'Error checking admin status: ${adminSnapshot.error}',
+                    );
+                    // En caso de error, asumir que no es admin
+                    WebSocketService().connect();
+                    return const MyHomePage();
+                  }
+
                   final isAdmin = adminSnapshot.data ?? false;
                   // Ensure WebSocket is connected
                   WebSocketService().connect();
@@ -672,17 +753,38 @@ class AuthWrapperState extends State<AuthWrapper> {
                     'User is authenticated: ${user.email}, Admin: $isAdmin',
                   );
                   return isAdmin ? AdminPage() : const MyHomePage();
-                }
-              },
-            );
-          }
-          // Disconnect WebSocket if user is not authenticated
-          WebSocketService().disconnect();
-          return const LoginPage();
+                },
+              );
+            },
+          );
         }
+
+        // Fallback para otros estados de conexión
         return const Scaffold(body: Center(child: CircularProgressIndicator()));
       },
     );
+  }
+
+  // Asegurar que el usuario esté completamente configurado
+  Future<void> _ensureUserReady(User user) async {
+    try {
+      // Recargar el usuario para obtener la información más reciente
+      await user.reload();
+
+      // Verificar que el usuario sigue autenticado después del reload
+      final currentUser = FirebaseAuth.instance.currentUser;
+      if (currentUser == null || currentUser.uid != user.uid) {
+        throw Exception('Usuario no válido después del reload');
+      }
+
+      // Pequeña pausa para asegurar que todos los procesos estén completos
+      await Future.delayed(const Duration(milliseconds: 200));
+    } catch (e) {
+      debugPrint('Error ensuring user ready: $e');
+      // Si hay un error, cerrar sesión para evitar estados inconsistentes
+      await FirebaseAuth.instance.signOut();
+      rethrow;
+    }
   }
 
   // Obtener y aplicar el idioma del usuario desde el backend

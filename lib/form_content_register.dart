@@ -8,6 +8,7 @@ import 'package:airplan/terms_page.dart';
 import 'package:airplan/user_services.dart';
 import 'rive_controller.dart';
 import 'services/auth_service.dart';
+import 'services/registration_state_service.dart';
 import 'package:airplan/main.dart';
 import 'package:easy_localization/easy_localization.dart';
 
@@ -143,6 +144,7 @@ class _FormContentRegisterState extends State<FormContentRegister> {
         _handleBackendError(response.body);
       }
     } catch (e) {
+      debugPrint('Error en _registerUser: $e');
       if (e is FirebaseAuthException) {
         _handleFirebaseError(e);
       } else if (e is PlatformException) {
@@ -155,30 +157,115 @@ class _FormContentRegisterState extends State<FormContentRegister> {
 
   void _handleRegistrationSuccess() async {
     widget.riveHelper.addSuccessController();
+
+    // Marcar el inicio del proceso de registro
+    final registrationService = RegistrationStateService();
+    registrationService.startRegistration(_emailController.text.trim());
+
     try {
-      // Usar AuthService en lugar de Firebase directamente
+      debugPrint('Iniciando registro de usuario con AuthService');
+
+      // Crear usuario en Firebase
       final userCredential = await _authService.createUserWithEmailAndPassword(
         _emailController.text.trim(),
         _passwordController.text.trim(),
       );
 
-      // Actualizar el nombre de usuario con AuthService
+      debugPrint(
+        'Usuario registrado exitosamente: ${userCredential.user?.email}',
+      );
+
+      // Verificar que el usuario se creó correctamente
+      if (userCredential.user == null) {
+        throw Exception('No se pudo crear el usuario en Firebase');
+      }
+
+      final user = userCredential.user!;
+
+      // Actualizar displayName y enviar verificación de email de forma secuencial
+      // para evitar problemas de concurrencia
+      debugPrint('Actualizando displayName...');
       await _authService.updateDisplayName(_usernameController.text.trim());
 
-      // Enviar verificación de email
-      if (userCredential.user != null) {
-        await _authService.sendEmailVerification();
+      debugPrint('Enviando verificación de email...');
+      await _authService.sendEmailVerification();
+
+      debugPrint('Recargando usuario...');
+      await _authService.reloadCurrentUser();
+
+      // Verificar que el usuario sigue autenticado antes de continuar
+      final currentUser = FirebaseAuth.instance.currentUser;
+      if (currentUser == null || currentUser.uid != user.uid) {
+        throw Exception(
+          'El usuario se desautenticó durante el proceso de registro',
+        );
       }
+
+      debugPrint('Actualizando estado de sesión en el backend...');
+      await _updateUserSessionStatus(_emailController.text.trim());
+
+      // Verificar una vez más que el usuario sigue autenticado
+      final finalUser = FirebaseAuth.instance.currentUser;
+      if (finalUser == null) {
+        throw Exception('El usuario se desautenticó antes de la navegación');
+      }
+
+      // Marcar el registro como completado ANTES de navegar
+      registrationService.markRegistrationComplete();
 
       if (!mounted) return;
 
-      // Navegar al AuthWrapper para que detecte el nuevo usuario y muestre AdminPage
+      debugPrint('Usuario completamente configurado, navegando al AuthWrapper');
+
+      // Usar un delay mínimo antes de navegar
+      await Future.delayed(const Duration(milliseconds: 100));
+
+      // Navegar al AuthWrapper
       Navigator.of(context).pushAndRemoveUntil(
         MaterialPageRoute(builder: (_) => const AuthWrapper()),
         (route) => false,
       );
+
+      debugPrint('Navegación completada');
     } catch (e) {
+      debugPrint('Error en _handleRegistrationSuccess: $e');
+      // Marcar el registro como fallido
+      registrationService.markRegistrationFailed();
+
+      // Si hay error, intentar limpiar el estado de Firebase
+      try {
+        final currentUser = FirebaseAuth.instance.currentUser;
+        if (currentUser != null) {
+          await _authService.signOut();
+          // También intentar eliminar el usuario del backend
+          await UserService.rollbackUserCreation(_emailController.text.trim());
+        }
+      } catch (signOutError) {
+        debugPrint('Error al hacer rollback después del fallo: $signOutError');
+      }
       _handleGenericError();
+    }
+  }
+
+  // Método auxiliar para actualizar el estado de sesión en el backend
+  Future<void> _updateUserSessionStatus(String email) async {
+    try {
+      final response = await http.post(
+        Uri.parse(ApiConfig().buildUrl('api/usuaris/login')),
+        headers: {'Content-Type': 'application/json; charset=UTF-8'},
+        body: jsonEncode({"email": email}),
+      );
+
+      if (response.statusCode == 200) {
+        debugPrint('Estado de sesión actualizado en el backend');
+      } else {
+        debugPrint(
+          'Warning: No se pudo actualizar el estado de sesión en el backend',
+        );
+      }
+    } catch (e) {
+      debugPrint('Error al actualizar estado de sesión: $e');
+      // No lanzamos error aquí porque el registro ya fue exitoso
     }
   }
 
@@ -200,10 +287,17 @@ class _FormContentRegisterState extends State<FormContentRegister> {
   void _handleFirebaseError(FirebaseAuthException e) async {
     widget.riveHelper.addFailController();
 
+    debugPrint('Firebase error: ${e.code} - ${e.message}');
+
     // Eliminar usuario del backend si Firebase falla
     final email = _emailController.text.trim();
     if (email.isNotEmpty) {
-      await UserService.rollbackUserCreation(email);
+      try {
+        await UserService.rollbackUserCreation(email);
+        debugPrint('Rollback de usuario completado');
+      } catch (rollbackError) {
+        debugPrint('Error en rollback: $rollbackError');
+      }
     }
 
     setState(() {
@@ -212,10 +306,15 @@ class _FormContentRegisterState extends State<FormContentRegister> {
         _confirmPasswordController.clear();
       } else if (e.code == 'email-already-in-use') {
         _emailError = "Aquest correu ja està en ús a Firebase";
+      } else if (e.code == 'invalid-email') {
+        _emailError = "El format del correu electrònic no és vàlid";
+      } else if (e.code == 'operation-not-allowed') {
+        _emailError = "Operació no permesa";
+      } else if (e.code == 'network-request-failed') {
+        _emailError = "Error de connexió de xarxa";
       } else {
         _emailError = "Error de Firebase: ${e.message}";
       }
-      // Debug print
     });
 
     _formKey.currentState?.validate();
