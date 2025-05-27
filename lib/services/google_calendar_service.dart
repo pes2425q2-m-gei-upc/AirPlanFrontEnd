@@ -12,7 +12,7 @@ class GoogleCalendarService {
       : _googleSignIn = googleSignIn ?? GoogleSignIn(
     scopes: _scopes,
     clientId: kIsWeb
-        ? '751649023508-rji7074men2mm1198oq93pvqc1nklip1.apps.googleusercontent.com'
+        ? '751649023508-e62rslll2c8n864juq95j1rd7a8t26d0.apps.googleusercontent.com'
         : null,
   );
 
