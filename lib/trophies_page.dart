@@ -29,7 +29,7 @@ class _TrophiesPageState extends State<TrophiesPage> {
       );
 
       if (response.statusCode == 200) {
-        return List<Map<String, dynamic>>.from(json.decode(response.body));
+        return List<Map<String, dynamic>>.from(json.decode(utf8.decode(response.bodyBytes)));
       } else {
         throw Exception('trophies_page_error_load_trophies'.tr());
       }
