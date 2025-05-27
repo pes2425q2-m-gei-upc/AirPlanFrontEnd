@@ -270,8 +270,7 @@ class ChatService {
   }) async {
     try {
       final response = await http.post(
-        //Uri.parse(ApiConfig().buildUrl('api/report')),
-        Uri.parse("http://127.0.0.1:8080/api/report"),
+        Uri.parse(ApiConfig().buildUrl('api/report')),
         headers: {'Content-Type': 'application/json'},
         body: jsonEncode({
           'reportedUsername': reportedUsername,
