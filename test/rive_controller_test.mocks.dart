@@ -70,20 +70,6 @@ class _FakeEventList_3 extends _i1.SmartFake implements _i4.EventList {
 class _FakeArtboard_4 extends _i1.SmartFake implements _i5.Artboard {
   _FakeArtboard_4(Object parent, Invocation parentInvocation)
     : super(parent, parentInvocation);
-
-  @override
-  // TODO: implement isPlaying
-  bool get isPlaying => throw UnimplementedError();
-
-  @override
-  void pause() {
-    // TODO: implement pause
-  }
-
-  @override
-  void play() {
-    // TODO: implement play
-  }
 }
 
 class _FakeVec2D_5 extends _i1.SmartFake implements _i3.Vec2D {
@@ -122,20 +108,6 @@ class _FakeRuntimeArtboard_11 extends _i1.SmartFake
     implements _i4.RuntimeArtboard {
   _FakeRuntimeArtboard_11(Object parent, Invocation parentInvocation)
     : super(parent, parentInvocation);
-
-  @override
-  // TODO: implement isPlaying
-  bool get isPlaying => throw UnimplementedError();
-
-  @override
-  void pause() {
-    // TODO: implement pause
-  }
-
-  @override
-  void play() {
-    // TODO: implement play
-  }
 }
 
 /// A class which mocks [Artboard].
