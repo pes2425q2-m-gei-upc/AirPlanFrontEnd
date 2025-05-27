@@ -13,6 +13,7 @@ import 'package:sign_button/sign_button.dart';
 import 'package:flutter/foundation.dart' show kIsWeb;
 import 'package:google_sign_in/google_sign_in.dart';
 import 'package:easy_localization/easy_localization.dart';
+import 'dart:io' show Platform;
 
 class LoginPage extends StatefulWidget {
   // Añadimos la posibilidad de inyectar el AuthService
@@ -61,7 +62,9 @@ class LoginPageState extends State<LoginPage> {
           'https://www.googleapis.com/auth/userinfo.email',
         ],
         clientId: kIsWeb
-            ? '751649023508-rji7074men2mm1198oq93pvqc1nklip1.apps.googleusercontent.com'
+            ? '751649023508-e62rslll2c8n864juq95j1rd7a8t26d0.apps.googleusercontent.com'
+            : Platform.isAndroid
+            ? '751649023508-e62rslll2c8n864juq95j1rd7a8t26d0.apps.googleusercontent.com' // Usa el mismo ID que web para pruebas
             : null,
       );
 
@@ -313,7 +316,7 @@ class LoginPageState extends State<LoginPage> {
       final GoogleSignIn googleSignIn;
       if (kIsWeb) {
         googleSignIn = GoogleSignIn(
-          clientId: '751649023508-rji7074men2mm1198oq93pvqc1nklip1.apps.googleusercontent.com',
+          clientId: '751649023508-e62rslll2c8n864juq95j1rd7a8t26d0.apps.googleusercontent.com',
           scopes: [
             'email',
             'https://www.googleapis.com/auth/calendar',
