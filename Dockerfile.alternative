@@ -1,15 +1,5 @@
-# Use the official Dart image as base
-FROM dart:stable AS build
-
-# Install Flutter
-RUN git clone https://github.com/flutter/flutter.git -b stable /usr/local/flutter
-ENV PATH="/usr/local/flutter/bin:/usr/local/flutter/bin/cache/dart-sdk/bin:${PATH}"
-
-# Switch to a specific Flutter version that includes Dart 3.7.0+
-RUN cd /usr/local/flutter && git checkout 3.27.0
-
-# Run flutter doctor
-RUN flutter doctor -v
+# Alternative Dockerfile using official Flutter image
+FROM ghcr.io/cirruslabs/flutter:3.27.0 AS build
 
 # Enable flutter web
 RUN flutter config --enable-web

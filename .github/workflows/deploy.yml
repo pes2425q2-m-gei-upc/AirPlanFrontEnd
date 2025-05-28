@@ -16,7 +16,7 @@ jobs:
     - name: Setup Flutter
       uses: subosito/flutter-action@v2
       with:
-        flutter-version: '3.24.0'
+        flutter-version: '3.27.0'
         channel: 'stable'
         
     - name: Install dependencies
@@ -26,7 +26,7 @@ jobs:
       run: flutter test
       
     - name: Build web
-      run: flutter build web --release --web-renderer html
+      run: flutter build web --release --base-href /
       
     - name: Check build output
       run: ls -la build/web/

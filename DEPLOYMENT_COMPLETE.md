@@ -78,6 +78,12 @@ flutter build web --release --base-href /
 - Verifica que todas las dependencias estén instaladas: `flutter pub get`
 - Ejecuta `flutter clean` y vuelve a intentar
 
+### Error de SDK Version
+Si obtienes el error "Because airplan requires SDK version ^3.7.0, version solving failed":
+- El proyecto requiere Dart SDK 3.7.0 o superior
+- Asegúrate de usar Flutter 3.27.0 o superior
+- En GitHub Actions, la versión está configurada en `.github/workflows/deploy.yml`
+
 ### Error de Rutas
 - Asegúrate de que `base href` esté configurado correctamente
 - Verifica la configuración de Nginx para SPA
