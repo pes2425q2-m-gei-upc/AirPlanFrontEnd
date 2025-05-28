@@ -9,7 +9,7 @@ RUN apt-get update && apt-get install -y \
     xz-utils
 
 # Clone Flutter SDK stable channel
-RUN git clone --depth 1 --branch stable https://github.com/flutter/flutter.git /usr/local/flutter
+RUN git clone https://github.com/flutter/flutter.git /usr/local/flutter
 ENV PATH="/usr/local/flutter/bin:/usr/local/flutter/bin/cache/dart-sdk/bin:$PATH"
 WORKDIR /app
 
