@@ -466,11 +466,23 @@ class CalendarPageState extends State<CalendarPage> {
                           rowHeight: dynamicRowHeight,
                           daysOfWeekHeight:
                               20, // Explicit height for days of week
-                          headerStyle: const HeaderStyle(
+                          headerStyle: HeaderStyle(
                             formatButtonVisible: true,
                             titleCentered: true,
                             formatButtonShowsNext: false,
+                            formatButtonTextStyle: const TextStyle(),
+                            formatButtonDecoration: const BoxDecoration(),
                           ),
+                          formatAnimationCurve: Curves.easeInOut,
+                          formatAnimationDuration: const Duration(
+                            milliseconds: 200,
+                          ),
+                          availableCalendarFormats: {
+                            CalendarFormat.month: 'calendar_format_month'.tr(),
+                            CalendarFormat.twoWeeks:
+                                'calendar_format_2weeks'.tr(),
+                            CalendarFormat.week: 'calendar_format_week'.tr(),
+                          },
                           calendarStyle: const CalendarStyle(
                             isTodayHighlighted: true,
                             markersMaxCount: 0,
@@ -954,12 +966,8 @@ class CalendarPageState extends State<CalendarPage> {
               isEditable:
                   activity['creador'] ==
                   widget.authService.getCurrentUsername(),
-              onEdit: () => _showEditActivityForm(
-                activity,
-              ),
-              onDelete: () => _showDeleteConfirmation(
-                activity,
-              ),
+              onEdit: () => _showEditActivityForm(activity),
+              onDelete: () => _showDeleteConfirmation(activity),
             ),
       ),
     );
@@ -1033,9 +1041,9 @@ class CalendarPageState extends State<CalendarPage> {
     final creatorController = TextEditingController(text: activity['creador']);
     final locationController = TextEditingController(
       text:
-      activity['ubicacio'] != null
-          ? '${activity['ubicacio']['latitud']},${activity['ubicacio']['longitud']}'
-          : '',
+          activity['ubicacio'] != null
+              ? '${activity['ubicacio']['latitud']},${activity['ubicacio']['longitud']}'
+              : '',
     );
 
     showDialog(
@@ -1152,8 +1160,8 @@ class CalendarPageState extends State<CalendarPage> {
     );
   }
 
-  void _showDeleteConfirmation(Map<String, dynamic> activity) {
-    showDialog(
+  Future<bool?> _showDeleteConfirmation(Map<String, dynamic> activity) {
+    return showDialog<bool>(
       context: context,
       builder: (context) {
         return AlertDialog(
@@ -1162,13 +1170,13 @@ class CalendarPageState extends State<CalendarPage> {
           actions: [
             TextButton(
               onPressed: () {
-                Navigator.pop(context); // Cierra el diálogo
+                Navigator.pop(context,false); // Cierra el diálogo
               },
               child: Text(tr('cancel')),
             ),
             TextButton(
               onPressed: () async {
-                Navigator.pop(context); // Cierra el diálogo
+                Navigator.pop(context,true); // Cierra el diálogo
 
                 // Llama al servicio para eliminar la actividad
                 try {
@@ -1200,5 +1208,4 @@ class CalendarPageState extends State<CalendarPage> {
       },
     );
   }
-
 }

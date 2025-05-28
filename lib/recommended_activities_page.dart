@@ -157,231 +157,6 @@ class RecommendedActivitiesPageState extends State<RecommendedActivitiesPage> {
     }
   }
 
-  void _showEditActivityForm(Activity activity) {
-    final formKey = GlobalKey<FormState>();
-    final titleController = TextEditingController(text: activity.name);
-    final descriptionController = TextEditingController(
-      text: activity.description,
-    );
-    final startDateController = TextEditingController(
-      text: activity.dataInici.toString(),
-    );
-    final endDateController = TextEditingController(
-      text: activity.dataFi.toString(),
-    );
-    final creatorController = TextEditingController(text: activity.creador);
-    final locationController = TextEditingController(
-      text: '${activity.location.latitude},${activity.location.longitude}',
-    );
-
-    LatLng selectedLocation = activity.location;
-
-    showDialog(
-      context: context,
-      builder: (context) {
-        return AlertDialog(
-          title: Text('edit_activity_button'.tr()),
-          content: Form(
-            key: formKey,
-            child: SingleChildScrollView(
-              child: Column(
-                mainAxisSize: MainAxisSize.min,
-                children: [
-                  TextFormField(
-                    controller: titleController,
-                    decoration: InputDecoration(
-                      labelText: 'recommended_activities_title_label'.tr(),
-                    ),
-                    validator: (value) {
-                      if (value == null || value.isEmpty) {
-                        return 'recommended_activities_error_empty_title'.tr();
-                      }
-                      return null;
-                    },
-                  ),
-                  TextFormField(
-                    controller: descriptionController,
-                    decoration: InputDecoration(
-                      labelText:
-                          'recommended_activities_description_label'.tr(),
-                    ),
-                    validator: (value) {
-                      if (value == null || value.isEmpty) {
-                        return 'recommended_activities_error_empty_description'
-                            .tr();
-                      }
-                      return null;
-                    },
-                  ),
-                  TextFormField(
-                    controller: startDateController,
-                    decoration: InputDecoration(
-                      labelText: 'recommended_activities_start_date_label'.tr(),
-                    ),
-                    validator: (value) {
-                      if (value == null || value.isEmpty) {
-                        return 'recommended_activities_error_empty_start_date'
-                            .tr();
-                      }
-                      return null;
-                    },
-                  ),
-                  TextFormField(
-                    controller: endDateController,
-                    decoration: InputDecoration(
-                      labelText: 'recommended_activities_end_date_label'.tr(),
-                    ),
-                    validator: (value) {
-                      if (value == null || value.isEmpty) {
-                        return 'recommended_activities_error_empty_end_date'
-                            .tr();
-                      }
-                      return null;
-                    },
-                  ),
-                  DropdownButtonFormField<LatLng>(
-                    value: selectedLocation,
-                    items:
-                        widget.savedLocations.entries.map((entry) {
-                          String displayText =
-                              entry.value.isNotEmpty
-                                  ? entry.value
-                                  : '${entry.key.latitude}, ${entry.key.longitude}';
-                          return DropdownMenuItem<LatLng>(
-                            value: entry.key,
-                            child: Text(
-                              displayText,
-                              overflow: TextOverflow.ellipsis,
-                            ),
-                          );
-                        }).toList(),
-                    onChanged: (value) {
-                      setState(() {
-                        selectedLocation = value!;
-                      });
-                    },
-                    decoration: InputDecoration(
-                      labelText: 'recommended_activities_location_label'.tr(),
-                    ),
-                    validator: (value) {
-                      if (value == null) {
-                        return 'recommended_activities_error_empty_location'
-                            .tr();
-                      }
-                      return null;
-                    },
-                  ),
-                ],
-              ),
-            ),
-          ),
-          actions: [
-            TextButton(
-              onPressed: () {
-                Navigator.pop(context); // Cierra el diálogo
-              },
-              child: Text('cancel'.tr()),
-            ),
-            TextButton(
-              onPressed: () async {
-                if (formKey.currentState!.validate()) {
-                  // Cierra el diálogo
-                  Navigator.pop(context);
-
-                  // Prepara los datos actualizados
-                  final updatedActivityData = {
-                    'title': titleController.text,
-                    'description': descriptionController.text,
-                    'startDate': startDateController.text,
-                    'endDate': endDateController.text,
-                    'location':
-                        locationController
-                            .text, // Ubicación ingresada por el usuario
-                    'user': creatorController.text,
-                  };
-
-                  // Llama al servicio para actualizar la actividad
-                  try {
-                    final activityService = ActivityService();
-                    await activityService.updateActivityInBackend(
-                      activity.id.toString(),
-                      updatedActivityData,
-                    );
-                    // TODO: Consider adding a success message, e.g., 'activity_updated_success'.tr()
-                  } catch (e) {
-                    if (context.mounted) {
-                      ScaffoldMessenger.of(context).showSnackBar(
-                        SnackBar(
-                          content: Text(
-                            'recommended_activities_update_error'.tr() +
-                                e.toString(),
-                          ),
-                        ),
-                      );
-                    }
-                  }
-                }
-              },
-              child: Text('common_save_button'.tr()),
-            ),
-          ],
-        );
-      },
-    );
-  }
-
-  void _showDeleteConfirmation(Activity activity) {
-    showDialog(
-      context: context,
-      builder: (context) {
-        return AlertDialog(
-          title: Text('delete_activity_button'.tr()),
-          content: Text('recommended_activities_confirm_delete_message'.tr()),
-          actions: [
-            TextButton(
-              onPressed: () {
-                Navigator.pop(context); // Cierra el diálogo
-              },
-              child: Text('cancel'.tr()),
-            ),
-            TextButton(
-              onPressed: () async {
-                Navigator.pop(context); // Cierra el diálogo
-
-                // Llama al servicio para eliminar la actividad
-                try {
-                  final activityService = ActivityService();
-                  await activityService.deleteActivityFromBackend(
-                    activity.id.toString(),
-                  );
-                  if (context.mounted) {
-                    ScaffoldMessenger.of(context).showSnackBar(
-                      SnackBar(content: Text("activity_deleted_success".tr())),
-                    );
-                  }
-                } catch (e) {
-                  if (context.mounted) {
-                    ScaffoldMessenger.of(context).showSnackBar(
-                      SnackBar(
-                        content: Text(
-                          'activity_delete_error'.tr() + e.toString(),
-                        ),
-                      ),
-                    );
-                  }
-                }
-              },
-              child: Text(
-                'delete_button_label'.tr(),
-                style: TextStyle(color: Colors.red),
-              ),
-            ),
-          ],
-        );
-      },
-    );
-  }
-
   @override
   Widget build(BuildContext context) {
     return Scaffold(
@@ -473,15 +248,11 @@ class RecommendedActivitiesPageState extends State<RecommendedActivitiesPage> {
                                       startDate: activity.dataInici.toString(),
                                       endDate: activity.dataFi.toString(),
                                       airQualityData: activity.airQuality,
-                                      isEditable: true,
+                                      isEditable: false,
                                       onEdit:
-                                          () => _showEditActivityForm(
-                                            activity,
-                                          ), // Pasamos la función de editar
+                                          () => {}, // Pasamos la función de editar
                                       onDelete:
-                                          () => _showDeleteConfirmation(
-                                            activity,
-                                          ), // Pasamos la función de eliminar
+                                          () async => null, // Pasamos la función de eliminar
                                     ),
                               ),
                             );
@@ -533,15 +304,11 @@ class RecommendedActivitiesPageState extends State<RecommendedActivitiesPage> {
                                                           airQualityData:
                                                               activity
                                                                   .airQuality,
-                                                          isEditable: true,
+                                                          isEditable: false,
                                                           onEdit:
-                                                              () => _showEditActivityForm(
-                                                                activity,
-                                                              ), // Pasamos la función de editar
+                                                              () {}, // Pasamos la función de editar
                                                           onDelete:
-                                                              () => _showDeleteConfirmation(
-                                                                activity,
-                                                              ), // Pasamos la función de eliminar
+                                                              () async => null, // Pasamos la función de eliminar
                                                         ),
                                                   ),
                                                 );

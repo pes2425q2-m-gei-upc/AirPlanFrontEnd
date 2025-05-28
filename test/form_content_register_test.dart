@@ -401,7 +401,7 @@ void main() {
     await tester.pumpAndSettle();
 
     // Verify all language options are displayed in the dropdown menu
-    expect(find.text('Català'), findsOneWidget);
+    expect(find.text('Catala'), findsOneWidget);
     expect(find.text('English'), findsAny);
     expect(
       find.text('Castellano'),

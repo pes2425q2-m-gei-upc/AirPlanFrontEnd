@@ -107,7 +107,7 @@ class UserRequestsPageState extends State<UserRequestsPage> {
                             airQualityData: [],
                             isEditable: false,
                             onEdit: () {},
-                            onDelete: () {},
+                            onDelete: () async => null,
                           ),
                     ),
                   );

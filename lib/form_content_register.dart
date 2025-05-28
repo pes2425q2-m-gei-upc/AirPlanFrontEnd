@@ -539,7 +539,7 @@ class _FormContentRegisterState extends State<FormContentRegister> {
                     });
                   },
                   items:
-                      ['Català', 'English', 'Castellano']
+                      ['Catala', 'English', 'Castellano']
                           .map(
                             (language) => DropdownMenuItem(
                               value: language,
