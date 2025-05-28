@@ -187,7 +187,7 @@ class FormDialogState extends State<FormDialog> {
               }
               if (_formKey.currentState!.validate()) {
                 Navigator.of(context).pop({
-                  'location': widget.initialLocation,
+                  'location': "${_selectedLocation.latitude}, ${_selectedLocation.longitude}",
                   'user': _userController.text,
                   'title': _titleController.text,
                   'description': _descriptionController.text,
