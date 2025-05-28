@@ -2,9 +2,9 @@ name: Deploy to Render
 
 on:
   push:
-    branches: [ main, master ]
+    branches: [ desplegament ]
   pull_request:
-    branches: [ main, master ]
+    branches: [ desplegament ]
 
 jobs:
   test:
