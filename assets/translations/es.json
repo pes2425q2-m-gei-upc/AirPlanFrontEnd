@@ -675,8 +675,11 @@
   "Start Date and Time": "Fecha y hora de inicio",
   "Please enter a start date and time": "Por favor, introduce una fecha y hora de inicio",
   "End Date and Time": "Fecha y hora de finalización",
-  "Please enter an end date and time": "Por favor, introduce una fecha y hora de finalización",
+  "Please enter an end date and time": "Por favor, introduce una fecha y hora de finalización",  
   "Submit": "Enviar",
   "Desactivar sincronización con Google Calendar": "Desactivar sincronización con Google Calendar",
-  "Activar sincronización con Google Calendar": "Activar sincronización con Google Calendar"
+  "Activar sincronización con Google Calendar": "Activar sincronización con Google Calendar",
+  "calendar_format_month": "Mes",
+  "calendar_format_2weeks": "2 semanas",
+  "calendar_format_week": "Semana"
 }
