@@ -1,5 +1,4 @@
 import 'dart:ui' as ui;
-import 'package:airplan/services/api_config.dart';
 import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
@@ -12,11 +11,9 @@ class FakeNetworkImage extends FakeImage {
 
   FakeNetworkImage(this.url);
 
-  @override
   void paint(Canvas canvas, Rect rect, {ColorFilter? colorFilter}) {}
 
-  @override
-  Future<void> load(Sink<ImageChunkEvent> chunkEvents, DecoderBufferCallback decode) async {}
+  Future<void> load(Sink<ImageChunkEvent> chunkEvents, ImageDecoderCallback decode) async {}
 }
 
 // Clase base para imágenes falsas
@@ -27,7 +24,7 @@ class FakeImage extends ImageProvider<Object> {
   }
 
   @override
-  ImageStreamCompleter loadBuffer(Object key, DecoderBufferCallback decode) {
+  ImageStreamCompleter loadImage(Object key, ImageDecoderCallback decode) {
     return OneFrameImageStreamCompleter(
       SynchronousFuture<ImageInfo>(
         ImageInfo(
@@ -80,9 +77,6 @@ class FakeUiImage implements ui.Image {
 @GenerateMocks([http.Client])
 void main() {
   TestWidgetsFlutterBinding.ensureInitialized();
-  
-  final testUsername = 'testUser';
-  final apiUrl = ApiConfig().buildUrl('api/trofeus/$testUsername');
 
   final mockTrophiesObtained = [
     {
@@ -218,13 +212,14 @@ class TrophiesPageTestMock extends StatelessWidget {
   final bool hasError;
   final String errorMessage;
 
+  // Usamos super.key para corregir el warning de súper parámetro
   const TrophiesPageTestMock({
-    Key? key,
+    super.key,
     this.trophies = const [],
     this.isLoading = false,
     this.hasError = false,
     this.errorMessage = 'Error',
-  }) : super(key: key);
+  });
 
   @override
   Widget build(BuildContext context) {
