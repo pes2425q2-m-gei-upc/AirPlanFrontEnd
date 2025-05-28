@@ -681,5 +681,7 @@
   "Activar sincronización con Google Calendar": "Activar sincronización con Google Calendar",
   "calendar_format_month": "Mes",
   "calendar_format_2weeks": "2 semanas",
-  "calendar_format_week": "Semana"
+  "calendar_format_week": "Semana",
+  "see_requests_button": "Ver solicitudes",
+  "loading_activities": "Cargando actividades..."
 }

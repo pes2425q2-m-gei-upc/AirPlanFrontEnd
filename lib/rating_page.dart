@@ -182,7 +182,7 @@ class _RatingsPageState extends State<RatingsPage> {
                   isEditable:
                       false, // Assuming the user can't edit from ratings page
                   onEdit: () {}, // Empty function since not editable
-                  onDelete: () {}, // Empty function since not deletable
+                  onDelete: () async => null, // Empty function since not deletable
                 ),
           ),
         );

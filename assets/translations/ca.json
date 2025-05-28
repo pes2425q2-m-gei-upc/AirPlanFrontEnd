@@ -679,5 +679,7 @@
   "Activar sincronización con Google Calendar": "Activar sincronització amb Google Calendar",
   "calendar_format_month": "Mes",
   "calendar_format_2weeks": "2 setmanes",
-  "calendar_format_week": "Setmana"
+  "calendar_format_week": "Setmana",
+  "see_requests_button": "Veure sol·licituds",
+  "loading_activities": "Carregant activitats..."
 }
