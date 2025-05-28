@@ -1,6 +1,6 @@
 # Multi-stage Dockerfile para Flutter Web
 # Etapa de build usando la imagen oficial de Flutter
-FROM cirrusci/flutter:3.19.0 AS builder
+FROM cirrusci/flutter:3.22.2 AS builder
 WORKDIR /app
 
 # Copiar dependencias y activar cache
