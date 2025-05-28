@@ -48,7 +48,7 @@ class ActivityDetailsPage extends StatefulWidget {
   final String endDate;
   final bool isEditable;
   final VoidCallback onEdit;
-  final VoidCallback onDelete;
+  final Future<bool?> Function() onDelete;
 
   const ActivityDetailsPage({
     super.key,
@@ -592,6 +592,7 @@ class ActivityDetailsPageState extends State<ActivityDetailsPage> {
                   },
                   child: Text('invite_users_button'.tr()),
                 ),
+                SizedBox(height: 16),
                 ElevatedButton(
                   onPressed: () async {
                     final solicitudes = await SolicitudsService().fetchSolicitudesUnio(widget.id);
@@ -637,28 +638,33 @@ class ActivityDetailsPageState extends State<ActivityDetailsPage> {
                       ),
                     );
                   },
-                  child: Text('Ver Solicitudes'),
+                  child: Text('see_requests_button'.tr()),
                 ),
-
-
-                SizedBox(height: 16),
-                Row(
-                  mainAxisAlignment: MainAxisAlignment.spaceEvenly,
-                  children: [
-                    ElevatedButton(
-                      onPressed: widget.onEdit,
-                      child: Text('edit_activity_button'.tr()),
-                    ),
-                    ElevatedButton(
-                      onPressed: widget.onDelete,
-                      style: ElevatedButton.styleFrom(
-                        backgroundColor: Colors.red,
-                        foregroundColor: Colors.white,
+                if (widget.isEditable) ...[
+                  SizedBox(height: 16),
+                  Row(
+                    mainAxisAlignment: MainAxisAlignment.spaceEvenly,
+                    children: [
+                      ElevatedButton(
+                        onPressed: widget.onEdit,
+                        child: Text('edit_activity_button'.tr()),
                       ),
-                      child: Text('delete_activity_button'.tr()),
-                    ),
-                  ],
-                ),
+                      ElevatedButton(
+                        onPressed: () async {
+                          final result = await widget.onDelete();
+                          if (result == true && context.mounted) {
+                            Navigator.of(context).pop();
+                          }
+                        },
+                        style: ElevatedButton.styleFrom(
+                          backgroundColor: Colors.red,
+                          foregroundColor: Colors.white,
+                        ),
+                        child: Text('delete_activity_button'.tr()),
+                      ),
+                    ],
+                  ),
+                ],
               ],
 
               // Rating functionality

@@ -678,5 +678,7 @@
   "Please enter an end date and time": "Por favor, introduce una fecha y hora de finalización",
   "Submit": "Enviar",
   "Desactivar sincronización con Google Calendar": "Desactivar sincronización con Google Calendar",
-  "Activar sincronización con Google Calendar": "Activar sincronización con Google Calendar"
+  "Activar sincronización con Google Calendar": "Activar sincronización con Google Calendar",
+  "see_requests_button": "Ver solicitudes",
+  "loading_activities": "Cargando actividades..."
 }

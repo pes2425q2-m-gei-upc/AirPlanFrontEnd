@@ -173,6 +173,41 @@ class MapPageState extends State<MapPage> {
     }
   }
 
+  // Wrapper to show loading dialog while fetching activities
+  Future<void> fetchActivitiesWithLoading() async {
+    showDialog(
+      context: context,
+      barrierDismissible: false,
+      builder: (context) => Dialog(
+        backgroundColor: Colors.transparent,
+        elevation: 0,
+        child: Column(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            CircularProgressIndicator(),
+            SizedBox(height: 16),
+            Text(
+              'loading_activities'.tr(),
+              style: TextStyle(
+                color: Colors.white,
+                fontSize: 18,
+                fontWeight: FontWeight.bold,
+                shadows: [Shadow(blurRadius: 2, color: Colors.black)],
+              ),
+            ),
+          ],
+        ),
+      ),
+    );
+    try {
+      await fetchActivities();
+    } finally {
+      if (mounted && Navigator.of(context).canPop()) {
+        Navigator.of(context).pop();
+      }
+    }
+  }
+
   Future<void> fetchUserLocation() async {
     bool serviceEnabled;
     LocationPermission permission;
@@ -754,7 +789,7 @@ class MapPageState extends State<MapPage> {
             SnackBar(content: Text(tr('activity_created_success'))),
           );
         }
-        fetchActivities();
+        await fetchActivitiesWithLoading();
       } catch (e) {
         String errorMessage = e.toString();
         if (errorMessage.contains("inapropiats")) {
@@ -902,9 +937,10 @@ class MapPageState extends State<MapPage> {
                         ),
                         IconButton(
                           icon: const Icon(Icons.delete, color: Colors.red),
-                          onPressed: () {
+                          onPressed: () async {
                             Navigator.pop(context);
-                            _showDeleteConfirmation(activity);
+                            final deleted = await _showDeleteConfirmation(activity);
+                            if (deleted == true) await fetchActivitiesWithLoading();
                           },
                         ),
                       ],
@@ -1138,7 +1174,7 @@ class MapPageState extends State<MapPage> {
                         ),
                       );
                     }
-                    fetchActivities();
+                    await fetchActivitiesWithLoading();
                   } catch (e) {
                     if (mounted) {
                       // Get only the part after the last ': '
@@ -1164,8 +1200,8 @@ class MapPageState extends State<MapPage> {
   }
 
   // Función para mostrar el aviso de confirmación de eliminación
-  void _showDeleteConfirmation(Map<String, dynamic> activity) {
-    showDialog(
+  Future<bool?> _showDeleteConfirmation(Map<String, dynamic> activity) {
+    return showDialog<bool>(
       context: context,
       builder: (context) {
         return AlertDialog(
@@ -1174,13 +1210,12 @@ class MapPageState extends State<MapPage> {
           actions: [
             TextButton(
               onPressed: () {
-                Navigator.pop(context); // Cierra el diálogo
+                Navigator.pop(context,false); // Cierra el diálogo
               },
               child: Text(tr('cancel')),
             ),
             TextButton(
               onPressed: () async {
-                Navigator.pop(context); // Cierra el diálogo
 
                 // Llama al servicio para eliminar la actividad
                 try {
@@ -1189,12 +1224,14 @@ class MapPageState extends State<MapPage> {
                     activity['id'].toString(),
                   );
                   if (context.mounted) {
+                    Navigator.pop(context,true); // Cierra el diálogo
                     ScaffoldMessenger.of(context).showSnackBar(
                       SnackBar(content: Text(tr('activity_deleted_success'))),
                     );
                   }
                 } catch (e) {
                   if (context.mounted) {
+                    Navigator.pop(context,false); // Cierra el diálogo
                     ScaffoldMessenger.of(context).showSnackBar(
                       SnackBar(
                         content: Text(

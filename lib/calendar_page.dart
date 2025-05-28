@@ -1152,8 +1152,8 @@ class CalendarPageState extends State<CalendarPage> {
     );
   }
 
-  void _showDeleteConfirmation(Map<String, dynamic> activity) {
-    showDialog(
+  Future<bool?> _showDeleteConfirmation(Map<String, dynamic> activity) {
+    return showDialog<bool>(
       context: context,
       builder: (context) {
         return AlertDialog(
@@ -1162,13 +1162,13 @@ class CalendarPageState extends State<CalendarPage> {
           actions: [
             TextButton(
               onPressed: () {
-                Navigator.pop(context); // Cierra el diálogo
+                Navigator.pop(context,false); // Cierra el diálogo
               },
               child: Text(tr('cancel')),
             ),
             TextButton(
               onPressed: () async {
-                Navigator.pop(context); // Cierra el diálogo
+                Navigator.pop(context,true); // Cierra el diálogo
 
                 // Llama al servicio para eliminar la actividad
                 try {
