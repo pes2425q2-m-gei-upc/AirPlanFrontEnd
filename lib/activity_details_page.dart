@@ -102,7 +102,8 @@ class ActivityDetailsPageState extends State<ActivityDetailsPage> {
   }
 
   Future<void> _esExtern() async {
-    esExtern = (await UserService.getUserData(widget.creator))['esExtern'] ?? false;
+    esExtern =
+        (await UserService.getUserData(widget.creator))['esExtern'] ?? false;
     setState(() {
       esExtern = esExtern;
     });
@@ -320,7 +321,8 @@ class ActivityDetailsPageState extends State<ActivityDetailsPage> {
     final String? currentUser = FirebaseAuth.instance.currentUser?.displayName;
     final bool isCurrentUserCreator =
         currentUser != null && widget.creator == currentUser;
-    final bool canSendMessage = !isCurrentUserCreator && currentUser != null && !esExtern;
+    final bool canSendMessage =
+        !isCurrentUserCreator && currentUser != null && !esExtern;
     final bool isActivityFinished = DateTime.now().isAfter(
       DateTime.parse(widget.endDate),
     );
@@ -468,12 +470,18 @@ class ActivityDetailsPageState extends State<ActivityDetailsPage> {
                                         actions: [
                                           TextButton(
                                             onPressed:
-                                                () => Navigator.pop(context,false),
+                                                () => Navigator.pop(
+                                                  context,
+                                                  false,
+                                                ),
                                             child: Text('cancel'.tr()),
                                           ),
                                           TextButton(
                                             onPressed:
-                                                () => Navigator.pop(context,true),
+                                                () => Navigator.pop(
+                                                  context,
+                                                  true,
+                                                ),
                                             child: Text('delete'.tr()),
                                           ),
                                         ],
@@ -544,17 +552,6 @@ class ActivityDetailsPageState extends State<ActivityDetailsPage> {
                 }),
 
               SizedBox(height: 16),
-              Row(
-                children: [
-                  Icon(Icons.share),
-                  SizedBox(width: 8),
-                  Text(
-                    'share_button_label'.tr(),
-                    style: TextStyle(fontSize: 16),
-                  ),
-                ],
-              ),
-              SizedBox(height: 16),
               if (!isCurrentUserCreator && !esExtern)
                 FutureBuilder<bool>(
                   future: _solicitudExistente,
@@ -595,47 +592,71 @@ class ActivityDetailsPageState extends State<ActivityDetailsPage> {
                 SizedBox(height: 16),
                 ElevatedButton(
                   onPressed: () async {
-                    final solicitudes = await SolicitudsService().fetchSolicitudesUnio(widget.id);
+                    final solicitudes = await SolicitudsService()
+                        .fetchSolicitudesUnio(widget.id);
                     if (!context.mounted) return;
 
                     showDialog(
                       context: context,
-                      builder: (context) => AlertDialog(
-                        title: Text('Solicitudes para unirse'),
-                        content: solicitudes.isEmpty
-                            ? Text('No hay solicitudes pendientes.')
-                            : Column(
-                          mainAxisSize: MainAxisSize.min,
-                          children: solicitudes.map((solicitud) {
-                            return ListTile(
-                              title: Text(solicitud),
-                              trailing: Row(
-                                mainAxisSize: MainAxisSize.min,
-                                children: [
-                                  IconButton(
-                                    icon: Icon(Icons.check, color: Colors.green),
-                                    onPressed: () async {
-                                      await SolicitudsService().aceptarSolicitudUnio(widget.id, solicitud);
-                                      if (!context.mounted) return;
-                                      Navigator.of(context).pop();
-                                      setState(() {});
-                                    },
-                                  ),
-                                  IconButton(
-                                    icon: Icon(Icons.close, color: Colors.red),
-                                    onPressed: () async {
-                                      await SolicitudsService().rechazarSolicitudUnio(widget.id, solicitud);
-                                      if (!context.mounted) return;
-                                      Navigator.of(context).pop();
-                                      setState(() {});
-                                    },
-                                  ),
-                                ],
-                              ),
-                            );
-                          }).toList(),
-                        ),
-                      ),
+                      builder:
+                          (context) => AlertDialog(
+                            title: Text('Solicitudes para unirse'),
+                            content:
+                                solicitudes.isEmpty
+                                    ? Text('No hay solicitudes pendientes.')
+                                    : Column(
+                                      mainAxisSize: MainAxisSize.min,
+                                      children:
+                                          solicitudes.map((solicitud) {
+                                            return ListTile(
+                                              title: Text(solicitud),
+                                              trailing: Row(
+                                                mainAxisSize: MainAxisSize.min,
+                                                children: [
+                                                  IconButton(
+                                                    icon: Icon(
+                                                      Icons.check,
+                                                      color: Colors.green,
+                                                    ),
+                                                    onPressed: () async {
+                                                      await SolicitudsService()
+                                                          .aceptarSolicitudUnio(
+                                                            widget.id,
+                                                            solicitud,
+                                                          );
+                                                      if (!context.mounted)
+                                                        return;
+                                                      Navigator.of(
+                                                        context,
+                                                      ).pop();
+                                                      setState(() {});
+                                                    },
+                                                  ),
+                                                  IconButton(
+                                                    icon: Icon(
+                                                      Icons.close,
+                                                      color: Colors.red,
+                                                    ),
+                                                    onPressed: () async {
+                                                      await SolicitudsService()
+                                                          .rechazarSolicitudUnio(
+                                                            widget.id,
+                                                            solicitud,
+                                                          );
+                                                      if (!context.mounted)
+                                                        return;
+                                                      Navigator.of(
+                                                        context,
+                                                      ).pop();
+                                                      setState(() {});
+                                                    },
+                                                  ),
+                                                ],
+                                              ),
+                                            );
+                                          }).toList(),
+                                    ),
+                          ),
                     );
                   },
                   child: Text('see_requests_button'.tr()),
