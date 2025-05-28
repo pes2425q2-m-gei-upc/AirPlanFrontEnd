@@ -168,7 +168,8 @@ class ActivityDetailsPageState extends State<ActivityDetailsPage> {
       final response = await http.get(backendUrl);
 
       if (response.statusCode == 200) {
-        final List<dynamic> data = jsonDecode(response.body);
+        final body = utf8.decode(response.bodyBytes);
+        final List<dynamic> data = jsonDecode(body);
         final List<Valoracio> valoracions =
             data.map((json) => Valoracio.fromJson(json)).toList();
         // Sort from newest to oldest
@@ -212,8 +213,8 @@ class ActivityDetailsPageState extends State<ActivityDetailsPage> {
         headers: {'Content-Type': 'application/json'},
         body: jsonEncode({
           'username': userId,
-          'idActivitat': activityId,
-          'valoracion': rating,
+          'idActivitat': int.parse(activityId),
+          'valoracion': rating.toInt(),
           'comentario': comment,
         }),
       );
@@ -467,12 +468,12 @@ class ActivityDetailsPageState extends State<ActivityDetailsPage> {
                                         actions: [
                                           TextButton(
                                             onPressed:
-                                                () => Navigator.pop(context),
+                                                () => Navigator.pop(context,false),
                                             child: Text('cancel'.tr()),
                                           ),
                                           TextButton(
                                             onPressed:
-                                                () => Navigator.pop(context),
+                                                () => Navigator.pop(context,true),
                                             child: Text('delete'.tr()),
                                           ),
                                         ],
