@@ -1,5 +1,6 @@
 // map_service.dart
 import 'dart:convert';
+import 'package:airplan/air_quality_service.dart';
 import 'package:airplan/services/api_config.dart';
 import 'package:airplan/transit_service.dart';
 import 'package:firebase_auth/firebase_auth.dart';
@@ -17,51 +18,10 @@ class MapService {
 
     if (response.statusCode == 200) {
       final data = json.decode(response.body);
-      return createCirclesFromAirQualityData(data, contaminantsPerLocation);
+      return AirQualityService.createCirclesFromAirQualityData(data, contaminantsPerLocation);
     } else {
       throw Exception('Failed to load air quality data');
     }
-  }
-
-  List<CircleMarker> createCirclesFromAirQualityData(dynamic data, Map<LatLng, Map<Contaminant, AirQualityData>> contaminantsPerLocation) {
-
-    for (var entry in data) {
-      LatLng position = LatLng(double.parse(entry['latitud']), double.parse(entry['longitud']));
-      Contaminant contaminant = Contaminant.so2;
-      try {
-         contaminant = parseContaminant(entry['contaminant']);
-         AirQualityData aqd = getLastAirQualityData(entry);
-         if (contaminantsPerLocation[position] == null) {
-           contaminantsPerLocation[position] = {};
-         }
-         if (contaminantsPerLocation[position]![contaminant] == null || aqd.lastDateHour.isAfter(contaminantsPerLocation[position]![contaminant]!.lastDateHour)) {
-           contaminantsPerLocation[position]![contaminant] = aqd;
-         }
-      }
-      catch (e) {
-        continue;
-      }
-    }
-
-    List<CircleMarker> circles = [];
-    contaminantsPerLocation.forEach((LatLng pos, Map<Contaminant, AirQualityData> contaminants) {
-      AirQuality worstAQI = AirQuality.excelent;
-      contaminants.forEach((Contaminant key, AirQualityData aqd) {
-        if (aqd.aqi.index > worstAQI.index) {
-          worstAQI = aqd.aqi;
-        }
-      });
-      Color color = getColorForAirQuality(worstAQI);
-      circles.add(CircleMarker(
-        point: pos,
-        color: color,
-        borderStrokeWidth: 2.0,
-        borderColor: color,
-        radius: 20,
-      ));
-    });
-
-    return circles;
   }
 
   Future<String> fetchPlaceDetails(LatLng position) async {

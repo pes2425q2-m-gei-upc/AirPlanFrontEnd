@@ -263,6 +263,35 @@ class ChatService {
     }
   }
 
+  Future<dynamic> reportUser({
+    required String reportedUsername,
+    required String reporterUsername,
+    required String reason,
+  }) async {
+    try {
+      final response = await http.post(
+        Uri.parse(ApiConfig().buildUrl('api/report')),
+        headers: {'Content-Type': 'application/json'},
+        body: jsonEncode({
+          'reportedUsername': reportedUsername,
+          'reporterUsername': reporterUsername,
+          'reason': reason,
+        }),
+      );
+
+      if (response.statusCode == 201) {
+        return true;
+      } else if (response.statusCode == 409) {
+        return 'already_reported';
+      } else {
+        return false;
+      }
+    } catch (e) {
+      debugPrint('Error reporting user: $e');
+      return false;
+    }
+  }
+
   // Método para limpiar la conexión del WebSocket cuando el usuario sale de la pantalla de chat
   void disconnectFromChat() {
     _chatWebSocketService.disconnectChat();

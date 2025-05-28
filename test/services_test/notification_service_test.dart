@@ -118,4 +118,92 @@ void main() {
     await tester.pump(const Duration(milliseconds: 300));
     expect(find.text('TapClose'), findsNothing);
   });
+  testWidgets('notificaciones con mensajes largos se muestran correctamente', (tester) async {
+    await pumpTestApp(tester);
+
+    const mensajeLargo = 'Este es un mensaje de notificación muy largo que debería'
+        ' ajustarse correctamente dentro del contenedor de la notificación sin'
+        ' sobrepasar los límites de la pantalla y manteniendo una buena legibilidad';
+
+    service.showInfo(testContext, mensajeLargo);
+    await tester.pump();
+    await tester.pump(const Duration(milliseconds: 300));
+
+    expect(find.text(mensajeLargo), findsOneWidget);
+
+    // Verificar que el contenedor tiene el Flexible widget para manejar texto largo
+    final textWidget = tester.widget<Text>(find.text(mensajeLargo));
+    expect(
+        find.ancestor(of: find.byWidget(textWidget), matching: find.byType(Flexible)),
+        findsOneWidget
+    );
+
+    // Auto-dismiss después del tiempo
+    await tester.pump(const Duration(seconds: 3));
+    await tester.pump(const Duration(milliseconds: 300));
+    expect(find.text(mensajeLargo), findsNothing);
+  });
+
+  testWidgets('múltiples notificaciones se muestran apiladas correctamente', (tester) async {
+    await pumpTestApp(tester);
+
+    // Mostrar varias notificaciones
+    service.showSuccess(testContext, 'Primera notificación');
+    await tester.pump();
+    await tester.pump(const Duration(milliseconds: 300));
+
+    service.showInfo(testContext, 'Segunda notificación');
+    await tester.pump();
+    await tester.pump(const Duration(milliseconds: 300));
+
+    service.showError(testContext, 'Tercera notificación');
+    await tester.pump();
+    await tester.pump(const Duration(milliseconds: 300));
+
+    // Verificar que las tres notificaciones están visibles
+    expect(find.text('Primera notificación'), findsOneWidget);
+    expect(find.text('Segunda notificación'), findsOneWidget);
+    expect(find.text('Tercera notificación'), findsOneWidget);
+
+    // Verificar diferentes colores para cada notificación
+    final containers = tester.widgetList<Container>(
+        find.byWidgetPredicate((widget) =>
+        widget is Container &&
+            widget.decoration is BoxDecoration &&
+            (widget.decoration as BoxDecoration).color != null
+        )
+    );
+
+    final colors = containers.map((c) => (c.decoration as BoxDecoration).color).toList();
+    expect(colors.contains(Colors.green), isTrue);
+    expect(colors.contains(Colors.blue), isTrue);
+    expect(colors.contains(Colors.red), isTrue);
+  });
+
+  testWidgets('animaciones de entrada y salida funcionan correctamente', (tester) async {
+    await pumpTestApp(tester);
+
+    service.showSuccess(testContext, 'Notificación con animación');
+
+    // Verificar animación de entrada (inicio)
+    await tester.pump();
+    var opacityWidget = tester.widget<FadeTransition>(
+        find.byType(FadeTransition)
+    );
+    expect(opacityWidget.opacity.value, lessThan(1.0));
+
+    // Verificar animación de entrada (completada)
+    await tester.pump(const Duration(milliseconds: 300));
+    opacityWidget = tester.widget<FadeTransition>(
+        find.byType(FadeTransition)
+    );
+    expect(opacityWidget.opacity.value, equals(1.0));
+
+    // Cerrar manualmente
+    await tester.tap(find.byIcon(Icons.close));
+
+    // Verificar que el widget se ha eliminado
+    await tester.pump(const Duration(milliseconds: 300));
+    expect(find.text('Notificación con animación'), findsNothing);
+  });
 }

@@ -1,22 +1,16 @@
 import 'dart:convert';
+import 'dart:ui' show PlatformDispatcher;
 import 'package:airplan/services/api_config.dart';
 import 'package:flexible_polyline_dart/flutter_flexible_polyline.dart';
 import 'package:flexible_polyline_dart/latlngz.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_polyline_points/flutter_polyline_points.dart';
 import 'package:http/http.dart' as http;
-import 'package:intl/intl.dart';
 import 'package:latlong2/latlong.dart';
+import 'package:easy_localization/easy_localization.dart';
+import 'package:airplan/main.dart';
 
-enum TipusVehicle {
-  cotxe,
-  moto,
-  metro,
-  tren,
-  autobus,
-  bicicleta,
-  cap
-}
+enum TipusVehicle { cotxe, moto, metro, tren, autobus, bicicleta, cap }
 
 enum TipusInstruccio {
   esquerra,
@@ -33,7 +27,7 @@ enum TipusInstruccio {
   sortida,
   mantenirEsquerra,
   mantenirDreta,
-  transportPublic
+  transportPublic,
 }
 
 class TransitStep {
@@ -86,18 +80,41 @@ class TransitRoute {
   });
 }
 
-Future<TransitRoute> calculatePublicTransportRoute(bool departure, bool arrival, DateTime departureTime, DateTime arrivalTime, LatLng source, LatLng destination) async {
-  final url = Uri.parse(ApiConfig().buildUrl('api/rutas/calculate/publictransport'));
+Future<TransitRoute> calculatePublicTransportRoute(
+  bool departure,
+  bool arrival,
+  DateTime departureTime,
+  DateTime arrivalTime,
+  LatLng source,
+  LatLng destination,
+) async {
+  // get current locale from easy_localization via navigatorKey context
+  final langCode =
+      navigatorKey.currentContext?.locale.languageCode ??
+      PlatformDispatcher.instance.locale.languageCode;
+  final url = Uri.parse(
+    ApiConfig().buildUrl('api/rutas/calculate/publictransport'),
+  );
 
   try {
-    final response = await http.get(url.replace(queryParameters: {
-      'origin': '${source.latitude},${source.longitude}',
-      'destination': '${destination.latitude},${destination.longitude}',
-      'departureTime': departure ? DateFormat('yyyy-MM-ddTHH:mm:ss').format(departureTime) : DateFormat('yyyy-MM-ddTHH:mm:ss').format(DateTime.now()),
-      if (arrival) 'arrivalTime': DateFormat('yyyy-MM-ddTHH:mm:ss').format(arrivalTime),
-      'return': 'polyline,actions,travelSummary',
-      'lang': 'ca'
-    }));
+    final response = await http.get(
+      url.replace(
+        queryParameters: {
+          'origin': '${source.latitude},${source.longitude}',
+          'destination': '${destination.latitude},${destination.longitude}',
+          'departureTime':
+              departure
+                  ? DateFormat('yyyy-MM-ddTHH:mm:ss').format(departureTime)
+                  : DateFormat('yyyy-MM-ddTHH:mm:ss').format(DateTime.now()),
+          if (arrival)
+            'arrivalTime': DateFormat(
+              'yyyy-MM-ddTHH:mm:ss',
+            ).format(arrivalTime),
+          'return': 'polyline,actions,travelSummary',
+          'lang': langCode,
+        },
+      ),
+    );
 
     if (response.statusCode == 200) {
       final data = jsonDecode(response.body);
@@ -129,7 +146,9 @@ Future<TransitRoute> calculatePublicTransportRoute(bool departure, bool arrival,
               final walkingRoute = await calculateRoute(
                 true,
                 false,
-                DateTime.parse(section['departure']['time']).add(Duration(hours: 2)),
+                DateTime.parse(
+                  section['departure']['time'],
+                ).add(Duration(hours: 2)),
                 DateTime.now(),
                 3,
                 LatLng(walkStart['lat'], walkStart['lng']),
@@ -145,12 +164,15 @@ Future<TransitRoute> calculatePublicTransportRoute(bool departure, bool arrival,
               final polyline = section['polyline'];
               if (polyline != null) {
                 final List<LatLngZ> decoded = FlexiblePolyline.decode(polyline);
-                sectionPoints = decoded
-                    .map((point) => LatLng(point.lat, point.lng))
-                    .where((point) =>
-                point.latitude.abs() <= 90 &&
-                    point.longitude.abs() <= 180)
-                    .toList();
+                sectionPoints =
+                    decoded
+                        .map((point) => LatLng(point.lat, point.lng))
+                        .where(
+                          (point) =>
+                              point.latitude.abs() <= 90 &&
+                              point.longitude.abs() <= 180,
+                        )
+                        .toList();
               }
             }
           } else {
@@ -158,26 +180,35 @@ Future<TransitRoute> calculatePublicTransportRoute(bool departure, bool arrival,
             final polyline = section['polyline'];
             if (polyline != null) {
               final List<LatLngZ> decoded = FlexiblePolyline.decode(polyline);
-              sectionPoints = decoded
-                  .map((point) => LatLng(point.lat, point.lng))
-                  .where((point) =>
-              point.latitude.abs() <= 90 &&
-                  point.longitude.abs() <= 180)
-                  .toList();
+              sectionPoints =
+                  decoded
+                      .map((point) => LatLng(point.lat, point.lng))
+                      .where(
+                        (point) =>
+                            point.latitude.abs() <= 90 &&
+                            point.longitude.abs() <= 180,
+                      )
+                      .toList();
             }
             if (sectionPoints.isNotEmpty) {
-              steps.add(TransitStep(
+              steps.add(
+                TransitStep(
                   mode: _translateMode(mode),
                   instruction: _getInstruction(section),
                   type: TipusInstruccio.transportPublic,
                   line: section['transport']?['name'] ?? '',
-                  departure: DateTime.parse(section['departure']['time']).add(Duration(hours: 2)),
-                  arrival: DateTime.parse(section['arrival']['time']).add(Duration(hours: 2)),
+                  departure: DateTime.parse(
+                    section['departure']['time'],
+                  ).add(Duration(hours: 2)),
+                  arrival: DateTime.parse(
+                    section['arrival']['time'],
+                  ).add(Duration(hours: 2)),
                   distance: section['travelSummary']['length'].toDouble(),
                   points: sectionPoints,
                   station: section['departure']['place']['name'] ?? '',
-                  color: _translateColor(section)
-              ));
+                  color: _translateColor(section),
+                ),
+              );
               allPoints.addAll(sectionPoints);
             }
           }
@@ -188,31 +219,33 @@ Future<TransitRoute> calculatePublicTransportRoute(bool departure, bool arrival,
           steps: steps,
           duration: totalDuration,
           distance: totalDistance,
-          departure: DateTime.parse(sections[0]['departure']['time']).add(Duration(hours: 2)),
-          arrival: DateTime.parse(sections[sections.length - 1]['arrival']['time']).add(Duration(hours: 2)),
+          departure: DateTime.parse(
+            sections[0]['departure']['time'],
+          ).add(Duration(hours: 2)),
+          arrival: DateTime.parse(
+            sections[sections.length - 1]['arrival']['time'],
+          ).add(Duration(hours: 2)),
           origin: source,
           destination: destination,
-          option: 10
+          option: 10,
         );
       }
     }
-    throw Exception('Failed to fetch route');
+    throw Exception('transit_service_error_fetch_route'.tr());
   } catch (e) {
-    throw Exception('Error calculating route: $e');
+    throw Exception('${'transit_service_error_calculating_route'.tr()}: $e');
   }
 }
 
 Color _translateColor(Map<String, dynamic> section) {
   if (section['type'] == 'pedestrian') {
     return Colors.blue; // Default color for walking
-  }
-  else if (section['transport'].containsKey('color')) {
+  } else if (section['transport'].containsKey('color')) {
     String color = section['transport']['color'];
     final hex = color.replaceAll('#', '');
     return Color(int.parse('FF$hex', radix: 16));
-  }
-  else {
-    switch(section['transport']['mode']) {
+  } else {
+    switch (section['transport']['mode']) {
       case 'car':
         return Colors.red;
       case 'bus':
@@ -282,13 +315,31 @@ TipusInstruccio _translateType(int type) {
 }
 
 String _getInstruction(Map<String, dynamic> section) {
+  final arrivalPlaceName = section['arrival']?['place']?['name'];
+  final transportName = section['transport']?['name'];
+
   if (section['type'] == 'pedestrian') {
-    return 'Camina fins a ${section['arrival']['place']['name'] ?? 'la teva destinacio'}';
+    return 'transit_service_walk_to'.tr(
+      args: [arrivalPlaceName ?? 'transit_service_your_destination'.tr()],
+    );
   }
-  return 'Agafa un ${section['transport']['name'] ?? 'transit'} fins a ${section['arrival']['place']['name'] ?? 'el teu desti'}';
+  return 'transit_service_take_transport_to'.tr(
+    args: [
+      transportName ?? 'transit_service_transit_default'.tr(),
+      arrivalPlaceName ?? 'transit_service_your_destination'.tr(),
+    ],
+  );
 }
 
-Future<TransitRoute> calculateRoute(bool departure, bool arrival, DateTime departureTime, DateTime arrivalTime, int option, LatLng source, LatLng destination) async {
+Future<TransitRoute> calculateRoute(
+  bool departure,
+  bool arrival,
+  DateTime departureTime,
+  DateTime arrivalTime,
+  int option,
+  LatLng source,
+  LatLng destination,
+) async {
   String profile = 'foot-walking'; // Default profile
   TipusVehicle vehicleType = TipusVehicle.cap;
   Color color = Colors.red;
@@ -320,65 +371,104 @@ Future<TransitRoute> calculateRoute(bool departure, bool arrival, DateTime depar
   final url = Uri.parse(ApiConfig().buildUrl('api/rutas/calculate/simple'));
 
   try {
-    final response = await http.get(url.replace(queryParameters: {
-      'profile': profile,
-      'origin': '${source.latitude},${source.longitude}',
-      'destination': '${destination.latitude},${destination.longitude}',
-      'language': "es-es"
-    }));
+    // get current locale for simple route
+    String simpleLang =
+        navigatorKey.currentContext?.locale.languageCode ??
+        PlatformDispatcher.instance.locale.languageCode;
 
+    if (simpleLang == "ca") simpleLang = "es";
+    final response = await http.get(
+      url.replace(
+        queryParameters: {
+          'profile': profile,
+          'origin': '${source.latitude},${source.longitude}',
+          'destination': '${destination.latitude},${destination.longitude}',
+          'language': simpleLang,
+        },
+      ),
+    );
     if (response.statusCode == 200) {
       final data = jsonDecode(response.body);
       final route = data['routes'][0];
       final summary = route['summary'];
       final segments = route['segments'][0];
 
-      final List<LatLng> fullRoute = PolylinePoints()
-          .decodePolyline(route['geometry'])
-          .map((point) => LatLng(point.latitude, point.longitude))
-          .toList();
+      final List<LatLng> fullRoute =
+          PolylinePoints()
+              .decodePolyline(route['geometry'])
+              .map((point) => LatLng(point.latitude, point.longitude))
+              .toList();
 
       DateTime salida;
       DateTime llegada;
       if (departure) {
         if (DateTime.now().isAfter(departureTime)) {
-          throw Exception("No és possible viatjar en el temps, l'hora de sortida més aviat possible és a les ${DateFormat.Hm().format(DateTime.now())}");
+          throw Exception(
+            'transit_service_error_time_travel_departure'.tr(
+              args: [DateFormat.Hm().format(DateTime.now())],
+            ),
+          );
         }
         salida = departureTime;
-        llegada = salida.add(Duration(minutes: (summary['duration'] / 60).round()));
+        llegada = salida.add(
+          Duration(minutes: (summary['duration'] / 60).round()),
+        );
       } else if (arrival) {
-        if (DateTime.now().add(Duration(minutes: (summary['duration'] / 60).round())).isAfter(arrivalTime)) {
-          throw Exception("No és possible arribar a temps, l'hora d'arribada més aviat possible és a les ${DateFormat.Hm().format(DateTime.now().add(Duration(minutes: (summary['duration'] / 60).round())))}");
+        if (DateTime.now()
+            .add(Duration(minutes: (summary['duration'] / 60).round()))
+            .isAfter(arrivalTime)) {
+          throw Exception(
+            'transit_service_error_time_travel_arrival'.tr(
+              args: [
+                DateFormat.Hm().format(
+                  DateTime.now().add(
+                    Duration(minutes: (summary['duration'] / 60).round()),
+                  ),
+                ),
+              ],
+            ),
+          );
         }
         llegada = arrivalTime;
-        salida = llegada.subtract(Duration(minutes: (summary['duration'] / 60).round()));
+        salida = llegada.subtract(
+          Duration(minutes: (summary['duration'] / 60).round()),
+        );
       } else {
         salida = DateTime.now();
-        llegada = salida.add(Duration(minutes: (summary['duration'] / 60).round()));
+        llegada = salida.add(
+          Duration(minutes: (summary['duration'] / 60).round()),
+        );
       }
 
       List<TransitStep> steps = [];
       DateTime salidaTemp = salida;
       DateTime llegadaTemp = salidaTemp;
       for (var step in segments['steps']) {
-        llegadaTemp = salidaTemp.add(Duration(minutes: (step['duration']/60).toInt(), seconds: (step['duration'] % 60).toInt()));
+        llegadaTemp = salidaTemp.add(
+          Duration(
+            minutes: (step['duration'] / 60).toInt(),
+            seconds: (step['duration'] % 60).toInt(),
+          ),
+        );
         double distance = step['distance'];
         // Extract points for this specific step using waypoint indices
         var waypoints = [step['way_points'][0], step['way_points'][1]];
         var stepPoints = fullRoute.sublist(waypoints[0], waypoints[1] + 1);
         TipusInstruccio type = _translateType(step['type']);
-        steps.add(TransitStep(
-          mode: vehicleType,
-          instruction: step['instruction'],
-          type: type,
-          line: '',
-          departure: salidaTemp,
-          arrival: llegadaTemp,
-          distance: distance,
-          points: stepPoints,
-          station: '',
-          color: color, // Default color for driving
-        ));
+        steps.add(
+          TransitStep(
+            mode: vehicleType,
+            instruction: step['instruction'],
+            type: type,
+            line: '',
+            departure: salidaTemp,
+            arrival: llegadaTemp,
+            distance: distance,
+            points: stepPoints,
+            station: '',
+            color: color, // Default color for driving
+          ),
+        );
         salidaTemp = llegadaTemp;
       }
       return TransitRoute(
@@ -390,32 +480,36 @@ Future<TransitRoute> calculateRoute(bool departure, bool arrival, DateTime depar
         arrival: llegada,
         origin: source,
         destination: destination,
-        option: option
+        option: option,
       );
     } else {
-      throw Exception('Error: ${response.statusCode} - ${response.body}');
+      throw Exception(
+        'transit_service_error_status'.tr(
+          args: ['${response.statusCode}', response.body],
+        ),
+      );
     }
   } catch (e) {
-    throw Exception('Exception: $e');
+    throw Exception('${'transit_service_exception'.tr()}: $e');
   }
 }
 
 String translateTipusVehicle(TipusVehicle tipus) {
   switch (tipus) {
     case TipusVehicle.cotxe:
-      return 'Cotxe';
+      return 'vehicle_type_car'.tr();
     case TipusVehicle.moto:
-      return 'Moto';
+      return 'vehicle_type_motorcycle'.tr();
     case TipusVehicle.metro:
-      return 'Metro';
+      return 'vehicle_type_metro'.tr();
     case TipusVehicle.tren:
-      return 'Tren';
+      return 'vehicle_type_train'.tr();
     case TipusVehicle.autobus:
-      return 'Autobus';
+      return 'vehicle_type_bus'.tr();
     case TipusVehicle.bicicleta:
-      return 'Bicicleta';
+      return 'vehicle_type_bicycle'.tr();
     default:
-      return 'Cap'; // Default case
+      return 'vehicle_type_none'.tr(); // Default case
   }
 }
 

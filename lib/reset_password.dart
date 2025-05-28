@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import 'services/auth_service.dart';
+import 'package:easy_localization/easy_localization.dart';
 
 class ResetPasswordPage extends StatefulWidget {
   // Añadimos la posibilidad de inyectar el AuthService
@@ -42,32 +43,29 @@ class ResetPasswordPageState extends State<ResetPasswordPage> {
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      appBar: AppBar(title: const Text("Restablir Contrasenya")),
+      appBar: AppBar(title: Text(tr('reset_password_title'))),
       body: Padding(
         padding: const EdgeInsets.all(16.0),
         child: Column(
           mainAxisAlignment: MainAxisAlignment.center,
           children: [
-            const Text(
-              "Introdueix el teu correu electrònic per rebre un enllaç de restabliment de contrasenya.",
-              textAlign: TextAlign.center,
-            ),
+            Text(tr('reset_instruction'), textAlign: TextAlign.center),
             const SizedBox(height: 12),
             TextField(
               controller: _emailController,
-              decoration: const InputDecoration(
-                labelText: "Correu electrònic",
+              decoration: InputDecoration(
+                labelText: tr('email_label'),
                 border: OutlineInputBorder(),
               ),
             ),
             const SizedBox(height: 12),
             ElevatedButton(
               onPressed: _resetPassword,
-              child: const Text("Enviar correu de restabliment"),
+              child: Text(tr('reset_button')),
             ),
             if (_message.isNotEmpty) ...[
               const SizedBox(height: 12),
-              Text(_message, style: const TextStyle(color: Colors.green)),
+              Text(tr(_message), style: const TextStyle(color: Colors.green)),
             ],
           ],
         ),

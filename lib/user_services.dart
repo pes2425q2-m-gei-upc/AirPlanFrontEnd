@@ -133,7 +133,9 @@ class UserService {
             );
 
             if (usernameResponse.statusCode == 200) {
-              final userData = jsonDecode(usernameResponse.body);
+              final userData = jsonDecode(
+                utf8.decode(usernameResponse.bodyBytes),
+              );
               final databaseEmail = userData['email'] as String?;
 
               if (databaseEmail != null && databaseEmail != currentEmail) {
@@ -216,6 +218,20 @@ class UserService {
       return response.statusCode == 200;
     } catch (e) {
       return false;
+    }
+  }
+
+  static Future<Map<String, dynamic>> getUserData(String username) async {
+    final response = await http.get(
+      Uri.parse(
+        ApiConfig().buildUrl('api/usuaris/usuario-por-username/$username'),
+      ),
+    );
+
+    if (response.statusCode == 200) {
+      return jsonDecode(response.body);
+    } else {
+      throw Exception('Error al obtener los datos del usuario');
     }
   }
 }
