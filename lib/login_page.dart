@@ -171,13 +171,7 @@ class LoginPageState extends State<LoginPage> {
       // Manejar otros errores
       setState(() {
         _errorMessage = "login_error_incorrect_credentials".tr();
-        if (e.toString().contains("invalid-credential") ||
-            e.toString().contains("wrong-password") ||
-            e.toString().contains("user-not-found")) {
-          _errorMessage = "login_error_incorrect_credentials".tr();
-        } else {
-          _errorMessage = "login_error_generic".tr(args: [e.toString()]);
-        }
+        _isLoading = false;
       });
     }
   }
