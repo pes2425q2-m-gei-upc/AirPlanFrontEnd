@@ -673,10 +673,13 @@
   "Start Date and Time": "Data i hora d'inici",
   "Please enter a start date and time": "Si us plau, introdueix una data i hora d'inici",
   "End Date and Time": "Data i hora de finalització",
-  "Please enter an end date and time": "Si us plau, introdueix una data i hora de finalització",
+  "Please enter an end date and time": "Si us plau, introdueix una data i hora de finalització",  
   "Submit": "Enviar",
   "Desactivar sincronización con Google Calendar": "Desactivar sincronització amb Google Calendar",
   "Activar sincronización con Google Calendar": "Activar sincronització amb Google Calendar",
+  "calendar_format_month": "Mes",
+  "calendar_format_2weeks": "2 setmanes",
+  "calendar_format_week": "Setmana",
   "see_requests_button": "Veure sol·licituds",
   "loading_activities": "Carregant activitats..."
 }

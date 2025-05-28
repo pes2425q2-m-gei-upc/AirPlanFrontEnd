@@ -673,10 +673,13 @@
   "Start Date and Time": "Start Date and Time",
   "Please enter a start date and time": "Please enter a start date and time",
   "End Date and Time": "End Date and Time",
-  "Please enter an end date and time": "Please enter an end date and time",
+  "Please enter an end date and time": "Please enter an end date and time",  
   "Submit": "Submit",
   "Desactivar sincronización con Google Calendar": "Disable synchronization with Google Calendar",
   "Activar sincronización con Google Calendar": "Enable synchronization with Google Calendar",
+  "calendar_format_month": "Month",
+  "calendar_format_2weeks": "2 weeks",
+  "calendar_format_week": "Week",
   "see_requests_button": "See Requests",
   "loading_activities": "Loading activities..."
 }
