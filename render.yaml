@@ -1,0 +1,14 @@
+services:
+  - type: web
+    name: airplan-frontend
+    env: docker
+    dockerfilePath: ./Dockerfile
+    dockerContext: .
+    plan: free
+    envVars:
+      - key: FLUTTER_WEB
+        value: "true"
+    buildCommand: ""
+    startCommand: ""
+    domains:
+      - airplan-frontend.onrender.com

@@ -1,0 +1,59 @@
+# Git
+.git
+.gitignore
+
+# Documentation
+README.md
+*.md
+
+# Build artifacts
+build/
+.dart_tool/
+.packages
+
+# IDE files
+.vscode/
+.idea/
+*.iml
+
+# OS files
+.DS_Store
+Thumbs.db
+
+# Test files
+test/
+coverage/
+*.json
+*.html
+
+# Logs
+*.log
+
+# Temporary files
+.tmp/
+*.tmp
+
+# Node modules (if any)
+node_modules/
+
+# Flutter specific
+.flutter-plugins
+.flutter-plugins-dependencies
+.metadata
+
+# Android
+android/
+!/android/app/src/main/kotlin/
+!/android/app/src/main/AndroidManifest.xml
+
+# iOS
+ios/
+
+# Windows
+windows/
+
+# Linux
+linux/
+
+# macOS
+macos/
