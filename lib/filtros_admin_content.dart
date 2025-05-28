@@ -109,9 +109,6 @@ class FiltrosAdminContentState extends State<FiltrosAdminContent> {
             }
           }
         });
-        ScaffoldMessenger.of(context).showSnackBar(
-          const SnackBar(content: Text('Configuración cargada con éxito.')),
-        );
       } else {
         ScaffoldMessenger.of(context).showSnackBar(
           SnackBar(
