@@ -5,7 +5,8 @@ WORKDIR /app
 
 # Copiar dependencias y activar cache
 COPY pubspec.* ./
-RUN flutter pub get
+RUN flutter clean
+RUN flutter pub get --verbose
 
 # Copiar el resto del código y compilar para web
 COPY . .
