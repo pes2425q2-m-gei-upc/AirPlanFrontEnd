@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'rive_controller.dart';
 import 'rive_animation_widget.dart';
+import 'package:easy_localization/easy_localization.dart';
 
 class LogoWidget extends StatelessWidget {
   final RiveAnimationControllerHelper riveHelper;
@@ -22,16 +23,16 @@ class LogoWidget extends StatelessWidget {
         Padding(
           padding: const EdgeInsets.all(16.0),
           child: Text(
-            "Benvingut a AirPlan!",
+            "welcome_airplan".tr(),
             textAlign: TextAlign.center,
-            style: isSmallScreen
-                ? Theme.of(context).textTheme.headlineMedium
-                : Theme.of(context)
-                .textTheme
-                .headlineMedium
-                ?.copyWith(color: Colors.black),
+            style:
+                isSmallScreen
+                    ? Theme.of(context).textTheme.headlineMedium
+                    : Theme.of(
+                      context,
+                    ).textTheme.headlineMedium?.copyWith(color: Colors.black),
           ),
-        )
+        ),
       ],
     );
   }

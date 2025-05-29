@@ -10,6 +10,7 @@ import 'package:http/http.dart' as http;
 import 'package:firebase_core/firebase_core.dart';
 import 'package:firebase_core_platform_interface/firebase_core_platform_interface.dart';
 import 'package:plugin_platform_interface/plugin_platform_interface.dart';
+import 'package:easy_localization/easy_localization.dart';
 
 import 'package:airplan/edit_profile_page.dart';
 import 'package:airplan/services/auth_service.dart';
@@ -176,10 +177,13 @@ void main() {
     await tester.pumpAndSettle();
 
     // Enter empty name
-    await tester.enterText(find.widgetWithText(TextField, 'Nombre').first, '');
+    await tester.enterText(
+      find.widgetWithText(TextField, 'name_label').first,
+      '',
+    );
 
     // Use NotificationService mock instead of finding text in widget tree
-    final saveButton = find.text('Guardar Cambios');
+    final saveButton = find.text('save_changes');
     await tester.dragUntilVisible(
       saveButton,
       find.byType(SingleChildScrollView),
@@ -191,7 +195,7 @@ void main() {
     await tester.pumpAndSettle();
 
     // Check that the error was reported via NotificationService mock
-    expect(find.text('El nombre no puede estar vacío.'), findsOneWidget);
+    expect(find.text('error_name_empty'.tr()), findsOneWidget);
   });
 
   testWidgets('Validate invalid email format shows error', (
@@ -202,18 +206,18 @@ void main() {
 
     // Enter an invalid email
     await tester.enterText(
-      find.widgetWithText(TextField, 'Correo Electrónico'),
+      find.widgetWithText(TextField, 'email_label'),
       'invalid-email',
     );
 
     // Make sure name is not empty to pass that validation
     await tester.enterText(
-      find.widgetWithText(TextField, 'Nombre').first,
+      find.widgetWithText(TextField, 'name_label').first,
       'Test Name',
     );
 
     // Scroll to make save button visible
-    final saveButton = find.text('Guardar Cambios');
+    final saveButton = find.text('save_changes');
     await tester.dragUntilVisible(
       saveButton,
       find.byType(SingleChildScrollView),
@@ -225,10 +229,7 @@ void main() {
     await tester.pumpAndSettle();
 
     // Check that the error was reported via NotificationService mock
-    expect(
-      find.text('Por favor, introduce un correo electrónico válido.'),
-      findsOneWidget,
-    );
+    expect(find.text('please_enter_valid_email'.tr()), findsOneWidget);
   });
 
   // Simplified test focusing only on password mismatch
@@ -237,7 +238,10 @@ void main() {
     await tester.pumpAndSettle();
 
     // Scroll to password section
-    final newPasswordField = find.widgetWithText(TextField, 'Nueva Contraseña');
+    final newPasswordField = find.widgetWithText(
+      TextField,
+      'new_password_label',
+    );
     await tester.dragUntilVisible(
       newPasswordField,
       find.byType(SingleChildScrollView),
@@ -248,17 +252,17 @@ void main() {
 
     // Enter passwords: current, new, and mismatched confirmation
     await tester.enterText(
-      find.widgetWithText(TextField, 'Contraseña Actual'),
-      'currentpass', // Provide a current password
+      find.widgetWithText(TextField, 'current_password_label'),
+      'currentpass',
     );
     await tester.enterText(newPasswordField, 'newpass123');
     await tester.enterText(
-      find.widgetWithText(TextField, 'Confirmar Nueva Contraseña'),
-      'different456', // Mismatched password
+      find.widgetWithText(TextField, 'confirm_password_label'),
+      'different456',
     );
 
     // Find the button text
-    final updateButtonText = find.text('Actualizar Contraseña');
+    final updateButtonText = find.text('update_password');
     await tester.dragUntilVisible(
       updateButtonText,
       find.byType(SingleChildScrollView),
@@ -268,17 +272,14 @@ void main() {
     // Ensure the button text is visible and tap it
     await tester.ensureVisible(updateButtonText);
     await tester.pumpAndSettle();
-    await tester.tap(
-      updateButtonText,
-      warnIfMissed: false,
-    ); // Tap text directly
+    await tester.tap(updateButtonText);
 
     // Wait for UI updates, potentially adding a small explicit delay
     await tester.pumpAndSettle();
     await tester.pump(const Duration(milliseconds: 100)); // Small delay
 
     // Check for the error message directly in the UI
-    expect(find.text('Las contraseñas no coinciden'), findsOneWidget);
+    expect(find.text('passwords_do_not_match'.tr()), findsOneWidget);
   });
 
   testWidgets('User logs out when authStateChanges emits null', (
@@ -311,7 +312,7 @@ void main() {
     await tester.pumpAndSettle();
 
     // Verify image button is present
-    expect(find.text('Cambiar Foto de Perfil'), findsOneWidget);
+    expect(find.text('change_profile_picture'), findsOneWidget);
 
     // Verify profile image is displayed - CircleAvatar should exist
     expect(find.byType(CircleAvatar), findsOneWidget);

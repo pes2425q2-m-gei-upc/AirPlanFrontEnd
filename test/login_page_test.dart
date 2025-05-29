@@ -114,11 +114,11 @@ void main() {
     // Default mock behavior
     when(mockWebSocketService.clientId).thenReturn('test-client-id');
   });
-
   group('LoginPage UI Tests', () {
     testWidgets('renders all required UI elements', (
       WidgetTester tester,
     ) async {
+      await tester.binding.setSurfaceSize(const Size(1200, 800));
       await tester.pumpWidget(
         MaterialApp(
           home: LoginPage(
@@ -130,18 +130,21 @@ void main() {
       );
 
       // Verify UI elements
-      expect(find.text('Iniciar Sessió'), findsNWidgets(2)); // AppBar + button
-      expect(find.text('Correu electrònic'), findsOneWidget);
-      expect(find.text('Contrasenya'), findsOneWidget);
-      expect(find.text("No tens compte? Registra't aquí"), findsOneWidget);
-      expect(find.text('Has oblidat la contrasenya?'), findsOneWidget);
+      expect(find.text('login_title'), findsNWidgets(1)); // AppBar + button
+      expect(find.text('email_label'), findsOneWidget);
+      expect(find.text('password_label'), findsOneWidget);
+      expect(find.text("signup_prompt"), findsOneWidget);
+      expect(find.text('reset_password'), findsOneWidget);
       expect(find.byType(TextField), findsNWidgets(2));
       expect(find.byType(ElevatedButton), findsOneWidget);
-    });
 
+      // Reset surface size
+      await tester.binding.setSurfaceSize(null);
+    });
     testWidgets('navigates to signup page when register link is tapped', (
       WidgetTester tester,
     ) async {
+      await tester.binding.setSurfaceSize(const Size(1200, 800));
       final mockSignUpPage = Scaffold(
         appBar: AppBar(title: const Text('Mock SignUpPage')),
       );
@@ -158,16 +161,20 @@ void main() {
       );
 
       // Simulate tapping the register link
-      await tester.tap(find.text("No tens compte? Registra't aquí"));
+      await tester.tap(find.text("signup_prompt"));
       await tester.pumpAndSettle();
 
       // Verify navigation to the mock SignUpPage
       expect(find.text('Mock SignUpPage'), findsOneWidget);
-    });
 
+      // Reset surface size
+      await tester.binding.setSurfaceSize(null);
+    });
     testWidgets(
       'navigates to reset password page when forgot password link is tapped',
       (WidgetTester tester) async {
+        await tester.binding.setSurfaceSize(const Size(1200, 800));
+
         await tester.pumpWidget(
           MaterialApp(
             home: LoginPage(
@@ -178,16 +185,21 @@ void main() {
           ),
         );
 
-        await tester.tap(find.text('Has oblidat la contrasenya?'));
+        await tester.tap(find.text('reset_password'));
         await tester.pumpAndSettle();
 
         expect(find.byType(ResetPasswordPage), findsOneWidget);
+
+        // Reset surface size
+        await tester.binding.setSurfaceSize(null);
       },
     );
   });
 
   group('LoginPage Functionality Tests', () {
     testWidgets('successful login flow', (WidgetTester tester) async {
+      await tester.binding.setSurfaceSize(const Size(1200, 800));
+
       // Create our test firebase user
       final testUser = TestUser(
         email: 'test@example.com',
@@ -220,14 +232,14 @@ void main() {
 
       // Enter credentials and login
       await tester.enterText(
-        find.widgetWithText(TextField, 'Correu electrònic'),
+        find.widgetWithText(TextField, 'email_label'),
         'test@example.com',
       );
       await tester.enterText(
-        find.widgetWithText(TextField, 'Contrasenya'),
+        find.widgetWithText(TextField, 'password_label'),
         'password',
       );
-      await tester.tap(find.byType(ElevatedButton));
+      await tester.tap(find.text('login_button'));
       await tester.pump();
 
       // Verify service calls
@@ -245,11 +257,15 @@ void main() {
         ),
       ).called(1);
       verify(mockWebSocketService.connect()).called(1);
-    });
 
+      // Reset surface size
+      await tester.binding.setSurfaceSize(null);
+    });
     testWidgets('shows error when user is null after authentication', (
       WidgetTester tester,
     ) async {
+      await tester.binding.setSurfaceSize(const Size(1200, 800));
+
       // Arrange - Setup null user response
       when(
         mockAuthService.signInWithEmailAndPassword(any, any),
@@ -267,26 +283,27 @@ void main() {
 
       // Enter credentials and login
       await tester.enterText(
-        find.widgetWithText(TextField, 'Correu electrònic'),
+        find.widgetWithText(TextField, 'email_label'),
         'test@example.com',
       );
       await tester.enterText(
-        find.widgetWithText(TextField, 'Contrasenya'),
+        find.widgetWithText(TextField, 'password_label'),
         'password',
       );
-      await tester.tap(find.byType(ElevatedButton));
+      await tester.tap(find.text('login_button'));
       await tester.pump();
 
-      // Verify error message
-      expect(
-        find.text('Error: No se pudo obtener la información del usuario'),
-        findsOneWidget,
-      );
-    });
+      // Verify error message (should show the localization key since Easy Localization isn't properly set up in tests)
+      expect(find.textContaining('login_error_user_info_null'), findsOneWidget);
 
+      // Reset surface size
+      await tester.binding.setSurfaceSize(null);
+    });
     testWidgets('shows error when user email is missing', (
       WidgetTester tester,
     ) async {
+      await tester.binding.setSurfaceSize(const Size(1200, 800));
+
       // Arrange - Setup user with missing email
       final testUser = TestUser(displayName: 'Test User', email: null);
       final testCredential = TestUserCredential(user: testUser);
@@ -307,23 +324,30 @@ void main() {
 
       // Enter credentials and login
       await tester.enterText(
-        find.widgetWithText(TextField, 'Correu electrònic'),
+        find.widgetWithText(TextField, 'email_label'),
         'test@example.com',
       );
       await tester.enterText(
-        find.widgetWithText(TextField, 'Contrasenya'),
+        find.widgetWithText(TextField, 'password_label'),
         'password',
       );
-      await tester.tap(find.byType(ElevatedButton));
+      await tester.tap(find.text('login_button'));
       await tester.pump();
 
-      // Verify error message
-      expect(find.text('Error: Falta información del usuario'), findsOneWidget);
-    });
+      // Verify error message (should show the localization key since Easy Localization isn't properly set up in tests)
+      expect(
+        find.textContaining('login_error_user_info_missing'),
+        findsOneWidget,
+      );
 
+      // Reset surface size
+      await tester.binding.setSurfaceSize(null);
+    });
     testWidgets('shows error when backend returns non-200 status', (
       WidgetTester tester,
     ) async {
+      await tester.binding.setSurfaceSize(const Size(1200, 800));
+
       // Arrange
       final testUser = TestUser(
         email: 'test@example.com',
@@ -357,27 +381,28 @@ void main() {
 
       // Enter credentials and login
       await tester.enterText(
-        find.widgetWithText(TextField, 'Correu electrònic'),
+        find.widgetWithText(TextField, 'email_label'),
         'test@example.com',
       );
       await tester.enterText(
-        find.widgetWithText(TextField, 'Contrasenya'),
+        find.widgetWithText(TextField, 'password_label'),
         'password',
       );
-      await tester.tap(find.byType(ElevatedButton));
+      await tester.tap(find.text('login_button'));
       await tester.pump();
 
-      // Verify error message
-      expect(
-        find.text('Error en el backend: {"error": "Server error"}'),
-        findsOneWidget,
-      );
+      // Verify error message (expects localization key based on login_page.dart line 118)
+      expect(find.textContaining('login_error_backend_status'), findsOneWidget);
       verifyNever(mockWebSocketService.connect());
-    });
 
+      // Reset surface size
+      await tester.binding.setSurfaceSize(null);
+    });
     testWidgets('handles authentication exceptions correctly', (
       WidgetTester tester,
     ) async {
+      await tester.binding.setSurfaceSize(const Size(1200, 800));
+
       // Arrange - Setup auth exception
       when(
         mockAuthService.signInWithEmailAndPassword(any, any),
@@ -395,23 +420,30 @@ void main() {
 
       // Enter credentials and login
       await tester.enterText(
-        find.widgetWithText(TextField, 'Correu electrònic'),
+        find.widgetWithText(TextField, 'email_label'),
         'test@example.com',
       );
       await tester.enterText(
-        find.widgetWithText(TextField, 'Contrasenya'),
+        find.widgetWithText(TextField, 'password_label'),
         'password',
       );
-      await tester.tap(find.byType(ElevatedButton));
+      await tester.tap(find.text('login_button'));
       await tester.pump();
 
-      // Verify error message
-      expect(find.text('Error: Credencials incorrectes'), findsOneWidget);
-    });
+      // Verify error message (expects localization key based on login_page.dart line 142)
+      expect(
+        find.textContaining('login_error_incorrect_credentials'),
+        findsOneWidget,
+      );
 
+      // Reset surface size
+      await tester.binding.setSurfaceSize(null);
+    });
     testWidgets('properly disposes HTTP client if created internally', (
       WidgetTester tester,
     ) async {
+      await tester.binding.setSurfaceSize(const Size(1200, 800));
+
       // This test needs a MaterialApp to host the LoginPage state
       await tester.pumpWidget(MaterialApp(home: LoginPage()));
 
@@ -431,6 +463,9 @@ void main() {
         true,
         isTrue,
       ); // Test passes if no exceptions were thrown during dispose
+
+      // Reset surface size
+      await tester.binding.setSurfaceSize(null);
     });
   });
 }

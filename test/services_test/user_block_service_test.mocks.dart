@@ -78,6 +78,20 @@ class MockChatWebSocketService extends _i1.Mock
   );
 
   @override
+  _i5.Future<bool> sendDeleteMessage(
+    String? receiverUsername,
+    String? timestamp,
+  ) =>
+      (super.noSuchMethod(
+            Invocation.method(#sendDeleteMessage, [
+              receiverUsername,
+              timestamp,
+            ]),
+            returnValue: _i5.Future<bool>.value(false),
+          )
+          as _i5.Future<bool>);
+
+  @override
   _i5.Future<bool> sendEditMessage(
     String? receiverUsername,
     String? originalTimestamp,
@@ -519,4 +533,34 @@ class MockAuthService extends _i1.Mock implements _i10.AuthService {
             returnValueForMissingStub: _i5.Future<void>.value(),
           )
           as _i5.Future<void>);
+
+  @override
+  _i5.Future<_i3.UserCredential> signInWithPopup(
+    _i3.GithubAuthProvider? githubProvider,
+  ) =>
+      (super.noSuchMethod(
+            Invocation.method(#signInWithPopup, [githubProvider]),
+            returnValue: _i5.Future<_i3.UserCredential>.value(
+              _FakeUserCredential_2(
+                this,
+                Invocation.method(#signInWithPopup, [githubProvider]),
+              ),
+            ),
+          )
+          as _i5.Future<_i3.UserCredential>);
+
+  @override
+  _i5.Future<_i3.UserCredential> signInWithProvider(
+    _i3.GithubAuthProvider? githubProvider,
+  ) =>
+      (super.noSuchMethod(
+            Invocation.method(#signInWithProvider, [githubProvider]),
+            returnValue: _i5.Future<_i3.UserCredential>.value(
+              _FakeUserCredential_2(
+                this,
+                Invocation.method(#signInWithProvider, [githubProvider]),
+              ),
+            ),
+          )
+          as _i5.Future<_i3.UserCredential>);
 }

@@ -4,7 +4,7 @@ import 'package:mockito/mockito.dart';
 import 'package:rive/rive.dart';
 import 'package:airplan/rive_controller.dart';
 
-// Generate mock for Artboard
+// Solo mockea Artboard - no necesitas mockear los controladores
 @GenerateMocks([Artboard])
 import 'rive_controller_test.mocks.dart';
 

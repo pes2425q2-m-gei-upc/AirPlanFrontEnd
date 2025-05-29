@@ -8,7 +8,8 @@ void main() {
     test('TransitStep creation works correctly', () {
       final step = TransitStep(
         mode: TipusVehicle.metro,
-        instruction: 'Go to Platform 3, Board the Blue Line', // String instead of List<String>
+        instruction:
+            'Go to Platform 3, Board the Blue Line', // String instead of List<String>
         type: TipusInstruccio.recta, // Required parameter
         line: 'L5',
         departure: DateTime(2023, 5, 15, 10, 30),
@@ -35,7 +36,8 @@ void main() {
         steps: [
           TransitStep(
             mode: TipusVehicle.metro,
-            instruction: 'Board the Blue Line', // String instead of List<String>
+            instruction:
+                'Board the Blue Line', // String instead of List<String>
             type: TipusInstruccio.recta, // Required parameter
             line: 'L5',
             departure: DateTime(2023, 5, 15, 10, 30),
@@ -63,13 +65,34 @@ void main() {
     });
 
     test('translateTipusVehicle returns correct translations', () {
-      expect(translateTipusVehicle(TipusVehicle.cotxe), equals('Cotxe'));
-      expect(translateTipusVehicle(TipusVehicle.moto), equals('Moto'));
-      expect(translateTipusVehicle(TipusVehicle.metro), equals('Metro'));
-      expect(translateTipusVehicle(TipusVehicle.tren), equals('Tren'));
-      expect(translateTipusVehicle(TipusVehicle.autobus), equals('Autobus'));
-      expect(translateTipusVehicle(TipusVehicle.bicicleta), equals('Bicicleta'));
-      expect(translateTipusVehicle(TipusVehicle.cap), equals('Cap'));
+      expect(
+        translateTipusVehicle(TipusVehicle.cotxe),
+        equals('vehicle_type_car'),
+      );
+      expect(
+        translateTipusVehicle(TipusVehicle.moto),
+        equals('vehicle_type_motorcycle'),
+      );
+      expect(
+        translateTipusVehicle(TipusVehicle.metro),
+        equals('vehicle_type_metro'),
+      );
+      expect(
+        translateTipusVehicle(TipusVehicle.tren),
+        equals('vehicle_type_train'),
+      );
+      expect(
+        translateTipusVehicle(TipusVehicle.autobus),
+        equals('vehicle_type_bus'),
+      );
+      expect(
+        translateTipusVehicle(TipusVehicle.bicicleta),
+        equals('vehicle_type_bicycle'),
+      );
+      expect(
+        translateTipusVehicle(TipusVehicle.cap),
+        equals('vehicle_type_none'),
+      );
     });
   });
 }

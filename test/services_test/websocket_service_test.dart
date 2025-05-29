@@ -119,4 +119,25 @@ void main() {
       expect(records, ['hello', 'world']);
     },
   );
+  test('getRealMessage genera mensajes no vacíos para diferentes tipos', () {
+    // Test para MESSAGE
+    String result = service.getRealMessage('TestUser', 'MESSAGE');
+    expect(result.isNotEmpty, isTrue);
+
+    // Test para INVITACIONS
+    result = service.getRealMessage('123,TestHost', 'INVITACIONS');
+    expect(result.isNotEmpty, isTrue);
+
+    // Test para ACTIVITY_REMINDER
+    result = service.getRealMessage('TestActivity,30', 'ACTIVITY_REMINDER');
+    expect(result.isNotEmpty, isTrue);
+
+    // Test para NOTE_REMINDER con tiempo
+    result = service.getRealMessage('15,Remember meeting', 'NOTE_REMINDER');
+    expect(result.isNotEmpty, isTrue);
+
+    // Test para NOTE_REMINDER sin tiempo
+    result = service.getRealMessage('Call John', 'NOTE_REMINDER');
+    expect(result.isNotEmpty, isTrue);
+  });
 }

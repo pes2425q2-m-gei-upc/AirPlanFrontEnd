@@ -194,6 +194,36 @@ class MockAuthService extends _i1.Mock implements _i3.AuthService {
             returnValueForMissingStub: _i4.Future<void>.value(),
           )
           as _i4.Future<void>);
+
+  @override
+  _i4.Future<_i2.UserCredential> signInWithPopup(
+    _i2.GithubAuthProvider? githubProvider,
+  ) =>
+      (super.noSuchMethod(
+            Invocation.method(#signInWithPopup, [githubProvider]),
+            returnValue: _i4.Future<_i2.UserCredential>.value(
+              _FakeUserCredential_0(
+                this,
+                Invocation.method(#signInWithPopup, [githubProvider]),
+              ),
+            ),
+          )
+          as _i4.Future<_i2.UserCredential>);
+
+  @override
+  _i4.Future<_i2.UserCredential> signInWithProvider(
+    _i2.GithubAuthProvider? githubProvider,
+  ) =>
+      (super.noSuchMethod(
+            Invocation.method(#signInWithProvider, [githubProvider]),
+            returnValue: _i4.Future<_i2.UserCredential>.value(
+              _FakeUserCredential_0(
+                this,
+                Invocation.method(#signInWithProvider, [githubProvider]),
+              ),
+            ),
+          )
+          as _i4.Future<_i2.UserCredential>);
 }
 
 /// A class which mocks [ActivityService].
@@ -242,12 +272,12 @@ class MockActivityService extends _i1.Mock implements _i5.ActivityService {
   @override
   _i4.Future<void> updateActivityInBackend(
     String? activityId,
-    Map<String, String>? activityData,
+    Map<String, String>? updatedActivity,
   ) =>
       (super.noSuchMethod(
             Invocation.method(#updateActivityInBackend, [
               activityId,
-              activityData,
+              updatedActivity,
             ]),
             returnValue: _i4.Future<void>.value(),
             returnValueForMissingStub: _i4.Future<void>.value(),
@@ -297,4 +327,52 @@ class MockActivityService extends _i1.Mock implements _i5.ActivityService {
             ),
           )
           as _i4.Future<List<Map<String, dynamic>>>);
+
+  @override
+  _i4.Future<List<Map<String, dynamic>>> fetchUserActivities(
+    String? username,
+  ) =>
+      (super.noSuchMethod(
+            Invocation.method(#fetchUserActivities, [username]),
+            returnValue: _i4.Future<List<Map<String, dynamic>>>.value(
+              <Map<String, dynamic>>[],
+            ),
+          )
+          as _i4.Future<List<Map<String, dynamic>>>);
+
+  @override
+  _i4.Future<void> syncActivityWithGoogleCalendar(
+    Map<String, dynamic>? activity,
+  ) =>
+      (super.noSuchMethod(
+            Invocation.method(#syncActivityWithGoogleCalendar, [activity]),
+            returnValue: _i4.Future<void>.value(),
+            returnValueForMissingStub: _i4.Future<void>.value(),
+          )
+          as _i4.Future<void>);
+
+  @override
+  _i4.Future<Map<String, dynamic>?> fetchActivityById(String? activityId) =>
+      (super.noSuchMethod(
+            Invocation.method(#fetchActivityById, [activityId]),
+            returnValue: _i4.Future<Map<String, dynamic>?>.value(),
+          )
+          as _i4.Future<Map<String, dynamic>?>);
+
+  @override
+  _i4.Future<void> toggleSyncPreference(bool? enabled) =>
+      (super.noSuchMethod(
+            Invocation.method(#toggleSyncPreference, [enabled]),
+            returnValue: _i4.Future<void>.value(),
+            returnValueForMissingStub: _i4.Future<void>.value(),
+          )
+          as _i4.Future<void>);
+
+  @override
+  _i4.Future<bool> isSyncEnabled() =>
+      (super.noSuchMethod(
+            Invocation.method(#isSyncEnabled, []),
+            returnValue: _i4.Future<bool>.value(false),
+          )
+          as _i4.Future<bool>);
 }

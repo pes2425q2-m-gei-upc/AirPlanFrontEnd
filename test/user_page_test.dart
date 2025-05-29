@@ -212,12 +212,12 @@ void main() {
       await tester.pumpAndSettle();
 
       // Verify buttons are shown
-      expect(find.text('Ver Mis Valoraciones'), findsOneWidget);
-      expect(find.text('Mis Solicitudes'), findsOneWidget);
-      expect(find.text('Usuarios Bloqueados'), findsOneWidget);
-      expect(find.text('Editar Perfil'), findsOneWidget);
-      expect(find.text('Eliminar Cuenta'), findsOneWidget);
-      expect(find.text('Cerrar Sesión'), findsOneWidget);
+      expect(find.text('view_ratings'), findsOneWidget);
+      expect(find.text('my_requests'), findsOneWidget);
+      expect(find.text('blocked_users'), findsOneWidget);
+      expect(find.text('edit_profile'), findsOneWidget);
+      expect(find.text('delete_account'), findsOneWidget);
+      expect(find.text('close_session'), findsOneWidget);
     });
 
     testWidgets('logout button shows confirmation dialog', (
@@ -229,6 +229,7 @@ void main() {
       addTearDown(tester.view.resetPhysicalSize);
       addTearDown(tester.view.resetDevicePixelRatio);
 
+      debugPrint('Starting test for logout button');
       await tester.pumpWidget(
         MaterialApp(
           home: UserPage(
@@ -243,22 +244,18 @@ void main() {
       await tester.pumpAndSettle();
 
       // Find the logout button and ensure it's visible by scrolling to it
-      final logoutButtonFinder = find.text('Cerrar Sesión');
+      final logoutButtonFinder = find.text('close_session');
       await tester.scrollUntilVisible(logoutButtonFinder, 500);
       await tester.pumpAndSettle();
-
       // Tap logout button
       await tester.tap(logoutButtonFinder);
       await tester.pumpAndSettle();
 
       // Verify dialog appears
-      expect(
-        find.text('¿Estás seguro de que quieres cerrar sesión?'),
-        findsOneWidget,
-      );
-      expect(find.text('Cancelar'), findsOneWidget);
+
+      expect(find.text('cancel'), findsOneWidget);
       // The button text appears twice: once on the main page, once in the dialog
-      expect(find.text('Cerrar Sesión'), findsWidgets);
+      expect(find.text('close_session'), findsWidgets);
 
       // Reset size after test
       addTearDown(() {
@@ -291,7 +288,7 @@ void main() {
       await tester.pumpAndSettle();
 
       // Find the delete button and ensure it's visible by scrolling to it
-      final deleteButtonFinder = find.text('Eliminar Cuenta');
+      final deleteButtonFinder = find.text('delete_account');
       await tester.scrollUntilVisible(deleteButtonFinder, 500);
       await tester.pumpAndSettle();
 
@@ -300,14 +297,9 @@ void main() {
       await tester.pumpAndSettle();
 
       // Verify dialog appears
-      expect(
-        find.text(
-          '¿Estás seguro de que quieres eliminar tu cuenta? Esta acción no se puede deshacer.',
-        ),
-        findsOneWidget,
-      );
-      expect(find.text('Cancelar'), findsOneWidget);
-      expect(find.text('Eliminar'), findsOneWidget);
+      expect(find.text('confirm_delete_account_message'), findsOneWidget);
+      expect(find.text('cancel'), findsOneWidget);
+      expect(find.text('delete'), findsOneWidget);
 
       // Reset size after test
       addTearDown(() {

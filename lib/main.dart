@@ -1,4 +1,3 @@
-// main.dart
 import 'dart:convert';
 import 'package:firebase_core/firebase_core.dart';
 import 'package:flutter/material.dart';
@@ -15,7 +14,9 @@ import 'admin_page.dart';
 import 'chat_list_page.dart'; // Import the new ChatListPage
 import 'services/websocket_service.dart'; // Import WebSocket service
 import 'services/api_config.dart'; // Importar la configuración de API
+import 'services/registration_state_service.dart'; // Import registration state service
 import 'dart:async'; // Para StreamSubscription
+import 'package:easy_localization/easy_localization.dart';
 
 // Stream controller para comunicar actualizaciones de perfil a toda la aplicación
 final StreamController<Map<String, dynamic>> profileUpdateStreamController =
@@ -122,7 +123,7 @@ class GlobalNotificationService {
 
     // Para notificaciones no urgentes, configurar un temporizador para ocultarlas automáticamente
     if (!isUrgent) {
-      Future.delayed(const Duration(seconds: 5), () {
+      Future.delayed(const Duration(seconds: 12), () {
         // Verificar si este banner sigue siendo el actual
         messenger.hideCurrentMaterialBanner();
         // Marcar que ya no estamos mostrando notificación
@@ -146,6 +147,14 @@ class GlobalNotificationService {
         return Colors.blue;
       case 'session_expired':
         return Colors.red.shade700;
+      case 'message':
+        return Colors.green;
+      case 'activity_reminder':
+        return Colors.yellow;
+      case 'invitacions':
+        return Colors.purple;
+      case 'note_reminder':
+        return Colors.teal;
       default:
         return Colors.grey;
     }
@@ -160,6 +169,14 @@ class GlobalNotificationService {
         return Icons.person;
       case 'session_expired':
         return Icons.lock_clock;
+      case 'activity_reminder':
+        return Icons.access_alarm;
+      case 'message':
+        return Icons.message;
+      case 'invitacions':
+        return Icons.group_add;
+      case 'note_reminder':
+        return Icons.note;
       default:
         return Icons.notifications;
     }
@@ -168,6 +185,7 @@ class GlobalNotificationService {
 
 void main() async {
   WidgetsFlutterBinding.ensureInitialized();
+  await EasyLocalization.ensureInitialized();
 
   // Inicializar datos de formateo para español y otros idiomas que puedas necesitar
   await initializeDateFormatting('es', null);
@@ -187,7 +205,14 @@ void main() async {
   // Inicializar la configuración de API
   ApiConfig().initialize();
 
-  runApp(const MiApp());
+  runApp(
+    EasyLocalization(
+      supportedLocales: const [Locale('es'), Locale('ca'), Locale('en')],
+      path: 'assets/translations',
+      fallbackLocale: const Locale('en'),
+      child: MiApp(),
+    ),
+  );
 }
 
 class MiApp extends StatefulWidget {
@@ -235,6 +260,7 @@ class _MiAppState extends State<MiApp> with WidgetsBindingObserver {
     // Escuchar cambios de autenticación para inicializar/destruir el WebSocket según corresponda
     FirebaseAuth.instance.authStateChanges().listen((User? user) {
       if (user != null) {
+        debugPrint('User logged in: ${user.email}');
         _initializeGlobalWebSocketListener();
       } else {
         _disposeGlobalWebSocketListener();
@@ -331,7 +357,7 @@ class _MiAppState extends State<MiApp> with WidgetsBindingObserver {
             // Usar el servicio global de notificaciones
             GlobalNotificationService().addNotification(
               mensaje,
-              'profile_update',
+              'profile_update'.tr(),
             );
 
             // Actualizar Firebase Auth si es necesario
@@ -353,7 +379,7 @@ class _MiAppState extends State<MiApp> with WidgetsBindingObserver {
   // Crea un mensaje descriptivo basado en los campos actualizados
   String _createProfileUpdateMessage(List<dynamic> updatedFields) {
     if (updatedFields.isEmpty) {
-      return 'Tu perfil ha sido actualizado en otro dispositivo';
+      return 'your_profile_updated'.tr();
     }
 
     // Mapeo de campos a nombres amigables en español
@@ -376,13 +402,13 @@ class _MiAppState extends State<MiApp> with WidgetsBindingObserver {
             .toList();
 
     if (updatedFieldNames.length == 1) {
-      return 'Tu ${updatedFieldNames[0]} ha sido actualizado en otro dispositivo';
+      return '${'profile_field_updated'.tr()} ${updatedFieldNames[0]}';
     } else if (updatedFieldNames.length == 2) {
-      return 'Tu ${updatedFieldNames[0]} y ${updatedFieldNames[1]} han sido actualizados en otro dispositivo';
+      return '${'profile_fields_updated_two'.tr()} ${updatedFieldNames[0]} y ${updatedFieldNames[1]}';
     } else {
       // Para 3 o más campos
       final lastField = updatedFieldNames.removeLast();
-      return 'Tu ${updatedFieldNames.join(", ")} y $lastField han sido actualizados en otro dispositivo';
+      return '${'profile_fields_updated_many'.tr()} ${updatedFieldNames.join(", ")} y $lastField';
     }
   }
 
@@ -408,7 +434,7 @@ class _MiAppState extends State<MiApp> with WidgetsBindingObserver {
             if (user != null) {
               // Usar el servicio global de notificaciones
               GlobalNotificationService().addNotification(
-                'Tu correo electrónico ha sido modificado en otro dispositivo. Necesitas volver a iniciar sesión.',
+                'email_change_verify_again'.tr(),
                 'email_change',
                 isUrgent: true,
               );
@@ -546,7 +572,9 @@ class _MiAppState extends State<MiApp> with WidgetsBindingObserver {
             final actualContext = context;
             if (actualContext.mounted) {
               ScaffoldMessenger.of(actualContext).showSnackBar(
-                SnackBar(content: Text("Error al conectar con el backend: $e")),
+                SnackBar(
+                  content: Text("${"error_connecting_backend".tr()} $e"),
+                ),
               );
             }
           }
@@ -558,13 +586,16 @@ class _MiAppState extends State<MiApp> with WidgetsBindingObserver {
   @override
   Widget build(BuildContext context) {
     return MaterialApp(
-      navigatorKey: navigatorKey, // Usar la clave global para el navigator
-      title: 'AirPlan',
+      navigatorKey: navigatorKey,
+      title: "Airplan",
       debugShowCheckedModeBanner: false,
       theme: ThemeData(
         primarySwatch: Colors.blue,
         visualDensity: VisualDensity.adaptivePlatformDensity,
       ),
+      locale: EasyLocalization.of(context)!.locale,
+      supportedLocales: EasyLocalization.of(context)!.supportedLocales,
+      localizationsDelegates: EasyLocalization.of(context)!.delegates,
       home: const AuthWrapper(),
     );
   }
@@ -578,31 +609,40 @@ class AuthWrapper extends StatefulWidget {
 }
 
 class AuthWrapperState extends State<AuthWrapper> {
-  // Flag para indicar si el usuario estaba previamente autenticado
-  bool _wasAuthenticated = false;
-  // Flag para indicar si el logout fue manual
-  bool _isManualLogout = false;
+  bool _langLoaded = false;
+  String? _lastUserId; // Para evitar recargas innecesarias
+  StreamSubscription<RegistrationState>? _registrationSubscription;
 
   @override
   void initState() {
     super.initState();
-
-    // Verificar si hay un usuario actualmente autenticado
-    final currentUser = FirebaseAuth.instance.currentUser;
-    _wasAuthenticated = currentUser != null;
-  }
-
-  // Método para establecer que el logout es manual
-  void setManualLogout(bool isManual) {
-    setState(() {
-      _isManualLogout = isManual;
+    // Escuchar cambios en el estado de registro
+    _registrationSubscription = RegistrationStateService().stateStream.listen((
+      state,
+    ) {
+      if (state == RegistrationState.completed && mounted) {
+        // Si el registro se completó, forzar una reconstrucción después de un breve delay
+        Future.delayed(const Duration(milliseconds: 200), () {
+          if (mounted) setState(() {});
+        });
+      }
     });
   }
 
+  @override
+  void dispose() {
+    _registrationSubscription?.cancel();
+    super.dispose();
+  }
+
   Future<bool> checkIfAdmin(String email) async {
+    // Construir URL y log para depuración
+    final url = ApiConfig().buildUrl('isAdmin/$email');
+    debugPrint('>>> checkIfAdmin: GET $url');
     try {
-      final response = await http.get(
-        Uri.parse(ApiConfig().buildUrl('isAdmin/$email')),
+      final response = await http.get(Uri.parse(url));
+      debugPrint(
+        '>>> checkIfAdmin response: ${response.statusCode} ${response.body}',
       );
       if (response.statusCode == 200) {
         final data = jsonDecode(response.body);
@@ -612,7 +652,7 @@ class AuthWrapperState extends State<AuthWrapper> {
       final actualContext = context;
       if (actualContext.mounted) {
         ScaffoldMessenger.of(actualContext).showSnackBar(
-          SnackBar(content: Text("Error al conectar con el backend: $e")),
+          SnackBar(content: Text("${"error_connecting_backend".tr()} $e")),
         );
       }
     }
@@ -624,59 +664,157 @@ class AuthWrapperState extends State<AuthWrapper> {
     return StreamBuilder<User?>(
       stream: FirebaseAuth.instance.authStateChanges(),
       builder: (context, snapshot) {
+        // Mostrar loading mientras se establece la conexión
+        if (snapshot.connectionState == ConnectionState.waiting) {
+          return const Scaffold(
+            body: Center(child: CircularProgressIndicator()),
+          );
+        }
+
         if (snapshot.connectionState == ConnectionState.active) {
           final user = snapshot.data;
 
-          // Comprobar si la sesión ha caducado (estaba autenticado pero ahora no)
-          if (_wasAuthenticated && user == null && !_isManualLogout) {
-            // La sesión ha caducado, mostrar notificación solo si NO es logout manual
-            // Usar el servicio global de notificaciones
-            Future.delayed(Duration.zero, () {
-              GlobalNotificationService().addNotification(
-                'Tu sesión ha caducado. Por favor, inicia sesión nuevamente.',
-                'session_expired',
-                isUrgent: true,
-              );
-            });
-
-            // Actualizar el estado
-            _wasAuthenticated = false;
-          } else if (user != null) {
-            _wasAuthenticated = true;
-            // Resetear la bandera de logout manual cuando hay un nuevo login
-            _isManualLogout = false;
-          } else if (user == null && _isManualLogout) {
-            // Si es un logout manual, simplemente actualizamos el estado sin mostrar notificación
-            _wasAuthenticated = false;
-            // Resetear la bandera después de procesarla
-            _isManualLogout = false;
+          // Si no hay usuario, mostrar login
+          if (user == null) {
+            _langLoaded = false;
+            _lastUserId = null;
+            WebSocketService().disconnect();
+            // Resetear el estado de registro si no hay usuario
+            RegistrationStateService().reset();
+            return const LoginPage();
           }
 
-          if (user != null) {
-            // El usuario está autenticado, verificar si es admin
-            return FutureBuilder<bool>(
-              future: checkIfAdmin(user.email!),
-              builder: (context, adminSnapshot) {
-                if (adminSnapshot.connectionState == ConnectionState.waiting) {
-                  return const Scaffold(
-                    body: Center(child: CircularProgressIndicator()),
-                  );
-                } else {
+          // Verificar si estamos en proceso de registro para este usuario
+          final registrationService = RegistrationStateService();
+          if (registrationService.isRegistering(user.email)) {
+            // Mostrar pantalla de loading mientras se completa el registro
+            return const Scaffold(
+              body: Center(
+                child: Column(
+                  mainAxisAlignment: MainAxisAlignment.center,
+                  children: [
+                    CircularProgressIndicator(),
+                    SizedBox(height: 16),
+                    Text('Completando registro...'),
+                  ],
+                ),
+              ),
+            );
+          }
+
+          // Verificar si es un nuevo usuario o si cambió el usuario
+          final currentUserId = user.uid;
+          if (_lastUserId != currentUserId) {
+            _langLoaded = false;
+            _lastUserId = currentUserId;
+          }
+
+          // Asegurar que el usuario esté completamente cargado antes de proceder
+          return FutureBuilder<void>(
+            future: _ensureUserReady(user),
+            builder: (context, readySnapshot) {
+              if (readySnapshot.connectionState == ConnectionState.waiting) {
+                return const Scaffold(
+                  body: Center(child: CircularProgressIndicator()),
+                );
+              }
+
+              // Cargar idioma del usuario según configuración del backend
+              if (!_langLoaded) {
+                _langLoaded = true;
+                _fetchUserLanguage(user);
+              }
+
+              // El usuario está autenticado, verificar si es admin
+              return FutureBuilder<bool>(
+                future: checkIfAdmin(user.email!),
+                builder: (context, adminSnapshot) {
+                  if (adminSnapshot.connectionState ==
+                      ConnectionState.waiting) {
+                    return const Scaffold(
+                      body: Center(child: CircularProgressIndicator()),
+                    );
+                  }
+
+                  // Manejar errores en la verificación de admin
+                  if (adminSnapshot.hasError) {
+                    debugPrint(
+                      'Error checking admin status: ${adminSnapshot.error}',
+                    );
+                    // En caso de error, asumir que no es admin
+                    WebSocketService().connect();
+                    return const MyHomePage();
+                  }
+
                   final isAdmin = adminSnapshot.data ?? false;
                   // Ensure WebSocket is connected
                   WebSocketService().connect();
+                  debugPrint(
+                    'User is authenticated: ${user.email}, Admin: $isAdmin',
+                  );
                   return isAdmin ? AdminPage() : const MyHomePage();
-                }
-              },
-            );
-          }
-          // Disconnect WebSocket if user is not authenticated
-          WebSocketService().disconnect();
-          return const LoginPage();
+                },
+              );
+            },
+          );
         }
+
+        // Fallback para otros estados de conexión
         return const Scaffold(body: Center(child: CircularProgressIndicator()));
       },
     );
+  }
+
+  // Asegurar que el usuario esté completamente configurado
+  Future<void> _ensureUserReady(User user) async {
+    try {
+      // Recargar el usuario para obtener la información más reciente
+      await user.reload();
+
+      // Verificar que el usuario sigue autenticado después del reload
+      final currentUser = FirebaseAuth.instance.currentUser;
+      if (currentUser == null || currentUser.uid != user.uid) {
+        throw Exception('Usuario no válido después del reload');
+      }
+
+      // Pequeña pausa para asegurar que todos los procesos estén completos
+      await Future.delayed(const Duration(milliseconds: 200));
+    } catch (e) {
+      debugPrint('Error ensuring user ready: $e');
+      // Si hay un error, cerrar sesión para evitar estados inconsistentes
+      await FirebaseAuth.instance.signOut();
+      rethrow;
+    }
+  }
+
+  // Obtener y aplicar el idioma del usuario desde el backend
+  Future<void> _fetchUserLanguage(User user) async {
+    try {
+      // Obtener idioma de usuario usando el endpoint correcto por username
+      final username = user.displayName ?? user.email ?? '';
+      final url = ApiConfig().buildUrl(
+        'api/usuaris/usuario-por-username/$username',
+      );
+      final response = await http.get(Uri.parse(url));
+      if (response.statusCode == 200) {
+        final data = jsonDecode(response.body);
+        final rawLang = (data['idioma'] as String? ?? 'en').toLowerCase();
+        // Mapear nombres de idioma desde backend a códigos de locale
+        final localeCode =
+            rawLang.contains('eng')
+                ? 'en'
+                : rawLang.contains('castellano')
+                ? 'es'
+                : rawLang.contains('ca')
+                ? 'ca'
+                : 'en';
+        // Aplicar locale con la extensión de easy_localization
+        if (!mounted) return;
+        await context.setLocale(Locale(localeCode));
+      }
+    } catch (e) {
+      debugPrint('Error fetching user language: $e');
+    }
   }
 }
 
@@ -708,17 +846,17 @@ class MyHomePageState extends State<MyHomePage> {
     return Scaffold(
       body: _widgetOptions.elementAt(_selectedIndex),
       bottomNavigationBar: BottomNavigationBar(
-        items: const <BottomNavigationBarItem>[
-          BottomNavigationBarItem(icon: Icon(Icons.map), label: 'Map'),
+        items: <BottomNavigationBarItem>[
+          BottomNavigationBarItem(icon: Icon(Icons.map), label: 'Map'.tr()),
           BottomNavigationBarItem(
             icon: Icon(Icons.calendar_today),
-            label: 'Calendar',
+            label: 'Calendar'.tr(),
           ),
           BottomNavigationBarItem(
             icon: Icon(Icons.chat),
-            label: 'Chat',
+            label: 'Chat'.tr(),
           ), // New chat tab
-          BottomNavigationBarItem(icon: Icon(Icons.person), label: 'User'),
+          BottomNavigationBarItem(icon: Icon(Icons.person), label: 'User'.tr()),
         ],
         currentIndex: _selectedIndex,
         selectedItemColor: Colors.blue,

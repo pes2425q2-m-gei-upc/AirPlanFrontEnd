@@ -2,6 +2,7 @@
 import 'dart:math';
 import 'activity_details_page.dart';
 import 'form_dialog.dart';
+import 'package:easy_localization/easy_localization.dart'; // Import easy_localization
 
 class ActivityGridPage extends StatefulWidget {
   const ActivityGridPage({super.key});
@@ -21,18 +22,22 @@ class _ActivityGridPageState extends State<ActivityGridPage> {
   int _selectedX = -1;
   int _selectedY = -1;
 
-  final List<Map<String, dynamic>> _airQualityOptions = [
-    {'label': 'Excel·lent', 'color': Colors.lightBlue},
-    {'label': 'Bona', 'color': Colors.green},
-    {'label': 'Dolenta', 'color': Colors.yellow},
-    {'label': 'Poc saludable', 'color': Colors.red},
-    {'label': 'Molt poc saludable', 'color': Colors.purple},
-    {'label': 'Perillosa', 'color': Colors.deepPurple.shade900},
-  ];
+  // Updated to use translation keys if these are displayed in UI, otherwise keep as is.
+  // For this example, assuming 'label' is used in UI and needs translation.
+  late final List<Map<String, dynamic>> _airQualityOptions;
 
   @override
   void initState() {
     super.initState();
+    // Initialize _airQualityOptions here where context is available or pass translations
+    _airQualityOptions = [
+      {'label': 'aqi_excellent'.tr(), 'color': Colors.lightBlue},
+      {'label': 'aqi_good'.tr(), 'color': Colors.green},
+      {'label': 'aqi_poor'.tr(), 'color': Colors.yellow},
+      {'label': 'aqi_unhealthy_sensitive'.tr(), 'color': Colors.red}, // Or 'aqi_unhealthy'
+      {'label': 'aqi_very_unhealthy'.tr(), 'color': Colors.purple},
+      {'label': 'aqi_hazardous'.tr(), 'color': Colors.deepPurple.shade900},
+    ];
     _assignRandomAirQuality();
   }
 
@@ -57,7 +62,7 @@ class _ActivityGridPageState extends State<ActivityGridPage> {
       context: context,
       builder: (BuildContext context) {
         return AlertDialog(
-          title: Text(isEdit ? 'Edit Details' : 'Enter Details'),
+          title: Text(isEdit ? 'edit_details_title'.tr() : 'enter_details_title'.tr()),
           content: FormDialog(
             initialLocation: x != null && y != null ? '$x,$y' : '',
             initialTitle: x != null && y != null ? _grid[x][y]['title'] ?? '' : '',
@@ -88,16 +93,16 @@ class _ActivityGridPageState extends State<ActivityGridPage> {
       context: context,
       builder: (BuildContext context) {
         return AlertDialog(
-          title: Text('Confirm Deletion'),
-          content: Text('Are you sure you want to delete this activity?'),
+          title: Text('confirm_deletion_title'.tr()),
+          content: Text('confirm_delete_activity_message'.tr()),
           actions: [
             TextButton(
               onPressed: () => Navigator.of(context).pop(false),
-              child: Text('Cancel'),
+              child: Text('cancel_button'.tr()),
             ),
             TextButton(
               onPressed: () => Navigator.of(context).pop(true),
-              child: Text('Delete'),
+              child: Text('delete_button'.tr()),
             ),
           ],
         );
